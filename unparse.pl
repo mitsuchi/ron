@@ -1,6 +1,6 @@
 [50, ++, 51] >> a(++, 50).
 [60, **, 61] >> a(**, 60).
-[if, 30, then, 30, else, 31] << a(if, 90).
+[if, 30, then, 30, else, 31] << a(if, 30).
 
 str(A, A) :- atom(A); number(A).
 str(E, Str) :-
@@ -27,3 +27,9 @@ str(E, Op1, Str) :-
     (_ >> a(Op1, P1); _ << a(Op1, P1)),
     (P1 > P2 -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
             ; str(E, Str)).
+
+tests :-
+    str( ++(1, 2), '1 ++ 2' ),
+    str( ++(**(1, 2), 3), '1 ** 2 ++ 3' ),
+    str( if(1, 2, 3), 'if 1 then 2 else 3' ),
+    str( if(1, 2, ++(3, 4)), 'if 1 then 2 else 3 ++ 4' ).
