@@ -1,28 +1,28 @@
 [50, ++, 51] ^ a(++).
 [60, **, 61] ^ a(**).
 
-unparse(Term, ResultAtoms) :-
-    functor(Term, _, _, compound),
-    Term =.. [Op | Terms],
-    unparse(Op, Terms, ResultAtoms)
-    ; ResultAtoms = Term.
+str(A, A) :- atom(A); number(A).
+str(E, Str) :-
+    functor(E, _, _, compound),
+    E =.. [Op | Terms],
+    As ^ a(Op),
+    str_each(Op, As, Terms, Strs),
+    atomic_list_concat(Strs, ' ', Str).
 
-% op(arg1, arg2, ...) の形の AST を 文字列に変換する
-unparse(Op, Terms, ResultAtoms) :-
-    As ^ a(Op),      % 演算子表から探す
-    numToTerm(As, Terms, ResultAtoms).
-
-numToTerm([], _, []).
-
-% [50, +, 51] で [a, b] なら [a, +, b] を返す
-numToTerm([A| As], [Term|Ts], [AtomsRec|Rest]) :-
+str_each(_, [], _, []).
+str_each(Op, [A|As], [Term|Ts], [Str1|Rest]) :-
     number(A),
-    functor(Term, _, _, compound),
-    Term =.. [Op | Terms],
-    unparse(Op, Terms, AtomsRec),
-    numToTerm(As, Ts, Rest)
-    ; (AtomsRec = Term, numToTerm(As, Ts, Rest)).
-   
-numToTerm([A|As], Ts, [A|Rest]) :-
+    str(Term, Op, Str1),
+    str_each(Op, As, Ts, Rest).
+str_each(Op, [A|As], Ts, [A|Rest]) :-
     not(number(A)),
-    numToTerm(As, Ts, Rest).
+    str_each(Op, As, Ts, Rest).
+
+str(A, _, A) :- atom(A); number(A).
+str(E, Op1, Str) :-
+    functor(E, _, _, compound),
+    E =.. [Op2 | _],
+    [A2|_] ^ a(Op2),
+    [A1|_] ^ a(Op1),
+    (A1 > A2 -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], ' ', Str)
+            ; str(E, Str)).
