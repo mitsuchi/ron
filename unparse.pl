@@ -1,11 +1,12 @@
-[50, ++, 51] ^ a(++).
-[60, **, 61] ^ a(**).
+[50, ++, 51] >> a(++).
+[60, **, 61] >> a(**).
+[if, 30, then, 30, else, 31] << a(**).
 
 str(A, A) :- atom(A); number(A).
 str(E, Str) :-
     functor(E, _, _, compound),
     E =.. [Op | Terms],
-    As ^ a(Op),
+    As >> a(Op),
     str_each(Op, As, Terms, Strs),
     atomic_list_concat(Strs, ' ', Str).
 
@@ -22,7 +23,7 @@ str(A, _, A) :- atom(A); number(A).
 str(E, Op1, Str) :-
     functor(E, _, _, compound),
     E =.. [Op2 | _],
-    [A2|_] ^ a(Op2),
-    [A1|_] ^ a(Op1),
+    [A2|_] >> a(Op2),
+    [A1|_] >> a(Op1),
     (A1 > A2 -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], ' ', Str)
             ; str(E, Str)).
