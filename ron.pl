@@ -30,6 +30,7 @@ e(P,O)-->     % 前方演算子の後方束縛力が P のとき、トークン�
     [U],      % 先頭のトークンが U のとき
     t(P,U,O). % 前方演算子の後方束縛力を P、ここまで構築済みのASTを U として、AST を構築して O とする
 t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済みのASTが T のとき、AST を構築して O とする
+    %{[L|M]^A},  % 演算子表から1行を探して、演算子の先頭を L, 残りをM、演算子名を A とする
     {[L|M]^A},  % 演算子表から1行を探して、演算子の先頭を L, 残りをM、演算子名を A とする
     {L=T},     % L と T が unify できるかを見る。
                         % できる場合は先頭のトークンが演算子の先頭部分と一致している。この場合は以下へ。
@@ -184,19 +185,23 @@ pickPunct([N|Ns], Punct) :-
     atom_concat(N, Ps, Punct).
 pickPunct([], '').
 
+% AST を文字列に変換する
 unparse(Term, ResultAtoms) :-
     functor(Term, _, _, compound),
     Term =.. [Op | Terms],
     unparse(Op, Terms, ResultAtoms)
     ; ResultAtoms = [Term].
 
+% op(arg1, arg2, ...) の形の AST を 文字列に変換する
 unparse(Op, Terms, ResultAtoms) :-
     atom_concat('_', Op1, Op), 
-    (As ** a(Op1) ; As ^ a(Op1)),
+    (As ** a(Op1) ; As ^ a(Op1)),      % 演算子表から探す
     numToTerm(As, Terms, ResultAtoms).
   
+% 
 numToTerm([], _, []).
-  
+
+% [50, +, 51] で [a, b] なら [a, +, b] を返す
 numToTerm([A| As], [Term|Ts], [AtomsRec|Rest]) :-
     number(A),
     functor(Term, _, _, compound),
@@ -301,3 +306,7 @@ test_ski :-
 test_let :-
     code_mi("op 50 : _ + _ ;"),
     code_mi("op 40 : let _ = _ in _ ;").
+test_calc :-
+    code_mi("op 50 : _ ++ _ ;"),
+    code_mi("op 60 : _ ** _ ;"),
+    code_pred("1 ++ 2 ** 3", W), unparse(W, U), writeln(U).
