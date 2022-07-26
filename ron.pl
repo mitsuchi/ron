@@ -1,6 +1,5 @@
 :- set_prolog_flag(double_quotes, chars).
-:- dynamic (**)/2.
-:- dynamic (^)/2.
+:- dynamic ops/4.
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
@@ -31,7 +30,7 @@ e(P,O)-->     % 前方演算子の後方束縛力が P のとき、トークン�
     t(P,U,O). % 前方演算子の後方束縛力を P、ここまで構築済みのASTを U として、AST を構築して O とする
 t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済みのASTが T のとき、AST を構築して O とする
     %{[L|M]^A},  % 演算子表から1行を探して、演算子の先頭を L, 残りをM、演算子名を A とする
-    {[L|M]^A},  % 演算子表から1行を探して、演算子の先頭を L, 残りをM、演算子名を A とする
+    {ops(A, _, leading, [L|M])},  % 演算子表から1行を探して、演算子の先頭を L, 残りをM、演算子名を A とする
     {L=T},     % L と T が unify できるかを見る。
                         % できる場合は先頭のトークンが演算子の先頭部分と一致している。この場合は以下へ。
     f(M,V),             % 演算子の残りを Mとするとき、パーズして、演算子の引数のリストを V に入れる
@@ -39,7 +38,8 @@ t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済�
     t(P,W,O).           % 前方演算子の後方束縛力を P、ここまで構築済みのASTを Wとして、AST を構築して O とする
 t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済みのASTが T のとき、AST を構築して O とする
     [U],      % 次のトークンを読んで U とする
-    {[L,L2|M] ** A},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
+    %{[L,L2|M] ** A},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
+    {ops(A, _, following, [L,L2|M])},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
     {L2=U, P<L},        % L2 と U が unify できるかを見る。
                         % できる場合は先頭のトークンが演算子の先頭部分と一致している。
                         % その場合、Lは前方束縛力。L のほうが大きい場合は同様に以下へ。
@@ -47,7 +47,8 @@ t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済�
     {call(A,[T|V],W)},   % a(演算子名,引数リスト,W) を呼ぶ。W には 演算子名(引数1, 引数2, ...) が入る。
     t(P,W,O).            % 前方演算子の後方束縛力を P、ここまで構築済みのASTを Wとして、AST を構築して O とする
 t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済みのASTが T のとき、AST を構築して O とする
-    {[L,L2|M] ** A},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
+    %{[L,L2|M] ** A},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
+    {ops(A, _, following, [L,L2|M])},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
     {number(L2), P<L},  % L2 が数字ならLは前方束縛力。L のほうが大きい場合は同様に以下へ。
     g([L2|M],V),        % 演算子の残りを [L2|M] とするとき、パーズして、演算子の引数のリストを V に入れる
     {call(A,[T|V],W)},   % a(演算子名,引数リスト,W) を呼ぶ。W には 演算子名(引数1, 引数2, ...) が入る。
@@ -124,14 +125,16 @@ add_rules([R | Rs]) :- add_rule(R), add_rules(Rs).
 add_rule(op(Prec, ['_' | Ns])) :-
     replaceUnderScore(Ns, Prec, Ns_),
     pickPunct(Ns, Punct),
-    Term = [Prec|Ns_] ** a(Punct),
+    %Term = [Prec|Ns_] ** a(Punct),
+    Term = ops(a(Punct), Prec, following, [Prec|Ns_]),
     write('rule1: '), writeln(Term),
     assert(Term).
 add_rule(op(Prec, [N | Ns])) :-
     N \= '_',
     replaceUnderScore(Ns, Prec, Ns_),
     pickPunct([N|Ns], Punct),
-    Term = [N | Ns_] ^ a(Punct),
+    %Term = [N | Ns_] ^ a(Punct),
+    Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     write('rule2: '), writeln(Term),
     assert(Term).
 add_rule(Head :- Body) :-
@@ -142,7 +145,8 @@ add_rule(Head :- Body) :-
     assert(Term).
 
 % () はあらかじめ定義しておく
-['(',0,')']^a('()').
+%['(',0,')']^a('()').
+ops(a('()'), 0, leading, ['(',0,')']).
 %[0,;,0] ** a(';').
 %[100,100] ** a('').
 
@@ -195,7 +199,8 @@ unparse(Term, ResultAtoms) :-
 % op(arg1, arg2, ...) の形の AST を 文字列に変換する
 unparse(Op, Terms, ResultAtoms) :-
     atom_concat('_', Op1, Op), 
-    (As ** a(Op1) ; As ^ a(Op1)),      % 演算子表から探す
+    %(As ** a(Op1) ; As ^ a(Op1)),      % 演算子表から探す
+    ops(a(Op1), _, _, As),
     numToTerm(As, Terms, ResultAtoms).
   
 % 
