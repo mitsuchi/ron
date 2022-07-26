@@ -225,7 +225,8 @@ query(C) :-
     %writeln(query(C)),
     varnumbers_names(C, T, P), !,
     call(T),
-    (P \= [] -> writeln(P), unparseAnswers(P) ; true).
+    %(P \= [] -> writeln(P), unparseAnswers(P) ; true).
+    (P \= [] -> unparseAnswers(P) ; true).
     %(P \= [] -> writeln(P) ; true).
 
 query_string(S) :-
@@ -249,26 +250,28 @@ str(E, Str) :-
     %ops(Op, _, _, As),
     atom_concat('_', Op1, Op), 
     ops(a(Op1), _, _, As),
-    str_each(Op1, As, Terms, Strs),
+    str_each(Op1, As, Terms, Strs, false),
     atomic_list_concat(Strs, ' ', Str).
 
-str_each(_, [], _, []).
-str_each(Op, [A|As], [Term|Ts], [Str1|Rest]) :-
+str_each(_, [], _, [], _).
+str_each(Op, [A|As], [Term|Ts], [Str1|Rest], Paren) :-
     number(A),
-    str(Term, Op, Str1),
-    str_each(Op, As, Ts, Rest).
-str_each(Op, [A|As], Ts, [A|Rest]) :-
+    str(Term, Op, Str1, Paren),
+    str_each(Op, As, Ts, Rest, true).
+str_each(Op, [A|As], Ts, [A|Rest], Paren) :-
     not(number(A)),
-    str_each(Op, As, Ts, Rest).
+    str_each(Op, As, Ts, Rest, Paren).
 
-str(A, _, A) :- atom(A); number(A).
-str(E, Op1, Str) :-
+str(A, _, A, _) :- atom(A); number(A).
+str(E, Op1, Str, Paren) :-
     functor(E, _, _, compound),
     E =.. [Op | _],
     atom_concat('_', Op2, Op), 
     ops(a(Op2), P2, _, _),
     ops(a(Op1), P1, _, _),
-    (P1 > P2 -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
+    %writeln(Op1), writeln(P1),
+    %writeln(Op2), writeln(P2),
+    ((P1 > P2 ; Paren, Op1 = Op2) -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
             ; str(E, Str)).
 
 code_tokens(Code, Tokens) :-
@@ -337,6 +340,7 @@ test_ski :-
     code_mi("x => y { x -> y; }"),
     code_mi("x => y { x -> z; z => y; }"), !, 
     %query_string("ss kk ii (kk ii ss) => x").
+    %code_pred_canonical("K K S K", W), str(W, U), writeln(U).
     query_string("S K S K => x").
     %query_string("S (K (S I) ) kk aa bb => x").
 test_let :-
@@ -345,4 +349,8 @@ test_let :-
 test_calc :-
     code_mi("op 50 : _ ++ _ ;"),
     code_mi("op 60 : _ ** _ ;"),
-    code_pred("1 ++ 2 ** 3", W), unparse(W, U), writeln(U).
+    %code_pred("1 ++ 2 ** 3", W), unparse(W, U), writeln(U).
+    %code_pred("1 ++ 2 ** 3", W), str(W, U), writeln(U).
+    code_pred_canonical("(1 ++ 2) ** 3", W), str(W, U), writeln(U),
+    code_pred_canonical("1 ** (2 ++ 3)", W2), str(W2, U2), writeln(U2).
+
