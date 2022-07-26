@@ -127,7 +127,7 @@ add_rule(op(Prec, ['_' | Ns])) :-
     pickPunct(Ns, Punct),
     %Term = [Prec|Ns_] ** a(Punct),
     Term = ops(a(Punct), Prec, following, [Prec|Ns_]),
-    write('rule1: '), writeln(Term),
+    %write('rule1: '), writeln(Term),
     assert(Term).
 add_rule(op(Prec, [N | Ns])) :-
     N \= '_',
@@ -135,18 +135,19 @@ add_rule(op(Prec, [N | Ns])) :-
     pickPunct([N|Ns], Punct),
     %Term = [N | Ns_] ^ a(Punct),
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
-    write('rule2: '), writeln(Term),
+    %write('rule2: '), writeln(Term),
     assert(Term).
 add_rule(Head :- Body) :-
     canonical(Head, HeadC),
     canonical(Body, BodyC),
     varnumbers_names(HeadC :- BodyC, Term, _),
-    write('rule3: '), writeln(Term),
+    %write('rule3: '), writeln(Term),
     assert(Term).
 
 % () はあらかじめ定義しておく
 %['(',0,')']^a('()').
 ops(a('()'), 0, leading, ['(',0,')']).
+ops(a('succ'), 30, leading, [succ, 30]).
 %[0,;,0] ** a(';').
 %[100,100] ** a('').
 
@@ -221,11 +222,11 @@ numToTerm([A|As], Ts, [A|Rest]) :-
 
 % 問い合わせ
 query(C) :-
-    writeln(query(C)),
+    %writeln(query(C)),
     varnumbers_names(C, T, P), !,
     call(T),
-    %(P \= [] -> writeln(P), unparseAnswers(P) ; true).
-    (P \= [] -> writeln(P) ; true).
+    (P \= [] -> writeln(P), unparseAnswers(P) ; true).
+    %(P \= [] -> writeln(P) ; true).
 
 query_string(S) :-
     code_pred_canonical(S, C),
@@ -233,12 +234,42 @@ query_string(S) :-
     query(C).
 
 unparseAnswers([X = A|Ps]) :-
-    unparse(A, W), flatten(W, F), atomics_to_string([X, = | F], ' ', UA), writeln(UA),
+    %unparse(A, W), flatten(W, F), atomics_to_string([X, = | F], ' ', UA), writeln(UA),
+    str(A, F), atomics_to_string([X, =, F], ' ', UA), writeln(UA),
     %unparse(A, W), flatten(W, F), writeln(X = F),
     %unparse(A, W), writeln(X = W),
     unparseAnswers(Ps).
 
 unparseAnswers([]).
+
+str(A, A) :- atom(A); number(A).
+str(E, Str) :-
+    functor(E, _, _, compound),
+    E =.. [Op | Terms],
+    %ops(Op, _, _, As),
+    atom_concat('_', Op1, Op), 
+    ops(a(Op1), _, _, As),
+    str_each(Op1, As, Terms, Strs),
+    atomic_list_concat(Strs, ' ', Str).
+
+str_each(_, [], _, []).
+str_each(Op, [A|As], [Term|Ts], [Str1|Rest]) :-
+    number(A),
+    str(Term, Op, Str1),
+    str_each(Op, As, Ts, Rest).
+str_each(Op, [A|As], Ts, [A|Rest]) :-
+    not(number(A)),
+    str_each(Op, As, Ts, Rest).
+
+str(A, _, A) :- atom(A); number(A).
+str(E, Op1, Str) :-
+    functor(E, _, _, compound),
+    E =.. [Op | _],
+    atom_concat('_', Op2, Op), 
+    ops(a(Op2), P2, _, _),
+    ops(a(Op1), P1, _, _),
+    (P1 > P2 -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
+            ; str(E, Str)).
 
 code_tokens(Code, Tokens) :-
     phrase(tokens(Tokens), Code).
