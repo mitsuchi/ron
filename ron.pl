@@ -328,9 +328,8 @@ test_main :-
     code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
 
 test_lf :-
-    append("op 50 : _ -> _", ['\n'], Code),
-    code_mi(Code),
-    code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
+    code_mi("op 50 : _ -> _\n"),
+    code_mi("1 -> 2\n 2 -> 3\n main { x -> 3 \n }").
 
 test_edge :-
     code_mi("op 50 : _ -> _ ;"),
