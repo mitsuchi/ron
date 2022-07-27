@@ -1,5 +1,6 @@
 :- set_prolog_flag(double_quotes, chars).
 :- dynamic ops/4.
+:- dynamic '_main'/0.
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
@@ -138,16 +139,18 @@ add_rule(op(Prec, [N | Ns])) :-
     %write('rule2: '), writeln(Term),
     assert(Term).
 add_rule(Head :- Body) :-
+    %write('rule3-0: '), writeln(Head), writeln(Body),
     canonical(Head, HeadC),
     canonical(Body, BodyC),
+    %write('BodyC = '), writeln(BodyC),
+    (Head = main -> query(BodyC);
     varnumbers_names(HeadC :- BodyC, Term, _),
     %write('rule3: '), writeln(Term),
-    assert(Term).
+    assert(Term)).
 
 % () はあらかじめ定義しておく
 %['(',0,')']^a('()').
 ops(a('()'), 0, leading, ['(',0,')']).
-ops(a('succ'), 30, leading, [succ, 30]).
 %[0,;,0] ** a(';').
 %[100,100] ** a('').
 
@@ -291,6 +294,7 @@ code_pred_canonical(Code, C) :-
     
 code_mi(Code) :-
     code_rules(Code, Rules),
+    %writeln(Rules),
     add_rules(Rules).
 
 test(Code, Query) :-
@@ -317,6 +321,11 @@ tests :-
     test("1 -> 2;", "1 => (3)"),
     test("1 -> 2;", "(1 => 3)"),
     test("0 plus n is n; (succ m) plus n is (succ p) { m plus n is p; }", "(succ 0) plus (succ 0) is x").
+
+test_main :-
+    code_mi("op 50 : _ -> _ ;"),
+    code_mi("op 50 : main _ ;"),
+    code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
 
 test_edge :-
     code_mi("op 50 : _ -> _ ;"),
