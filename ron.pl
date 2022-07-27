@@ -8,6 +8,7 @@ tokens([T|Ts]) --> tok(T), !, tokens(Ts).
 tokens([]) --> "".
 
 tok(N) --> num(N).
+tok(;) --> ['\n'].
 tok(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
 tok(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
 tok(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
@@ -324,7 +325,11 @@ tests :-
 
 test_main :-
     code_mi("op 50 : _ -> _ ;"),
-    code_mi("op 50 : main _ ;"),
+    code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
+
+test_lf :-
+    append("op 50 : _ -> _", ['\n'], Code),
+    code_mi(Code),
     code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
 
 test_edge :-
