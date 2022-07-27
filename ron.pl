@@ -117,6 +117,7 @@ notation([R|Rs]) --> [R], notation(Rs).
 
 pred(O) --> e(0, O).
 
+body(P) --> ";", body(P).
 body(P) --> pred(P), ";".
 body((P,Bs)) --> pred(P), ";", body(Bs).
 
@@ -329,7 +330,7 @@ test_main :-
 
 test_lf :-
     code_mi("op 50 : _ -> _\n"),
-    code_mi("1 -> 2\n 2 -> 3\n main { x -> 3 \n }").
+    code_mi("1 -> 2\n 2 -> 3\n main { \n x -> 3 \n }").
 
 test_edge :-
     code_mi("op 50 : _ -> _ ;"),
