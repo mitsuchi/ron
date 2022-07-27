@@ -3,7 +3,7 @@
 :- dynamic '_main'/0.
 
 % tokenize
-tokens(Ts) --> " ", tokens(Ts).
+tokens(Ts) --> (" " | ['\n']), tokens(Ts).
 tokens([T|Ts]) --> tok(T), !, tokens(Ts).
 tokens([]) --> "".
 
@@ -25,6 +25,8 @@ puncts([C]) -->  [C], { code_type(C, punct) }.
 digits([C|Cs]) --> digit(C), digits(Cs).
 digits([C])    --> digit(C).
 digit(C)   --> [C], { code_type(C, digit) }.
+
+skip(W) --> "" | (W, skip(W)).
 
 % mixfix library
 e(P,O)-->     % 前方演算子の後方束縛力が P のとき、トークン列をパーズして構築されるAST を O とする
@@ -118,7 +120,7 @@ notation([R|Rs]) --> [R], notation(Rs).
 pred(O) --> e(0, O).
 
 body(P) --> ";", body(P).
-body(P) --> pred(P), ";".
+body(P) --> pred(P), ";" | pred(P).
 body((P,Bs)) --> pred(P), ";", body(Bs).
 
 % make rules
@@ -329,8 +331,7 @@ test_main :-
     code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
 
 test_lf :-
-    code_mi("op 50 : _ -> _\n"),
-    code_mi("1 -> 2\n 2 -> 3\n main { \n x -> 3 \n }").
+    code_mi("op 50 : _ -> _ ; 1 -> 2; 2 -> 3; main { x -> 3; }").
 
 test_edge :-
     code_mi("op 50 : _ -> _ ;"),
