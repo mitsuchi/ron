@@ -119,8 +119,7 @@ notation([R|Rs]) --> [R], notation(Rs).
 
 pred(O) --> e(0, O).
 
-body(P) --> ";", body(P).
-body(P) --> pred(P), ";" | pred(P).
+body(P) --> pred(P), ";".
 body((P,Bs)) --> pred(P), ";", body(Bs).
 
 % make rules
@@ -331,7 +330,13 @@ test_main :-
     code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
 
 test_lf :-
-    code_mi("op 50 : _ -> _ ; 1 -> 2; 2 -> 3; main { x -> 3; }").
+    code_mi("
+        op 50 : _ -> _
+        1 -> 2
+        2 -> 3
+        main {
+            x -> 3
+        }").
 
 test_edge :-
     code_mi("op 50 : _ -> _ ;"),
