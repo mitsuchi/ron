@@ -114,8 +114,8 @@ rul(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), "
 rul(P :- true) --> pred(P), ";".
 rul(P :- B) --> pred(P), "{", body(B), "}".
 
-notation([R]) --> [R].
-notation([R|Rs]) --> [R], notation(Rs).
+notation([R]) --> [R], {not(R = ';')}.
+notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
 
 pred(O) --> e(0, O).
 
@@ -347,6 +347,9 @@ test_app :-
     code_mi("op 50 : _ + _ ;"),
     code_mi("op 100 : _ _ ;"),
     code_pred("1 + 2 + 3", W), writeln(W).
+
+test_ski_lf :-
+    code_mi("op 50 : _ -> _ ; op 50 : _ => _ ; op 100 : _ _ ;I x -> x ;").
 
 test_ski :-
     code_mi("op 50 : _ -> _ ;"),
