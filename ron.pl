@@ -389,6 +389,41 @@ test_arrow1_lf :- code_mi("
     }
     ").
 
+test_arrow2_lf :- code_mi("
+    op 50 : _ -> _
+    op 50 : _ => _
+
+    1 -> 2
+    2 -> 3
+
+    x => y {
+        x -> y
+    }
+    x => y {
+        x -> z
+        z => y
+    }
+
+    main {
+        1 => x
+    }
+    ").
+
+test_arrow3_lf :- code_mi("
+    op 50 : _ -> _
+    op 50 : _ => _
+
+    1 -> 2
+    2 -> 3
+
+    x => y { x -> y }
+    x => y { x -> z; z => y }
+
+    main {
+        1 => x
+    }
+    ").
+
 test_main :-
     code_mi("op 50 : _ -> _ ;"),
     code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
