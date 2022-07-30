@@ -10,6 +10,7 @@ tokens([]) --> "".
 
 tok(N) --> num(N).
 tok(;) --> ['\n'].
+tok(;) --> ";".
 tok(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
 tok(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
 tok(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
@@ -108,19 +109,19 @@ all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
 % rules ::= rule | rule rules
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
-rules([R]) --> rul(R), {add_rule(R)}.
-rules([R | Rs]) --> rul(R), {add_rule(R)}, rules(Rs).
+rules([R]) --> skip(";"), rul(R), {add_rule(R)}, skip(";").
+rules([R | Rs]) --> skip(";"), rul(R), {add_rule(R)}, skip(";"), rules(Rs).
 
 rul(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
 rul(P :- true) --> pred(P), ";".
-rul(P :- B) --> pred(P), "{", skip(" " | ";"), body(B), "}".
+rul(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
 
 notation([R]) --> [R], {not(R = ';')}.
 notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
 
 pred(O) --> e(0, O).
 
-body(P) --> pred(P), ";".
+body(P) --> pred(P), skip(";").
 body((P,Bs)) --> pred(P), ";", body(Bs).
 
 % make rules
@@ -337,6 +338,8 @@ test_succ :- code_mi("op 50 : _ + _ = _ ; op 50 : succ _ ; 0 + n = n; succ m + n
 test_type2 :- code_mi("op 50 : if _ then _ else _ ; op 50 : _ |- _ : _ ; _ |- 0 : int; c |- if e1 then e2 else e3 : t { c |- e1 : bool; c |- e2 : t; c |- e3 : t; } main { _ |- if true then 0 else 0 : t ; }").
 test_plus :- code_mi("op 50 : _ + _ = _ ; op 50 : succ _ ; op 50 : _ plus _ is _ ; 0 plus n is n; (succ m) plus n is (succ p) { m plus n is p; } main { (succ 0) plus (succ 0) is x ; }").
 test_eval_if :- code_mi("op 50 : _ => _ ; op 50 : if _ then _ else _ ; op 50 : _ |- _ : _ ; c |- 0 => 0; c |- 1 => 1; c |- true => true; c |- if e1 then e2 else e3 => v { c |- e1 => true; c |- e2 => v; } main { _ |- if true then 0 else 1 => v ; }").
+
+test_skip :- code_mi("; op 50 : _ -> _ ; 1 -> 2; main { 1 -> 2; } ; ;").
 
 test_arrow1_lf :- code_mi("op 50 : _ -> _
     1 -> 2
