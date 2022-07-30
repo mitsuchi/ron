@@ -3,7 +3,6 @@
 :- dynamic '_main'/0.
 
 % tokenize
-%tokens(Ts) --> (" " | ['\n']), tokens(Ts).
 tokens(Ts) --> " ", tokens(Ts).
 tokens([T|Ts]) --> tok(T), !, tokens(Ts).
 tokens([]) --> "".
@@ -30,68 +29,60 @@ digit(C)   --> [C], { code_type(C, digit) }.
 
 skip(W) --> "" | (W, skip(W)).
 
-% mixfix library
-e(P,O)-->     % 前方演算子の後方束縛力が P のとき、トークン列をパーズして構築されるAST を O とする
-    [U],      % 先頭のトークンが U のとき
+% mixfix parser
+% https://zenn.dev/pandaman64/books/pratt-parsing
+% https://qiita.com/h_sakurai/items/40abccdaad4728e0602e
+
+e(P,O)-->
+    [U], 
     {not(U = ';'), not(U = '{'), not(U = '}') },
-    t(P,U,O). % 前方演算子の後方束縛力を P、ここまで構築済みのASTを U として、AST を構築して O とする
-t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済みのASTが T のとき、AST を構築して O とする
-    %{[L|M]^A},  % 演算子表から1行を探して、演算子の先頭を L, 残りをM、演算子名を A とする
-    {ops(A, _, leading, [L|M])},  % 演算子表から1行を探して、演算子の先頭を L, 残りをM、演算子名を A とする
-    {L=T},     % L と T が unify できるかを見る。
-                        % できる場合は先頭のトークンが演算子の先頭部分と一致している。この場合は以下へ。
-    f(M,V),             % 演算子の残りを Mとするとき、パーズして、演算子の引数のリストを V に入れる
-    {call(A,V,W)},      % a(演算子名,引数リスト,W) を呼ぶ。W には 演算子名(引数1, 引数2, ...) が入る。
-    t(P,W,O).           % 前方演算子の後方束縛力を P、ここまで構築済みのASTを Wとして、AST を構築して O とする
-t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済みのASTが T のとき、AST を構築して O とする
-    [U],      % 次のトークンを読んで U とする
+    t(P,U,O).
+t(P,T,O)-->
+    {ops(A, _, leading, [L|M])},
+    {L=T},     
+    f(M,V),             
+    {call(A,V,W)},      
+    t(P,W,O).           
+t(P,T,O)-->   
+    [U],      
     {not(U = ';'), not(U = '{'), not(U = '}') },
-    %{[L,L2|M] ** A},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
-    {ops(A, _, following, [L,L2|M])},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
-    {L2=U, P<L},        % L2 と U が unify できるかを見る。
-                        % できる場合は先頭のトークンが演算子の先頭部分と一致している。
-                        % その場合、Lは前方束縛力。L のほうが大きい場合は同様に以下へ。
-    f(M,V),             % 演算子の残りを Mとするとき、パーズして、演算子の引数のリストを V に入れる
-    {call(A,[T|V],W)},   % a(演算子名,引数リスト,W) を呼ぶ。W には 演算子名(引数1, 引数2, ...) が入る。
-    t(P,W,O).            % 前方演算子の後方束縛力を P、ここまで構築済みのASTを Wとして、AST を構築して O とする
-t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済みのASTが T のとき、AST を構築して O とする
-    %{[L,L2|M] ** A},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
-    {ops(A, _, following, [L,L2|M])},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
-    {number(L2), P<L},  % L2 が数字ならLは前方束縛力。L のほうが大きい場合は同様に以下へ。
-    g([L2|M],V),        % 演算子の残りを [L2|M] とするとき、パーズして、演算子の引数のリストを V に入れる
-    {call(A,[T|V],W)},   % a(演算子名,引数リスト,W) を呼ぶ。W には 演算子名(引数1, 引数2, ...) が入る。
-    t(P,W,O)            % 前方演算子の後方束縛力を P、ここまで構築済みのASTを Wとして、AST を構築して O とする
-    ; {T=O}.            % ここまでの条件を満たさないとき、ここまで構築済みの T を結果として返す         
-f([P|N],R)-->           % 演算子の先頭が P、残りが Nのとき、パーズして演算子の引数のリストをRに入れる。
+    {ops(A, _, following, [L,L2|M])},
+    {L2=U, P<L},        
+    f(M,V),             
+    {call(A,[T|V],W)},   
+    t(P,W,O).            
+t(P,T,O)-->
+    {ops(A, _, following, [L,L2|M])},
+    {number(L2), P<L},
+    g([L2|M],V),      
+    {call(A,[T|V],W)},
+    t(P,W,O)          
+    ; {T=O}.          
+f([P|N],R)-->         
     (
-        {number(P),!},  % 演算子の先頭が数値なら次へ、ただしこの条件では以後トラックバックしない
-        e(P,T),         % 前方演算子の後方束縛力を P として、構築される AST を T とする
-        {R=[T|I]}       % 構築される AST を先頭に、残りを I として結果を R とする
-        ;[P],           % 演算子の先頭が数値でないなら、1トークン分読み進める
-        {R=I}),         % 結果は残りとする
-    f(N,I).             % 再帰的に、演算子の残りを Nとして処理し、引数リストを I に入れる。
-f([],[])-->!.           % 演算子の残りが空の場合は、引数リストも空。
+        {number(P),!},
+        e(P,T),       
+        {R=[T|I]}     
+        ;[P],         
+        {R=I}),       
+    f(N,I).           
+f([],[])-->!.         
 
-g([P|N],R)-->           % 演算子の先頭が P、残りが Nのとき、パーズして演算子の引数のリストをRに入れる。
-    e1(P,T),         % 前方演算子の後方束縛力を P として、構築される AST を T とする
-    {R=[T|I]},       % 構築される AST を先頭に、残りを I として結果を R とする
-    g(N,I).             % 再帰的に、演算子の残りを Nとして処理し、引数リストを I に入れる。
-g([],[])-->!.           % 演算子の残りが空の場合は、引数リストも空。
+g([P|N],R)-->         
+    e1(P,T),         
+    {R=[T|I]},       
+    g(N,I).            
+g([],[])-->!.          
 
-e1(P,O)-->     % 前方演算子の後方束縛力が P のとき、トークン列をパーズして構築されるAST を O とする
-    [U],      % 先頭のトークンが U のとき
+e1(P,O)-->    
+    [U],     
     {not(U = ';'), not(U = '{'), not(U = '}') },
-    %{all_punct(U) -> fail; true},
-    %{(U = ';'; U = '->' ; U = '=>'; U = '+') -> fail; true},
     {number(U) ; variable(U); all_alpha(U); U = '('; U = '{'},
-    %{write(ok), write(' '), writeln(U)},    
-    t(P,U,O). % 前方演算子の後方束縛力を P、ここまで構築済みのASTを U として、AST を構築して O とする
+    t(P,U,O).
 
 a(P,T,R) :- R=..[P|T].
 
-variable(U) :-
-    U = '$VAR'(_).
-    %(U = ';'; U = '->' ; U = '=>'; U = '+') -> fail; true.
+variable(U) :- U = '$VAR'(_).
 
 all_alpha(U) :-
     not(U = '$VAR'(_)),
@@ -112,7 +103,6 @@ all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
 % rules ::= rule | rule rules
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
-%rules([R | Rs]) --> skip(";"), rul(R), {writeln(R), add_rule(R)}, skip(";"), rules(Rs).
 rules([R | Rs]) --> skip(";"), rul(R), {add_rule(R)}, rules(Rs).
 rules([]) --> skip(";").
 
@@ -135,7 +125,6 @@ add_rules([R | Rs]) :- add_rule(R), add_rules(Rs).
 add_rule(op(Prec, ['_' | Ns])) :-
     replaceUnderScore(Ns, Prec, Ns_),
     pickPunct(Ns, Punct),
-    %Term = [Prec|Ns_] ** a(Punct),
     Term = ops(a(Punct), Prec, following, [Prec|Ns_]),
     %write('rule1: '), writeln(Term),
     assert(Term).
@@ -143,25 +132,19 @@ add_rule(op(Prec, [N | Ns])) :-
     N \= '_',
     replaceUnderScore(Ns, Prec, Ns_),
     pickPunct([N|Ns], Punct),
-    %Term = [N | Ns_] ^ a(Punct),
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     %write('rule2: '), writeln(Term),
     assert(Term).
 add_rule(Head :- Body) :-
-    %write('rule3-0: '), writeln(Head), writeln(Body),
     canonical(Head, HeadC),
     canonical(Body, BodyC),
-    %write('BodyC = '), writeln(BodyC),
     (Head = main -> query(BodyC);
     varnumbers_names(HeadC :- BodyC, Term, _),
     %write('rule3: '), writeln(Term),
     assert(Term), !).
 
 % () はあらかじめ定義しておく
-%['(',0,')']^a('()').
 ops(a('()'), 0, leading, ['(',0,')']).
-%[0,;,0] ** a(';').
-%[100,100] ** a('').
 
 % Prolog Term としての標準記法に変換
 canonical((B, Bs), (P, Ps)) :-
@@ -202,44 +185,11 @@ pickPunct([N|Ns], Punct) :-
     atom_concat(N, Ps, Punct).
 pickPunct([], '').
 
-% AST を文字列に変換する
-unparse(Term, ResultAtoms) :-
-    functor(Term, _, _, compound),
-    Term =.. [Op | Terms],
-    unparse(Op, Terms, ResultAtoms)
-    ; ResultAtoms = [Term].
-
-% op(arg1, arg2, ...) の形の AST を 文字列に変換する
-unparse(Op, Terms, ResultAtoms) :-
-    atom_concat('_', Op1, Op), 
-    %(As ** a(Op1) ; As ^ a(Op1)),      % 演算子表から探す
-    ops(a(Op1), _, _, As),
-    numToTerm(As, Terms, ResultAtoms).
-  
-% 
-numToTerm([], _, []).
-
-% [50, +, 51] で [a, b] なら [a, +, b] を返す
-numToTerm([A| As], [Term|Ts], [AtomsRec|Rest]) :-
-    number(A),
-    functor(Term, _, _, compound),
-    Term =.. [Op | Terms],
-    unparse(Op, Terms, AtomsRec),
-    numToTerm(As, Ts, Rest)
-    ; (AtomsRec = Term, numToTerm(As, Ts, Rest)).
-   
-numToTerm([A|As], Ts, [A|Rest]) :-
-    not(number(A)),
-    numToTerm(As, Ts, Rest).
-
 % 問い合わせ
 query(C) :-
-    %writeln(query(C)),
     varnumbers_names(C, T, P), !,
     call(T),
-    %(P \= [] -> writeln(P), unparseAnswers(P) ; true).
     (P \= [] -> unparseAnswers(P) ; true).
-    %(P \= [] -> writeln(P) ; true).
 
 query_string(S) :-
     code_pred_canonical(S, C),
@@ -247,12 +197,8 @@ query_string(S) :-
     query(C).
 
 unparseAnswers([X = A|Ps]) :-
-    %unparse(A, W), flatten(W, F), atomics_to_string([X, = | F], ' ', UA), writeln(UA),
     str(A, F), atomics_to_string([X, =, F], ' ', UA), writeln(UA),
-    %unparse(A, W), flatten(W, F), writeln(X = F),
-    %unparse(A, W), writeln(X = W),
     unparseAnswers(Ps).
-
 unparseAnswers([]).
 
 str(A, A) :- atom(A); number(A).
@@ -281,8 +227,6 @@ str(E, Op1, Str, Paren) :-
     atom_concat('_', Op2, Op), 
     ops(a(Op2), P2, _, _),
     ops(a(Op1), P1, _, _),
-    %writeln(Op1), writeln(P1),
-    %writeln(Op2), writeln(P2),
     ((P1 > P2 ; Paren, Op1 = Op2) -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
             ; str(E, Str)).
 
@@ -331,7 +275,18 @@ tests :-
     test("c |- 0 => 0; c |- 1 => 1; c |- true => true; c |- if e1 then e2 else e3 => v { c |- e1 => true; c |- e2 => v; }", "_ |- if true then 0 else 1 => v"),
     test("1 -> 2;", "1 => (3)"),
     test("1 -> 2;", "(1 => 3)"),
-    test("op 50 : _ + _ = _ ;0 plus n is n; (succ m) plus n is (succ p) { m plus n is p; }", "(succ 0) plus (succ 0) is x").
+    test("op 50 : _ + _ = _ ;0 plus n is n; (succ m) plus n is (succ p) { m plus n is p; }", "(succ 0) plus (succ 0) is x"),
+    test_arrow1,
+    test_arrow2,
+    test_arrow3,
+    test_arrow4,
+    test_arrow5,
+    test_type1,
+    test_succ,
+    test_type2,
+    test_plus,
+    test_eval_if,
+    test_skip.
 
 test_arrow1 :- code_mi("op 50 : _ -> _ ; 1 -> 2; main { 1 -> 2; }").
 test_arrow2 :- code_mi("op 50 : _ -> _ ; 1 -> 2; main { 1 -> x; }").
@@ -491,18 +446,27 @@ test_ski :-
     code_mi("x y -> x z { y -> z; }"),
     code_mi("x => y { x -> y; }"),
     code_mi("x => y { x -> z; z => y; }"),
-    %query_string("ss kk ii (kk ii ss) => x").
-    %code_pred_canonical("K K S K", W), str(W, U), writeln(U).
     query_string("S K S K => x").
-    %query_string("S (K (S I) ) kk aa bb => x").
+
 test_let :-
     code_mi("op 50 : _ + _ ;"),
     code_mi("op 40 : let _ = _ in _ ;").
 test_calc :-
     code_mi("op 50 : _ ++ _ ;"),
     code_mi("op 60 : _ ** _ ;"),
-    %code_pred("1 ++ 2 ** 3", W), unparse(W, U), writeln(U).
-    %code_pred("1 ++ 2 ** 3", W), str(W, U), writeln(U).
     code_pred_canonical("(1 ++ 2) ** 3", W), str(W, U), writeln(U),
     code_pred_canonical("1 ** (2 ++ 3)", W2), str(W2, U2), writeln(U2).
 
+test_plus_lf :- code_mi("
+    op 50 : succ _
+    op 50 : _ plus _ is _
+    
+    0 plus n is n
+    (succ m) plus n is (succ p) {
+        m plus n is p
+    }
+
+    main {
+        (succ 0) plus (succ 0) is x
+    }
+    ").
