@@ -33,6 +33,7 @@ skip(W) --> "" | (W, skip(W)).
 % mixfix library
 e(P,O)-->     % 前方演算子の後方束縛力が P のとき、トークン列をパーズして構築されるAST を O とする
     [U],      % 先頭のトークンが U のとき
+    {not(U = ';'), not(U = '{'), not(U = '}') },
     t(P,U,O). % 前方演算子の後方束縛力を P、ここまで構築済みのASTを U として、AST を構築して O とする
 t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済みのASTが T のとき、AST を構築して O とする
     %{[L|M]^A},  % 演算子表から1行を探して、演算子の先頭を L, 残りをM、演算子名を A とする
@@ -44,6 +45,7 @@ t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済�
     t(P,W,O).           % 前方演算子の後方束縛力を P、ここまで構築済みのASTを Wとして、AST を構築して O とする
 t(P,T,O)-->   % 前方演算子の後方束縛力が P、ここまで構築済みのASTが T のとき、AST を構築して O とする
     [U],      % 次のトークンを読んで U とする
+    {not(U = ';'), not(U = '{'), not(U = '}') },
     %{[L,L2|M] ** A},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
     {ops(A, _, following, [L,L2|M])},    % 中置演算子表から1行を探して、演算子の先頭を L, 次を L2, 残りをM、演算子名を A とする
     {L2=U, P<L},        % L2 と U が unify できるかを見る。
@@ -78,6 +80,7 @@ g([],[])-->!.           % 演算子の残りが空の場合は、引数リスト
 
 e1(P,O)-->     % 前方演算子の後方束縛力が P のとき、トークン列をパーズして構築されるAST を O とする
     [U],      % 先頭のトークンが U のとき
+    {not(U = ';'), not(U = '{'), not(U = '}') },
     %{all_punct(U) -> fail; true},
     %{(U = ';'; U = '->' ; U = '=>'; U = '+') -> fail; true},
     {number(U) ; variable(U); all_alpha(U); U = '('; U = '{'},
@@ -109,8 +112,9 @@ all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
 % rules ::= rule | rule rules
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
-rules([R]) --> skip(";"), rul(R), {add_rule(R)}, skip(";").
-rules([R | Rs]) --> skip(";"), rul(R), {add_rule(R)}, skip(";"), rules(Rs).
+%rules([R | Rs]) --> skip(";"), rul(R), {writeln(R), add_rule(R)}, skip(";"), rules(Rs).
+rules([R | Rs]) --> skip(";"), rul(R), {add_rule(R)}, rules(Rs).
+rules([]) --> skip(";").
 
 rul(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
 rul(P :- true) --> pred(P), ";".
@@ -298,9 +302,10 @@ code_pred_canonical(Code, C) :-
     canonical(Pred, C).
     
 code_mi(Code) :-
-    %code_rules(Code, Rules).
+    %code_rules(Code, Rules),
     code_rules(Code, _).
-    %writeln(Rules),
+    %writeln(Rules).
+    %maplist(writeln, Rules).
     %add_rules(Rules).
 
 test(Code, Query) :-
@@ -395,7 +400,7 @@ test_lf :-
         main {
             x -> 3
         }
-        ").
+    ").
 
 test_edge :-
     code_mi("op 50 : _ -> _ ;"),
@@ -409,15 +414,24 @@ test_app :-
 
 test_ski_lf :- code_mi("
     op 50 : _ -> _
-    op 50 : _ => _ 
+    op 50 : _ => _
     op 100 : _ _
 
     I x -> x
     K x y -> x
     S x y z -> x z (y z)
-    
-    1 -> 2
+
+    x y -> z y { x -> z }
+    x y -> x z { y -> z }
+    x => y { x -> y }
+    x => y { x -> z; z => y }
+
+    main {
+        S K S K => x
+    }
     ").
+
+test_ski2 :- code_mi("op 50 : _ -> _ ; op 50 : _ => _ ; op 100 : _ _ ;").
 
 test_ski :-
     code_mi("op 50 : _ -> _ ;"),
@@ -429,7 +443,7 @@ test_ski :-
     code_mi("x y -> z y { x -> z; }"),    
     code_mi("x y -> x z { y -> z; }"),
     code_mi("x => y { x -> y; }"),
-    code_mi("x => y { x -> z; z => y; }"), !, 
+    code_mi("x => y { x -> z; z => y; }"),
     %query_string("ss kk ii (kk ii ss) => x").
     %code_pred_canonical("K K S K", W), str(W, U), writeln(U).
     query_string("S K S K => x").
