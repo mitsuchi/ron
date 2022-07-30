@@ -417,14 +417,14 @@ test_ski_lf :- code_mi("
     op 50 : _ => _
     op 100 : _ _
 
-    I x -> x
-    K x y -> x
+    I x     -> x
+    K x y   -> x
     S x y z -> x z (y z)
 
     x y -> z y { x -> z }
     x y -> x z { y -> z }
-    x => y { x -> y }
-    x => y { x -> z; z => y }
+    x => y     { x -> y }
+    x => y     { x -> z; z => y }
 
     main {
         S K S K => x
