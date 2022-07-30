@@ -341,11 +341,14 @@ test_eval_if :- code_mi("op 50 : _ => _ ; op 50 : if _ then _ else _ ; op 50 : _
 
 test_skip :- code_mi("; op 50 : _ -> _ ; 1 -> 2; main { 1 -> 2; } ; ;").
 
-test_arrow1_lf :- code_mi("op 50 : _ -> _
+test_arrow1_lf :- code_mi("
+    op 50 : _ -> _
     1 -> 2
+
     main {
         1 -> 2
-    }").
+    }
+    ").
 
 test_main :-
     code_mi("op 50 : _ -> _ ;"),
