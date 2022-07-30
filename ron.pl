@@ -3,7 +3,8 @@
 :- dynamic '_main'/0.
 
 % tokenize
-tokens(Ts) --> (" " | ['\n']), tokens(Ts).
+%tokens(Ts) --> (" " | ['\n']), tokens(Ts).
+tokens(Ts) --> " ", tokens(Ts).
 tokens([T|Ts]) --> tok(T), !, tokens(Ts).
 tokens([]) --> "".
 
@@ -112,7 +113,7 @@ rules([R | Rs]) --> rul(R), {add_rule(R)}, rules(Rs).
 
 rul(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
 rul(P :- true) --> pred(P), ";".
-rul(P :- B) --> pred(P), "{", body(B), "}".
+rul(P :- B) --> pred(P), "{", skip(" " | ";"), body(B), "}".
 
 notation([R]) --> [R], {not(R = ';')}.
 notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
@@ -324,15 +325,29 @@ tests :-
     test("c |- 0 => 0; c |- 1 => 1; c |- true => true; c |- if e1 then e2 else e3 => v { c |- e1 => true; c |- e2 => v; }", "_ |- if true then 0 else 1 => v"),
     test("1 -> 2;", "1 => (3)"),
     test("1 -> 2;", "(1 => 3)"),
-    test("0 plus n is n; (succ m) plus n is (succ p) { m plus n is p; }", "(succ 0) plus (succ 0) is x").
+    test("op 50 : _ + _ = _ ;0 plus n is n; (succ m) plus n is (succ p) { m plus n is p; }", "(succ 0) plus (succ 0) is x").
+
+test_arrow1 :- code_mi("op 50 : _ -> _ ; 1 -> 2; main { 1 -> 2; }").
+test_arrow2 :- code_mi("op 50 : _ -> _ ; 1 -> 2; main { 1 -> x; }").
+test_arrow3 :- code_mi("op 50 : _ -> _ ; 1 -> 2; main { x -> 2; }").
+test_arrow4 :- code_mi("op 50 : _ -> _ ; 1 -> 2; 2 -> 3; main { 2 -> 3; }").
+test_arrow5 :- code_mi("op 50 : _ -> _ ; op 50 : _ => _ ; 1 -> 2; 2 -> 3; x => y {x -> y; } x => y {x -> z; z => y; } main { 1 => 2; }").
+test_type1 :- code_mi("op 50 : _ |- _ : _ ; _ |- true : bool; main { c |- true : x; }").
+test_succ :- code_mi("op 50 : _ + _ = _ ; op 50 : succ _ ; 0 + n = n; succ m + n = succ p {m + n = p; } main {succ 0 + succ 0 = x; }").
+test_type2 :- code_mi("op 50 : if _ then _ else _ ; op 50 : _ |- _ : _ ; _ |- 0 : int; c |- if e1 then e2 else e3 : t { c |- e1 : bool; c |- e2 : t; c |- e3 : t; } main { _ |- if true then 0 else 0 : t ; }").
+
+test_arrow1_lf :- code_mi("op 50 : _ -> _
+    1 -> 2
+    main {
+        1 -> 2
+    }").
 
 test_main :-
     code_mi("op 50 : _ -> _ ;"),
     code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
 
 test_lf :-
-    code_mi("
-        op 50 : _ -> _
+    code_mi("op 50 : _ -> _
         1 -> 2
         2 -> 3
         main {
