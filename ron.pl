@@ -107,8 +107,8 @@ all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
 % rules ::= rule | rule rules
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
-rules([R]) --> rul(R).
-rules([R | Rs]) --> rul(R), rules(Rs).
+rules([R]) --> rul(R), {add_rule(R)}.
+rules([R | Rs]) --> rul(R), {add_rule(R)}, rules(Rs).
 
 rul(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
 rul(P :- true) --> pred(P), ";".
@@ -149,7 +149,7 @@ add_rule(Head :- Body) :-
     (Head = main -> query(BodyC);
     varnumbers_names(HeadC :- BodyC, Term, _),
     %write('rule3: '), writeln(Term),
-    assert(Term)).
+    assert(Term), !).
 
 % () はあらかじめ定義しておく
 %['(',0,')']^a('()').
@@ -296,9 +296,10 @@ code_pred_canonical(Code, C) :-
     canonical(Pred, C).
     
 code_mi(Code) :-
-    code_rules(Code, Rules),
+    %code_rules(Code, Rules).
+    code_rules(Code, _).
     %writeln(Rules),
-    add_rules(Rules).
+    %add_rules(Rules).
 
 test(Code, Query) :-
     code_mi(Code),
