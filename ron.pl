@@ -466,6 +466,20 @@ test_ski_lf :- code_mi("
 
 test_ski2 :- code_mi("op 50 : _ -> _ ; op 50 : _ => _ ; op 100 : _ _ ;").
 
+test_succ_lf :- code_mi("
+    op 50 : _ + _ = _
+    op 50 : succ _
+
+    0 + n = n
+    succ m + n = succ p {
+        m + n = p
+    }
+
+    main {
+        succ 0 + succ 0 = x
+    }
+    ").
+
 test_ski :-
     code_mi("op 50 : _ -> _ ;"),
     code_mi("op 50 : _ => _ ;"),
