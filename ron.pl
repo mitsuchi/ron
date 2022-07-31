@@ -21,6 +21,8 @@ word([C]) --> [C], { code_type(C, lower) }.
 alpha(T) --> [C], { code_type(C, lower), T = '$VAR'(C) }.
 alnum(T) --> [C], [N],
     { code_type(C, lower), code_type(N, digit), atom_concat(C, N, CN), T = '$VAR'(CN) }.
+alnum(T) --> [C], "'",
+    { code_type(C, lower), atom_concat(C, '\'', CN), T = '$VAR'(CN) }.
 puncts([C|Cs]) --> [C], { code_type(C, punct) }, puncts(Cs).
 puncts([C]) -->  [C], { code_type(C, punct) }.
 digits([C|Cs]) --> digit(C), digits(Cs).
