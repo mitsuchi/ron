@@ -458,15 +458,15 @@ test_calc :-
     code_pred_canonical("1 ** (2 ++ 3)", W2), str(W2, U2), writeln(U2).
 
 test_plus_lf :- code_mi("
-    op 50 : succ _
+    op 50 : S _
     op 50 : _ plus _ is _
     
-    0 plus n is n
-    (succ m) plus n is (succ p) {
-        m plus n is p
+    Z plus n is n
+    (S n1) plus n2 is (S n) {
+        n1 plus n2 is n
     }
 
     main {
-        (succ 0) plus (succ 0) is x
+        (S Z) plus (S Z) is x
     }
     ").
