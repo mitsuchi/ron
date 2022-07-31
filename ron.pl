@@ -411,8 +411,8 @@ test_ski_lf :- code_mi("
     K x y   -> x
     S x y z -> x z (y z)
 
-    x y -> z y { x -> z }
-    x y -> x z { y -> z }
+    x y -> x' y { x -> x' }
+    x y -> x y' { y -> y' }
     x => y     { x -> y }
     x => y     { x -> z; z => y }
 
