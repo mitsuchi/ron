@@ -472,3 +472,41 @@ test_plus_lf :- code_mi("
         (S Z) plus (S Z) is x
     }
     ").
+
+test_ml :- code_mi("
+    op 99 : S _
+    op 50 : _ + _ 
+    op 40 : _ < _ 
+    op 30 : if _ then _ else _
+    op 10 : _ => _
+    
+    Z => Z
+    S n => S n
+
+    Z + n => n
+    (S n1) + n2 => (S n) {
+        n1 + n2 => n
+    }
+
+    Z < S n => true 
+    S n1 < S n2 => true {
+        n1 < n2 => true
+    }
+    n < Z => false
+    S n1 < S n2 => false {
+        n1 < n2 => false
+    }
+
+    if e1 then e2 else e3 => v {
+        e1 => true
+        e2 => v
+    }
+    if e1 then e2 else e3 => v {
+        e1 => false
+        e3 => v
+    }
+
+    main {
+        if Z < S Z then S S Z else S S S Z => x 
+    }
+    ").
