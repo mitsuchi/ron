@@ -137,14 +137,13 @@ add_rule(op(Prec, [N | Ns])) :-
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     %write('rule2: '), writeln(Term),
     assert(Term).
-add_rule(main :- Body) :-
-    get_time(T),
-    write('a '), writeln(T),
-    canonical(Body, BodyC), writeln('before cut'), !, writeln('after cut'),
-    write('main BodyC '), writeln(BodyC),
-    assert(BodyC).
+%add_rule(main :- Body) :-
+%    get_time(T),
+%    write('a '), writeln(T),
+%    canonical(Body, BodyC), writeln('before cut'), !, writeln('after cut'),
+%    write('main BodyC '), writeln(BodyC),
+%    query(BodyC).
 add_rule(Head :- Body) :-
-    Head \= main, !,
     get_time(T),
     write('b '), writeln(T),
     canonical(Head, HeadC),
@@ -257,7 +256,9 @@ code_pred_canonical(Code, C) :-
     
 code_mi(Code) :-
     %code_rules(Code, Rules),
-    code_rules(Code, _).
+    code_rules(Code, _),
+    !,
+    query(main).
     %writeln(Rules).
     %maplist(writeln, Rules).
     %add_rules(Rules).
@@ -270,7 +271,7 @@ mi(Goal) :-
         Goal \= true,
         Goal \= (_,_),
         writeln(Goal),
-        sleep(1),
+        %sleep(1),
         clause(Goal, Body),
         mi(Body).
 
@@ -611,7 +612,7 @@ test_ml :- code_mi("
     }
 
     main {
-        Z less than Z is true
+        0 |- if S Z < Z then Z else Z => v
     }
     ").
 
