@@ -137,13 +137,21 @@ add_rule(op(Prec, [N | Ns])) :-
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     %write('rule2: '), writeln(Term),
     assert(Term).
+add_rule(main :- Body) :-
+    get_time(T),
+    write('a '), writeln(T),
+    canonical(Body, BodyC), writeln('before cut'), !, writeln('after cut'),
+    write('main BodyC '), writeln(BodyC),
+    assert(BodyC).
 add_rule(Head :- Body) :-
+    Head \= main, !,
+    get_time(T),
+    write('b '), writeln(T),
     canonical(Head, HeadC),
     canonical(Body, BodyC),
-    (Head = main -> query(BodyC);
     varnumbers_names(HeadC :- BodyC, Term, _),
-    %write('rule3: '), writeln(Term),
-    assert(Term), !).
+    write('rule3: '), writeln(HeadC :- BodyC),
+    assert(Term).
 
 % () はあらかじめ定義しておく
 ops(a('()'), 0, leading, ['(',0,')']).
@@ -190,7 +198,7 @@ pickPunct([], '').
 % 問い合わせ
 query(C) :-
     varnumbers_names(C, T, P), !,
-    call(T),
+    mi(T),
     (P \= [] -> unparseAnswers(P) ; true).
 
 query_string(S) :-
@@ -226,7 +234,7 @@ str(A, _, A, _) :- atom(A); number(A).
 str(E, Op1, Str, Paren) :-
     functor(E, _, _, compound),
     E =.. [Op | _],
-    atom_concat('_', Op2, Op), 
+    atom_concat('_', Op2, Op),
     ops(a(Op2), P2, _, _),
     ops(a(Op1), P1, _, _),
     ((P1 > P2 ; Paren, Op1 = Op2) -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
@@ -253,6 +261,18 @@ code_mi(Code) :-
     %writeln(Rules).
     %maplist(writeln, Rules).
     %add_rules(Rules).
+
+mi(true).
+mi((A,B)) :-
+        mi(A),
+        mi(B).
+mi(Goal) :-
+        Goal \= true,
+        Goal \= (_,_),
+        writeln(Goal),
+        sleep(1),
+        clause(Goal, Body),
+        mi(Body).
 
 test(Code, Query) :-
     code_mi(Code),
@@ -413,8 +433,8 @@ test_ski_lf :- code_mi("
 
     x y -> x' y { x -> x' }
     x y -> x y' { y -> y' }
-    x => y     { x -> y }
-    x => y     { x -> z; z => y }
+    x => y { x -> y }
+    x => y { x => z; z => y }
 
     main {
         S K S K => x
@@ -473,40 +493,251 @@ test_plus_lf :- code_mi("
     }
     ").
 
-test_ml :- code_mi("
-    op 99 : S _
-    op 50 : _ + _ 
-    op 40 : _ < _ 
-    op 30 : if _ then _ else _
-    op 10 : _ => _
+test_plus2 :- code_mi("
+    op 50 : S _
+    op 50 : _ + _ = _
     
-    Z => Z
-    S n => S n
-
-    Z + n => n
-    (S n1) + n2 => (S n) {
-        n1 + n2 => n
-    }
-
-    Z < S n => true 
-    S n1 < S n2 => true {
-        n1 < n2 => true
-    }
-    n < Z => false
-    S n1 < S n2 => false {
-        n1 < n2 => false
-    }
-
-    if e1 then e2 else e3 => v {
-        e1 => true
-        e2 => v
-    }
-    if e1 then e2 else e3 => v {
-        e1 => false
-        e3 => v
+    0 + n = n
+    (S n) + m = (S l) {
+        n + m = l
     }
 
     main {
-        if Z < S Z then S S Z else S S S Z => x 
+        S 0 + S S 0 = x
+    }
+").
+
+test_ml :- code_mi("
+    op 90 : S _     
+    op 80 : _ _
+    op 60 : _ + _
+    op 60 : _ - _
+    op 50 : _ < _
+    op 40 : _ = _
+    op 40 : _ != _
+    op 30 : _ , _
+    op 25 : [ _ , _ ]
+    op 20 : _ less than _ is _
+    op 20 : if _ then _ else _
+    op 20 : let _ = _ in _
+    op 20 : letrec _ = _ in _
+    op 20 : fun _ -> _
+    op 10 : _ |- _ => _
+    
+    c |- Z => Z
+    c |- S n => S v {
+        c |- n => v
+    }
+
+    c |- true => true
+    c |- false => false
+
+    c |- Z + n => v {
+        c |- n => v
+    }
+    c |- (S n1) + n2 => S n {
+        c |- n1 + n2 => n
+    }
+    c |- e1 + e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        c |- v1 + v2 => v
+    }
+
+    c |- n - Z => v {
+        c |- n => v
+    }
+    c |- n - (S m) => l {
+        c |- n - m => S l
+    }
+    c |- e1 - e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        c |- v1 - v2 => v
+    }
+
+    Z less than (S n) is true 
+    S n1 less than S n2 is true {
+        n1 less than n2 is true
+    }
+    n less than Z is false
+    S n1 less than S n2 is false {
+        n1 less than n2 is false
+    }
+    c |- e1 < e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        v1 less than v2 is v
+    }
+
+    c |- if e1 then e2 else e3 => v {
+        c |- e1 => true
+        c |- e2 => v
+    }
+    c |- if e1 then e2 else e3 => v {
+        c |- e1 => false
+        c |- e3 => v
+    }
+
+    x = v |- x => v
+    c, x = v |- x => v
+    c, y = v' |- x => v {
+        x != y
+        c |- x => v
+    }
+
+    X != Y
+    Y != X
+    S n != Z
+
+    c |- let x = e1 in e2 => v {
+        c |- e1 => v1
+        c, x = v1 |- e2 => v
+    }
+    c |- letrec x = fun y -> e1 in e2 => v {
+        c, x = [c, x = fun y -> e1] |- e2 => v
+    }
+
+    c |- fun x -> e => [c, fun x -> e]
+    c |- e1 e2 => v {
+        c |- e1 => [c2, fun x -> e0]
+        c |- e2 => v2
+        c2, x = v2 |- e0 => v
+    }
+    c |- e1 e2 => v { 
+        c |- e1 => [c2, x = fun y -> e0]
+        c |- e2 => v2
+        c2, x = [c2, x = fun y -> e0] , y = v2 |- e0 => v
+    }
+
+    main {
+        Z less than Z is true
+    }
+    ").
+
+%        0 |- S Z < Z => true
+% 0 |- if S Z < Z then Z else Z => v
+
+%0 |- letrec fib = fun X -> if X < S S Z then X else X in fib S S Z => v
+% 0 |- (fun X -> S Z + X) Z => v
+% 0, X = Z |- S X => v
+% 0 |- (fun X -> S X) Z => v
+% 0 |- let id = fun X -> S X in id Z => v
+
+% slow
+% 0 |- let plus = fun X -> X + S S S S S S Z in plus (S Z) => v
+% fast
+% 0 |- (fun X -> X + S S S S S S Z) (S Z) => v
+
+% slow
+% 0 |- let plus6 = fun X -> X + S S S S S S Z in plus6 (S Z) => v
+
+test_ml0 :- code_mi("
+    op 99 : S _
+    op 98 : _ _
+    op 60 : _ + _
+    op 60 : _ - _
+    op 50 : _ < _
+    op 40 : _ = _
+    op 40 : _ != _
+    op 30 : _ , _
+    op 25 : [ _ ]
+    op 20 : if _ then _ else _
+    op 20 : let _ = _ in _
+    op 20 : letrec _ = _ in _
+    op 20 : fun _ -> _
+    op 10 : _ |- _ => _
+    
+    c |- Z => Z
+    c |- S n => S n
+
+    c |- true => true
+    c |- false => false
+
+    c |- Z + n => n
+    c |- S n1 + n2 => S n {
+        c |- n1 + n2 => n
+    }
+    c |- e1 + e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        c |- v1 + v2 => v
+    }
+
+    c |- n - Z => n
+    c |- n - (S m) => l {
+        c |- n - m => S l
+    }
+    c |- e1 - e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        c |- v1 - v2 => v
+    }
+
+    c |- Z < S n => true 
+    c |- S n1 < S n2 => true {
+        c |- n1 < n2 => true
+    }
+    c |- n < Z => false
+    c |- S n1 < S n2 => false {
+        c |- n1 < n2 => false
+    }
+    c |- e1 < e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        c |- v1 < v2 => v
+    }
+
+    c |- if e1 then e2 else e3 => v {
+        c |- e1 => true
+        c |- e2 => v
+    }
+    c |- if e1 then e2 else e3 => v {
+        c |- e1 => false
+        c |- e3 => v
+    }
+
+    x = v |- x => v
+    c, x = v |- x => v
+    c, y = v' |- x => v {
+        x != y
+        c |- x => v
+    }
+
+    X != Y
+    Y != X
+
+    c |- let x = e1 in e2 => v {
+        c |- e1 => v1
+        c, x = v1 |- e2 => v
+    }
+    c |- letrec x = fun y -> e1 in e2 => v {
+        c, x = [c, x = fun y -> e1] |- e2 => v
+    }
+
+    c |- fun x -> e => [c, fun x -> e]
+    c |- e1 e2 => v {
+        c |- e1 => [c2, x = fun y -> e0]
+        c |- e2 => v2
+        c2, x = [c2, x = fun y -> e0] , y = v2 |- e0 => v
+    }
+    ").
+
+test_or :- code_mi("
+    op 50 : _ or _
+    op 30 : _ -> _
+    op 30 : _ => _
+
+    false or b -> b
+    true or b -> true
+
+    x or y -> x' or y { x -> x' }
+    x or y -> x or y' { y -> y' }
+    x => true { x -> true }
+    x => false { x -> false }
+    x => y { x -> z; z => y }
+
+    main {
+        (false or false) or (false or false) => x
     }
     ").
