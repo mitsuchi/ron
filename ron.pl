@@ -529,6 +529,77 @@ test_plus_10 :- code_mi("
     }
 ").
 
+test_ml2 :- code_mi("
+    op 90 : _ * _        
+    op 80 : integer _
+    op 60 : _ + _
+    op 60 : _ - _
+    op 60 : _ < _
+    op 60 : _ >= _
+    op 40 : _ is _
+    op 40 : _ = _
+    op 40 : _ \\= _
+    op 30 : _ , _
+    op 25 : [ _ , _ ]    
+    op 20 : if _ then _ else _
+    op 20 : let _ = _ in _
+    op 20 : fun _ -> _
+    op 10 : _ |- _ => _
+    
+    c |- n => n {
+        <integer n>
+    }
+    c |- e1 + e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        <v is v1 + v2>
+    }
+    c |- e1 - e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        <v is v1 - v2>
+    }
+    c |- e1 < e2 => true {
+        c |- e1 => v1
+        c |- e2 => v2
+        <v1 < v2>
+    }
+    c |- e1 < e2 => false {
+        c |- e1 => v1
+        c |- e2 => v2
+        <v1 >= v2>
+    }
+    c |- if e1 then e2 else e3 => v {
+        c |- e1 => true
+        c |- e2 => v
+    }
+    c |- if e1 then e2 else e3 => v {
+        c |- e1 => false
+        c |- e3 => v
+    }
+
+    x = v |- x => v
+    c, x = v |- x => v
+    c, y = v' |- x => v {
+        <x \\= y>
+        c |- x => v
+    }
+
+    c |- let x = fun y -> e1 in e2 => v {
+        c, x = [c, x = fun y -> e1] |- e2 => v
+    }
+    c |- e1 * e2 => v { 
+        c |- e1 => [c2, x = fun y -> e0]
+        c |- e2 => v2
+        c2, x = [c2, x = fun y -> e0] , y = v2 |- e0 => v
+    }
+
+    main {
+        0 |- let fib = fun N -> if N < 2 then N else fib * (N - 1) + fib * (N - 2) in fib * 9 => v
+    }
+    ").
+
+% 0 |- let sum = fun N -> if N < 1 then N else N + sum * (N - 1) in sum * 10 => v
 test_ml :- code_mi("
     op 90 : S _     
     op 80 : _ * _
@@ -537,7 +608,6 @@ test_ml :- code_mi("
     op 50 : _ < _
     op 40 : _ = _
     op 40 : _ \\= _
-    op 40 : _ != _
     op 30 : _ , _
     op 25 : [ _ , _ ]
     op 20 : _ less than _ is _
