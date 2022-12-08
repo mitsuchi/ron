@@ -624,7 +624,6 @@ test_ml2 :- code_mi("
     }
     ").
 
-% 0 |- let sum = fun N -> if N < 1 then N else N + sum * (N - 1) in sum * 10 => v
 test_ml :- code_mi("
     op 90 : S _     
     op 80 : _ * _
@@ -728,24 +727,6 @@ test_ml :- code_mi("
         0 |- letrec fib = fun x -> if X < S S Z then X else fib * (X - S Z) + fib * (X - S S Z) in fib * (S S S S S S S Z) => v
     }
     ").
-
-% 0 |- letrec fib = fun X -> if X < S S Z then X else fib * (X - S Z) + fib * (X - S S Z) in fib * (S S Z) => v
-%        0 |- S Z < Z => true
-% 0 |- if S Z < Z then Z else Z => v
-
-%0 |- letrec fib = fun X -> if X < S S Z then X else X in fib S S Z => v
-% 0 |- (fun X -> S Z + X) Z => v
-% 0, X = Z |- S X => v
-% 0 |- (fun X -> S X) Z => v
-% 0 |- let id = fun X -> S X in id Z => v
-
-% slow
-% 0 |- let plus = fun X -> X + S S S S S S Z in plus (S Z) => v
-% fast
-% 0 |- (fun X -> X + S S S S S S Z) (S Z) => v
-
-% slow
-% 0 |- let plus6 = fun X -> X + S S S S S S Z in plus6 (S Z) => v
 
 test_or :- code_mi("
     op 50 : _ or _
