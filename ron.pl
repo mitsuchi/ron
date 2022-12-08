@@ -149,11 +149,14 @@ add_rule(Head :- Body) :-
     canonical(Head, HeadC),
     canonical(Body, BodyC),
     varnumbers_names(HeadC :- BodyC, Term, _),
-    write('rule3: '), writeln(HeadC :- BodyC),
+    write('rule3: '), writeln(HeadC :- BodyC), sleep(0.1),
     assert(Term).
 
 % () はあらかじめ定義しておく
 ops(a('()'), 0, leading, ['(',0,')']).
+
+% (( )) は prolog を参照することにする
+ops(a('<>'), 0, leading, ['<',0,'>']).
 
 % Prolog Term としての標準記法に変換
 canonical((B, Bs), (P, Ps)) :-
@@ -164,6 +167,8 @@ canonical(Term, Canonical) :-
     Term =.. [Functor | Args],
     % (a) は a にする
     (Functor = '()' -> [Arg] = Args, canonical(Arg, Canonical)
+    % <a> は a にするが、functor の先頭に _ をつけない
+    ; Functor = '<>' -> [Arg] = Args, Arg = Canonical
     % $VAR はそのまま
     ; Functor = '$VAR' -> Canonical = Term
     % それ以外は Functor の先頭に _ をつける
@@ -268,6 +273,7 @@ mi(true).
 mi((A,B)) :-
         mi(A),
         mi(B).
+mi(Goal) :- predicate_property(Goal,built_in), !, call(Goal).
 mi(Goal) :-
         Goal \= true,
         Goal \= (_,_),
@@ -509,6 +515,20 @@ test_plus2 :- code_mi("
     }
 ").
 
+test_plus_10 :- code_mi("
+    op 20 : _ + _
+    op 10 : _ is _
+    op 10 : _ = _
+
+    a + b = c {
+        <c is a + b>
+    }
+
+    main {
+        10 + 20 = c
+    }
+").
+
 test_ml :- code_mi("
     op 90 : S _     
     op 80 : _ * _
@@ -516,7 +536,8 @@ test_ml :- code_mi("
     op 60 : _ - _
     op 50 : _ < _
     op 40 : _ = _
-    op 40 \= : _ != _
+    op 40 : _ \\= _
+    op 40 : _ != _
     op 30 : _ , _
     op 25 : [ _ , _ ]
     op 20 : _ less than _ is _
@@ -584,13 +605,9 @@ test_ml :- code_mi("
     x = v |- x => v
     c, x = v |- x => v
     c, y = v' |- x => v {
-        x != y
+        <x \\= y>
         c |- x => v
     }
-
-    X != Y
-    Y != X
-    S n != Z
 
     c |- let x = e1 in e2 => v {
         c |- e1 => v1
@@ -613,7 +630,7 @@ test_ml :- code_mi("
     }
 
     main {
-        0 |- letrec fib = fun X -> if X < S S Z then X else fib * (X - S Z) + fib * (X - S S Z) in fib * (S S Z) => v
+        0 |- letrec fib = fun X -> if X < S S Z then X else fib * (X - S Z) + fib * (X - S S Z) in fib * (S S S S S S S Z) => v
     }
     ").
 
