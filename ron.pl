@@ -614,9 +614,9 @@ test_ml2 :- code_mi("
         c, f = [c |- f = x -> e1] |- e2 => v
     }
     c |- e1 e2 => v { 
-        c |- e1 => [c2 |- x = y -> e0]
+        c |- e1 => [c2 |- f = x -> e0]
         c |- e2 => v2
-        c2, x = [c2 |- x = y -> e0] , y = v2 |- e0 => v
+        c2, f = [c2 |- f = x -> e0] , x = v2 |- e0 => v
     }
 
     main {

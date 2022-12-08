@@ -63,16 +63,21 @@ op 60 : _ >= _
 op 50 : _ -> _
 op 40 : _ is _
 op 40 : _ = _
-op 40 : _ \\= _
+op 40 : _ \= _
 op 30 : _ , _
 op 25 : [ _ |- _ ]
 op 20 : if _ then _ else _
 op 20 : let rec _ _ = _ in _
-op 10 : _ |- _ => _
-    
+op 10 : _ |- _ => _   
+
+# c |- e => v は、環境 c で式 e を評価すると値 v になるの意味
+
+# 整数はそのままで値
 c |- n => n {
     <integer n>
 }
+
+# 足し算と引き算
 c |- e1 + e2 => v {
     c |- e1 => v1
     c |- e2 => v2
@@ -83,6 +88,8 @@ c |- e1 - e2 => v {
     c |- e2 => v2
     <v is v1 - v2>
 }
+
+# 大小比較
 c |- e1 < e2 => true {
     c |- e1 => v1
     c |- e2 => v2
@@ -93,6 +100,8 @@ c |- e1 < e2 => false {
     c |- e2 => v2
     <v1 >= v2>
 }
+
+# if 式
 c |- if e1 then e2 else e3 => v {
     c |- e1 => true
     c |- e2 => v
@@ -102,20 +111,24 @@ c |- if e1 then e2 else e3 => v {
     c |- e3 => v
 }
 
+# 環境と変数
 x = v |- x => v
 c, x = v |- x => v
 c, y = v' |- x => v {
-    <x \\= y>
+    <x \= y>
     c |- x => v
 }
 
+# let rec による関数定義
 c |- let rec f x = e1 in e2 => v {
     c, f = [c |- f = x -> e1] |- e2 => v
 }
+
+# 関数の適用　
 c |- e1 e2 => v { 
-    c |- e1 => [c2 |- x = y -> e0]
+    c |- e1 => [c2 |- f = x -> e0]
     c |- e2 => v2
-    c2, x = [c2 |- x = y -> e0] , y = v2 |- e0 => v
+    c2, f = [c2 |- f = x -> e0] , x = v2 |- e0 => v
 }
 
 main {
