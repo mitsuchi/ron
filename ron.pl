@@ -138,18 +138,18 @@ add_rule(op(Prec, [N | Ns])) :-
     %write('rule2: '), writeln(Term),
     assert(Term).
 add_rule(main :- Body) :-
-    get_time(T),
-    write('a '), writeln(T),
-    canonical2(Body, BodyC), writeln('before cut'), !, writeln('after cut'),
-    write('main BodyC '), writeln(BodyC),
+    %get_time(T),
+    %write('a '), writeln(T),
+    canonical2(Body, BodyC), % writeln('before cut'), !, writeln('after cut'),
+    %write('main BodyC '), writeln(BodyC),
     assert(main :- BodyC).
 add_rule(Head :- Body) :-
-    get_time(T),
-    write('b '), writeln(T),
+    %get_time(T),
+    %write('b '), writeln(T),
     canonical(Head, HeadC),
     canonical(Body, BodyC),
     varnumbers_names(HeadC :- BodyC, Term, _),
-    write('rule3: '), writeln(HeadC :- BodyC), sleep(0.1),
+    %write('rule3: '), writeln(HeadC :- BodyC), sleep(0.1),
     assert(Term).
 
 % () はあらかじめ定義しておく
@@ -302,7 +302,7 @@ mi(Goal) :- predicate_property(Goal,built_in), !, call(Goal).
 mi(Goal) :-
         Goal \= true,
         Goal \= (_,_),
-        writeln(Goal),
+        %writeln(Goal),
         %sleep(1),
         clause(Goal, Body),
         mi(Body).
@@ -550,7 +550,7 @@ test_plus_10 :- code_mi("
     }
 
     main {
-        10 + 20 = c
+        10 + 20 = x
     }
 ").
 
