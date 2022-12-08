@@ -137,12 +137,12 @@ add_rule(op(Prec, [N | Ns])) :-
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     %write('rule2: '), writeln(Term),
     assert(Term).
-%add_rule(main :- Body) :-
-%    get_time(T),
-%    write('a '), writeln(T),
-%    canonical(Body, BodyC), writeln('before cut'), !, writeln('after cut'),
-%    write('main BodyC '), writeln(BodyC),
-%    query(BodyC).
+add_rule(main :- Body) :-
+    get_time(T),
+    write('a '), writeln(T),
+    canonical(Body, BodyC), writeln('before cut'), !, writeln('after cut'),
+    write('main BodyC '), writeln(BodyC),
+    assert(main :- BodyC).
 add_rule(Head :- Body) :-
     get_time(T),
     write('b '), writeln(T),
@@ -196,7 +196,8 @@ pickPunct([], '').
 
 % 問い合わせ
 query(C) :-
-    varnumbers_names(C, T, P), !,
+    clause(C, B),
+    varnumbers_names(B, T, P), !,
     mi(T),
     (P \= [] -> unparseAnswers(P) ; true).
 
@@ -510,12 +511,12 @@ test_plus2 :- code_mi("
 
 test_ml :- code_mi("
     op 90 : S _     
-    op 80 : _ _
+    op 80 : _ * _
     op 60 : _ + _
     op 60 : _ - _
     op 50 : _ < _
     op 40 : _ = _
-    op 40 : _ != _
+    op 40 \= : _ != _
     op 30 : _ , _
     op 25 : [ _ , _ ]
     op 20 : _ less than _ is _
@@ -600,22 +601,23 @@ test_ml :- code_mi("
     }
 
     c |- fun x -> e => [c, fun x -> e]
-    c |- e1 e2 => v {
+    c |- e1 * e2 => v {
         c |- e1 => [c2, fun x -> e0]
         c |- e2 => v2
         c2, x = v2 |- e0 => v
     }
-    c |- e1 e2 => v { 
+    c |- e1 * e2 => v { 
         c |- e1 => [c2, x = fun y -> e0]
         c |- e2 => v2
         c2, x = [c2, x = fun y -> e0] , y = v2 |- e0 => v
     }
 
     main {
-        0 |- if S Z < Z then Z else Z => v
+        0 |- letrec fib = fun X -> if X < S S Z then X else fib * (X - S Z) + fib * (X - S S Z) in fib * (S S Z) => v
     }
     ").
 
+% 0 |- letrec fib = fun X -> if X < S S Z then X else fib * (X - S Z) + fib * (X - S S Z) in fib * (S S Z) => v
 %        0 |- S Z < Z => true
 % 0 |- if S Z < Z then Z else Z => v
 
@@ -632,97 +634,6 @@ test_ml :- code_mi("
 
 % slow
 % 0 |- let plus6 = fun X -> X + S S S S S S Z in plus6 (S Z) => v
-
-test_ml0 :- code_mi("
-    op 99 : S _
-    op 98 : _ _
-    op 60 : _ + _
-    op 60 : _ - _
-    op 50 : _ < _
-    op 40 : _ = _
-    op 40 : _ != _
-    op 30 : _ , _
-    op 25 : [ _ ]
-    op 20 : if _ then _ else _
-    op 20 : let _ = _ in _
-    op 20 : letrec _ = _ in _
-    op 20 : fun _ -> _
-    op 10 : _ |- _ => _
-    
-    c |- Z => Z
-    c |- S n => S n
-
-    c |- true => true
-    c |- false => false
-
-    c |- Z + n => n
-    c |- S n1 + n2 => S n {
-        c |- n1 + n2 => n
-    }
-    c |- e1 + e2 => v {
-        c |- e1 => v1
-        c |- e2 => v2
-        c |- v1 + v2 => v
-    }
-
-    c |- n - Z => n
-    c |- n - (S m) => l {
-        c |- n - m => S l
-    }
-    c |- e1 - e2 => v {
-        c |- e1 => v1
-        c |- e2 => v2
-        c |- v1 - v2 => v
-    }
-
-    c |- Z < S n => true 
-    c |- S n1 < S n2 => true {
-        c |- n1 < n2 => true
-    }
-    c |- n < Z => false
-    c |- S n1 < S n2 => false {
-        c |- n1 < n2 => false
-    }
-    c |- e1 < e2 => v {
-        c |- e1 => v1
-        c |- e2 => v2
-        c |- v1 < v2 => v
-    }
-
-    c |- if e1 then e2 else e3 => v {
-        c |- e1 => true
-        c |- e2 => v
-    }
-    c |- if e1 then e2 else e3 => v {
-        c |- e1 => false
-        c |- e3 => v
-    }
-
-    x = v |- x => v
-    c, x = v |- x => v
-    c, y = v' |- x => v {
-        x != y
-        c |- x => v
-    }
-
-    X != Y
-    Y != X
-
-    c |- let x = e1 in e2 => v {
-        c |- e1 => v1
-        c, x = v1 |- e2 => v
-    }
-    c |- letrec x = fun y -> e1 in e2 => v {
-        c, x = [c, x = fun y -> e1] |- e2 => v
-    }
-
-    c |- fun x -> e => [c, fun x -> e]
-    c |- e1 e2 => v {
-        c |- e1 => [c2, x = fun y -> e0]
-        c |- e2 => v2
-        c2, x = [c2, x = fun y -> e0] , y = v2 |- e0 => v
-    }
-    ").
 
 test_or :- code_mi("
     op 50 : _ or _
