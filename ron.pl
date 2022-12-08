@@ -140,7 +140,7 @@ add_rule(op(Prec, [N | Ns])) :-
 add_rule(main :- Body) :-
     get_time(T),
     write('a '), writeln(T),
-    canonical(Body, BodyC), writeln('before cut'), !, writeln('after cut'),
+    canonical2(Body, BodyC), writeln('before cut'), !, writeln('after cut'),
     write('main BodyC '), writeln(BodyC),
     assert(main :- BodyC).
 add_rule(Head :- Body) :-
@@ -181,6 +181,31 @@ canonicalList([], []).
 canonicalList([A|As], [C|Cs]) :-
     canonical(A,C),
     canonicalList(As, Cs).
+
+
+canonical2((B, Bs), (P, Ps)) :-
+    canonical2(B, P),
+    canonical2(Bs, Ps).
+canonical2(Term, Canonical) :-
+    functor(Term, _, _, compound),
+    Term =.. [Functor | Args],
+    % (a) は a にする
+    (Functor = '()' -> [Arg] = Args, canonical2(Arg, Canonical)
+    % <a> は a にするが、functor の先頭に _ をつけない
+    ; Functor = '<>' -> [Arg] = Args, Arg = Canonical
+    % $VAR は、$VAR(n) だけ n にする。他はそのまま
+    %; Functor = '$VAR' -> Canonical = Term
+    ; Functor = '$VAR' -> ([Arg] = Args, not(member(Arg, [t,u,v,w,x,y,z])) -> Canonical = Arg; Canonical = Term)
+    % それ以外は Functor の先頭に _ をつける
+    ; atomic_concat('_', Functor, FunctorC),
+                        canonicalList2(Args, ArgsC),
+                        Canonical =.. [FunctorC | ArgsC]).  
+canonical2(T, T).
+
+canonicalList2([], []).
+canonicalList2([A|As], [C|Cs]) :-
+    canonical2(A,C),
+    canonicalList2(As, Cs).
 
 replaceUnderScore([A|As], R, [R_|Bs]) :-
     replaceUnderScore(A, R, R_),
@@ -595,7 +620,7 @@ test_ml2 :- code_mi("
     }
 
     main {
-        0 |- let rec fib N = if N < 2 then N else fib (N - 1) + fib (N - 2) in fib 9 => v
+        0 |- let rec fib n = if n < 2 then n else fib (n - 1) + fib (n - 2) in fib 9 => v
     }
     ").
 
