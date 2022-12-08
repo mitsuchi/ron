@@ -530,20 +530,20 @@ test_plus_10 :- code_mi("
 ").
 
 test_ml2 :- code_mi("
-    op 90 : _ * _        
+    op 90 : _ _
     op 80 : integer _
     op 60 : _ + _
     op 60 : _ - _
     op 60 : _ < _
     op 60 : _ >= _
+    op 50 : _ -> _    
     op 40 : _ is _
     op 40 : _ = _
     op 40 : _ \\= _
     op 30 : _ , _
-    op 25 : [ _ , _ ]    
+    op 25 : [ _ |- _ ]
     op 20 : if _ then _ else _
-    op 20 : let _ = _ in _
-    op 20 : fun _ -> _
+    op 20 : let rec _ _ = _ in _
     op 10 : _ |- _ => _
     
     c |- n => n {
@@ -585,17 +585,17 @@ test_ml2 :- code_mi("
         c |- x => v
     }
 
-    c |- let x = fun y -> e1 in e2 => v {
-        c, x = [c, x = fun y -> e1] |- e2 => v
+    c |- let rec f x = e1 in e2 => v {
+        c, f = [c |- f = x -> e1] |- e2 => v
     }
-    c |- e1 * e2 => v { 
-        c |- e1 => [c2, x = fun y -> e0]
+    c |- e1 e2 => v { 
+        c |- e1 => [c2 |- x = y -> e0]
         c |- e2 => v2
-        c2, x = [c2, x = fun y -> e0] , y = v2 |- e0 => v
+        c2, x = [c2 |- x = y -> e0] , y = v2 |- e0 => v
     }
 
     main {
-        0 |- let fib = fun N -> if N < 2 then N else fib * (N - 1) + fib * (N - 2) in fib * 9 => v
+        0 |- let rec fib N = if N < 2 then N else fib (N - 1) + fib (N - 2) in fib 9 => v
     }
     ").
 
@@ -700,7 +700,7 @@ test_ml :- code_mi("
     }
 
     main {
-        0 |- letrec fib = fun X -> if X < S S Z then X else fib * (X - S Z) + fib * (X - S S Z) in fib * (S S S S S S S Z) => v
+        0 |- letrec fib = fun x -> if X < S S Z then X else fib * (X - S Z) + fib * (X - S S Z) in fib * (S S S S S S S Z) => v
     }
     ").
 
