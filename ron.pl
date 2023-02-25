@@ -303,7 +303,7 @@ mi(Goal) :-
         Goal \= true,
         Goal \= (_,_),
         %writeln(Goal),
-        %sleep(1),
+        %sleep(0.1),
         clause(Goal, Body),
         mi(Body).
 
@@ -551,6 +551,7 @@ test_plus_10 :- code_mi("
 
     main {
         10 + 20 = x
+        x + 30 = y
     }
 ").
 
@@ -746,3 +747,232 @@ test_or :- code_mi("
         (false or false) or (false or false) => x
     }
     ").
+
+test_and :- code_mi("
+op 50 : _ && _
+op 40 : _ is _
+op 30 : if _ then _ else _
+op 10 : _ => _
+
+false => false
+true => true
+
+false && false is false
+false && true is false
+true && false is false
+true && true is true
+
+e1 && e2 => v {
+   e1 => v1
+   e2 => v2
+   v1 && v2 is v
+}
+
+if e1 then e2 else e3 => v {
+    e1 => true
+    e2 => v
+}
+if e1 then e2 else e3 => v {
+    e1 => false
+    e3 => v
+}
+
+main {
+    if true && false then true else false => v
+}
+").
+
+test_cont :- code_mi("
+    op 90 : integer _
+    op 40 : _ + _
+    op 30 : [ _ ]
+    op 20 : _ is _
+    op 20 : _ >> _    
+    op 10 : _ => _ // _
+    op 10 : _ >> _ // _
+
+    v => 0 // v {
+        <integer v>
+    }
+    i >> k // v {
+        <integer i>        
+        i => k // v
+    }
+    e1 + e2 >> k // v {
+        e1 >> ( [ H + e2 ] >> k ) // v
+    }
+    v1 => [ H + e ] >> k // v2 {
+        e >> ( [ v1 + H ] >> k ) // v2
+    }
+    v1 => [ v2 + H ] >> k // v {
+        <v3 is v1 + v2>
+        v3 => k // v
+    }
+
+    main {
+        1 + 10 + 100 >> 0 // v
+    }
+").
+
+test_letcc :- code_mi("
+    op 99 : _ _
+    op 90 : integer _
+    op 90 : cont _
+    op 50 : _ + _    
+    op 40 : [ _ |- _ ]
+    op 40 : [ _ ]
+    op 30 : _ \\= _
+    op 30 : _ = _
+    op 20 : _ , _
+    op 20 : letcc _ in _
+    op 20 : _ is _
+    op 20 : _ >> _        
+    op 10 : _ => _ // _
+    op 10 : _ |- _ >> _ // _
+    op 10 : _ |- _ => _
+
+    v => 0 // v {
+        <integer v>
+    }
+    c |- i >> k // v {
+        <integer i>
+        i => k // v
+    }
+    c |- e1 + e2 >> k // v {
+        c |- e1 >> ( [ c |- H + e2 ] >> k ) // v
+    }
+    v1 => [ c |- H + e ] >> k // v2 {
+        c |- e >> ( [ v1 + H ] >> k ) // v2
+    }
+    v1 => [ v2 + H ] >> k // v {
+        <v3 is v1 + v2>
+        v3 => k // v
+    }
+    c |- letcc x in e >> k // v {
+        c, x = cont k |- e >> k // v
+    }
+    c |- e1 e2 >> k // v {
+        c |- e1 >> ( [ c |- H e2 ] >> k ) // v
+    }
+    v1 => [ c |- H e ] >> k // v2 {
+        c |- e >> ( [ v1 H ] >> k ) // v2
+    } 
+    v1 => [ (cont k1) H ] >> k2 // v2 {
+        v1 => k1 // v2
+    }
+
+    c |- x >> k // v {
+        c |- x => v1
+        v1 => k // v
+    }
+
+    x = v |- x => v
+    c, x = v |- x => v
+    c, y = v' |- x => v {
+        <x \\= y>
+        c |- x => v
+    }
+
+    main {
+        0 |- 1 + letcc k in 10 + k 100 >> 0 // v
+    }
+").
+
+test_dcont :- code_mi("
+    op 99 : _ _
+    op 90 : integer _
+    op 90 : cont _    
+    op 60 : _ * _
+    op 50 : _ + _    
+    op 40 : [ _ |- _ ]
+    op 40 : [ _ ]
+    op 30 : _ \\= _
+    op 30 : _ = _
+    op 20 : _ , _
+    op 20 : reset _
+    op 20 : shift _ in _
+    op 20 : letcc _ in _
+    op 20 : _ is _
+    op 18 : _ >> _
+    op 15 : _ >>> _
+    op 10 : _ => _ >>> _ // _
+    op 10 : _ |- _ >> _ >>> _ // _
+    op 10 : _ |- _ => _
+    op 10 : _ ~> _
+
+    e ~> v {
+        0 |- e >> 0 >>> 0 // v
+    }
+    v => 0 >>> 0 // v {
+        <integer v>
+    }
+    c |- i >> k >>> k2 // v {
+        <integer i>
+        i => k >>> k2 // v
+    }
+    c |- e1 + e2 >> k >>> k2 // v {
+        c |- e1 >> ( [ c |- H + e2 ] >> k ) >>> k2 // v
+    }
+    v1 => [ c |- H + e ] >> k >>> k2 // v2 {
+        c |- e >> ( [ v1 + H ] >> k ) >>> k2 // v2
+    }
+    v1 => [ v2 + H ] >> k >>> k2 // v {
+        <v3 is v1 + v2>
+        v3 => k >>> k2 // v
+    }
+
+    c |- e1 * e2 >> k >>> k2 // v {
+        c |- e1 >> ( [ c |- H * e2 ] >> k ) >>> k2 // v
+    }
+    v1 => [ c |- H * e ] >> k >>> k2 // v2 {
+        c |- e >> ( [ v1 * H ] >> k ) >>> k2 // v2
+    }
+    v1 => [ v2 * H ] >> k >>> k2 // v {
+        <v3 is v1 * v2>
+        v3 => k >>> k2 // v
+    }
+
+    c |- shift x in e >> k >>> k2 // v {
+        c, x = cont k |- e >> 0 >>> k2 // v
+    }
+    c |- reset e >> k >>> k2 // v {
+        c |- e >> 0 >>> (k >>> k2) // v
+    }
+    v1 => 0 >>> (k >>> k2) // v {
+        v1 => k >>> k2 // v
+    }
+
+    c |- e1 e2 >> k >>> k2 // v {
+        c |- e1 >> ( [ c |- H e2 ] >> k ) >>> k2 // v
+    }
+    v1 => [ c |- H e ] >> k >>> k2 // v2 {
+        c |- e >> ( [ v1 H ] >> k ) >>> k2 // v2
+    }
+    v1 => [ (cont k1) H ] >> k2 >>> k3 // v2 {
+        v1 => k1 >>> (k2 >>> k3) // v2
+    }
+
+    c |- x >> k >>> k2 // v {
+        c |- x => v1
+        v1 => k >>> k2 // v
+    }
+
+    x = v |- x => v
+    c, x = v |- x => v
+    c, y = v' |- x => v {
+        <x \\= y>
+        c |- x => v
+    }
+
+    main {
+        2 * reset (3 + shift k in k 4) ~> v
+    }
+").
+
+% 2 * reset (3 + shift k in k 4) ~> v
+% 1 + shift k in (2 * k 3) ~> v
+% 3 * shift k in k (k 5) ~> v
+% 3 * reset 1 + shift k in 2 * shift l in k (l 5) ~> v
+% 3 * reset 1 + shift k in 2 ~> v
+% 3 * reset 1 + shift k in 2 * (shift l in k (l 5) ) ~> v
+% 2 * reset (3 + shift k in k (k 4) ) ~> v
