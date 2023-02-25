@@ -895,66 +895,66 @@ test_dcont :- code_mi("
     op 20 : _ is _
     op 18 : _ >> _
     op 15 : _ >>> _
-    op 10 : _ => _ >>> _ // _
-    op 10 : _ |- _ >> _ >>> _ // _
+    op 10 : _ => _ >>> _ evalto _
+    op 10 : _ |- _ >> _ >>> _ evalto _
     op 10 : _ |- _ => _
     op 10 : _ ~> _
 
     e ~> v {
-        0 |- e >> 0 >>> 0 // v
+        0 |- e >> 0 >>> 0 evalto v
     }
-    v => 0 >>> 0 // v {
+    v => 0 >>> 0 evalto v {
         <integer v>
     }
-    c |- i >> k >>> k2 // v {
+    c |- i >> k >>> k2 evalto v {
         <integer i>
-        i => k >>> k2 // v
+        i => k >>> k2 evalto v
     }
-    c |- e1 + e2 >> k >>> k2 // v {
-        c |- e1 >> ( [ c |- H + e2 ] >> k ) >>> k2 // v
+    c |- e1 + e2 >> k >>> k2 evalto v {
+        c |- e1 >> ( [ c |- H + e2 ] >> k ) >>> k2 evalto v
     }
-    v1 => [ c |- H + e ] >> k >>> k2 // v2 {
-        c |- e >> ( [ v1 + H ] >> k ) >>> k2 // v2
+    v1 => [ c |- H + e ] >> k >>> k2 evalto v2 {
+        c |- e >> ( [ v1 + H ] >> k ) >>> k2 evalto v2
     }
-    v1 => [ v2 + H ] >> k >>> k2 // v {
+    v1 => [ v2 + H ] >> k >>> k2 evalto v {
         <v3 is v1 + v2>
-        v3 => k >>> k2 // v
+        v3 => k >>> k2 evalto v
     }
 
-    c |- e1 * e2 >> k >>> k2 // v {
-        c |- e1 >> ( [ c |- H * e2 ] >> k ) >>> k2 // v
+    c |- e1 * e2 >> k >>> k2 evalto v {
+        c |- e1 >> ( [ c |- H * e2 ] >> k ) >>> k2 evalto v
     }
-    v1 => [ c |- H * e ] >> k >>> k2 // v2 {
-        c |- e >> ( [ v1 * H ] >> k ) >>> k2 // v2
+    v1 => [ c |- H * e ] >> k >>> k2 evalto v2 {
+        c |- e >> ( [ v1 * H ] >> k ) >>> k2 evalto v2
     }
-    v1 => [ v2 * H ] >> k >>> k2 // v {
+    v1 => [ v2 * H ] >> k >>> k2 evalto v {
         <v3 is v1 * v2>
-        v3 => k >>> k2 // v
+        v3 => k >>> k2 evalto v
     }
 
-    c |- shift x in e >> k >>> k2 // v {
-        c, x = cont k |- e >> 0 >>> k2 // v
+    c |- shift x in e >> k >>> k2 evalto v {
+        c, x = cont k |- e >> 0 >>> k2 evalto v
     }
-    c |- reset e >> k >>> k2 // v {
-        c |- e >> 0 >>> (k >>> k2) // v
+    c |- reset e >> k >>> k2 evalto v {
+        c |- e >> 0 >>> (k >>> k2) evalto v
     }
-    v1 => 0 >>> (k >>> k2) // v {
-        v1 => k >>> k2 // v
-    }
-
-    c |- e1 e2 >> k >>> k2 // v {
-        c |- e1 >> ( [ c |- H e2 ] >> k ) >>> k2 // v
-    }
-    v1 => [ c |- H e ] >> k >>> k2 // v2 {
-        c |- e >> ( [ v1 H ] >> k ) >>> k2 // v2
-    }
-    v1 => [ (cont k1) H ] >> k2 >>> k3 // v2 {
-        v1 => k1 >>> (k2 >>> k3) // v2
+    v1 => 0 >>> (k >>> k2) evalto v {
+        v1 => k >>> k2 evalto v
     }
 
-    c |- x >> k >>> k2 // v {
+    c |- e1 e2 >> k >>> k2 evalto v {
+        c |- e1 >> ( [ c |- H e2 ] >> k ) >>> k2 evalto v
+    }
+    v1 => [ c |- H e ] >> k >>> k2 evalto v2 {
+        c |- e >> ( [ v1 H ] >> k ) >>> k2 evalto v2
+    }
+    v1 => [ (cont k1) H ] >> k2 >>> k3 evalto v2 {
+        v1 => k1 >>> (k2 >>> k3) evalto v2
+    }
+
+    c |- x >> k >>> k2 evalto v {
         c |- x => v1
-        v1 => k >>> k2 // v
+        v1 => k >>> k2 evalto v
     }
 
     x = v |- x => v
