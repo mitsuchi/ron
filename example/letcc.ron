@@ -1,0 +1,61 @@
+op 99 : _ _
+op 90 : integer _
+op 90 : cont _
+op 50 : _ + _    
+op 40 : [ _ |- _ ]
+op 40 : [ _ ]
+op 30 : _ \= _
+op 30 : _ = _
+op 20 : _ , _
+op 20 : letcc _ in _
+op 20 : _ is _
+op 20 : _ >> _        
+op 10 : _ => _ // _
+op 10 : _ |- _ >> _ // _
+op 10 : _ |- _ => _
+
+v => 0 // v {
+    <integer v>
+}
+c |- i >> k // v {
+    <integer i>
+    i => k // v
+}
+c |- e1 + e2 >> k // v {
+    c |- e1 >> ( [ c |- H + e2 ] >> k ) // v
+}
+v1 => [ c |- H + e ] >> k // v2 {
+    c |- e >> ( [ v1 + H ] >> k ) // v2
+}
+v1 => [ v2 + H ] >> k // v {
+    <v3 is v1 + v2>
+    v3 => k // v
+}
+c |- letcc x in e >> k // v {
+    c, x = cont k |- e >> k // v
+}
+c |- e1 e2 >> k // v {
+    c |- e1 >> ( [ c |- H e2 ] >> k ) // v
+}
+v1 => [ c |- H e ] >> k // v2 {
+    c |- e >> ( [ v1 H ] >> k ) // v2
+} 
+v1 => [ (cont k1) H ] >> k2 // v2 {
+    v1 => k1 // v2
+}
+
+c |- x >> k // v {
+    c |- x => v1
+    v1 => k // v
+}
+
+x = v |- x => v
+c, x = v |- x => v
+c, y = v' |- x => v {
+    <x \= y>
+    c |- x => v
+}
+
+main {
+    0 |- 1 + letcc k in 10 + k 100 >> 0 // v
+}

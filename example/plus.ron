@@ -1,0 +1,11 @@
+op 50 : S _
+op 50 : _ plus _ is _
+
+Z plus n is n
+(S n1) plus n2 is (S n) {
+    n1 plus n2 is n
+}
+
+main {
+    (S Z) plus (S Z) is x
+}
