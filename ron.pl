@@ -307,6 +307,25 @@ mi(Goal) :-
         clause(Goal, Body),
         mi(Body).
 
+run :-
+    current_prolog_flag(argv, Argv),
+    nth1(1, Argv, FilePath) ->
+        (catch(
+            read_file(FilePath),
+            Exception,
+            (
+                write('error: '), write(Exception), nl,
+                fail
+            )
+        ), halt) ; true.
+
+read_file(FilePath) :-
+    read_file_to_string(FilePath, String, []),
+    string_chars(String, Chars),
+    code_mi(Chars).
+
+:- run, !.
+
 test(Code, Query) :-
     code_mi(Code),
     query_string(Query).
