@@ -1,0 +1,31 @@
+op 50 : _ && _
+op 40 : _ is _
+op 30 : if _ then _ else _
+op 10 : _ => _
+
+false => false
+true => true
+
+false && false is false
+false && true is false
+true && false is false
+true && true is true
+
+e1 && e2 => v {
+   e1 => v1
+   e2 => v2
+   v1 && v2 is v
+}
+
+if e1 then e2 else e3 => v {
+    e1 => true
+    e2 => v
+}
+if e1 then e2 else e3 => v {
+    e1 => false
+    e3 => v
+}
+
+main {
+    if true && false then true else false => v
+}

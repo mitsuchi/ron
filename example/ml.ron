@@ -1,0 +1,101 @@
+    op 90 : S _     
+    op 80 : _ * _
+    op 60 : _ + _
+    op 60 : _ - _
+    op 50 : _ < _
+    op 40 : _ = _
+    op 40 : _ \= _
+    op 30 : _ , _
+    op 25 : [ _ , _ ]
+    op 20 : _ less than _ is _
+    op 20 : if _ then _ else _
+    op 20 : let _ = _ in _
+    op 20 : letrec _ = _ in _
+    op 20 : fun _ -> _
+    op 10 : _ |- _ => _
+    
+    c |- Z => Z
+    c |- S n => S v {
+        c |- n => v
+    }
+
+    c |- true => true
+    c |- false => false
+
+    c |- Z + n => v {
+        c |- n => v
+    }
+    c |- (S n1) + n2 => S n {
+        c |- n1 + n2 => n
+    }
+    c |- e1 + e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        c |- v1 + v2 => v
+    }
+
+    c |- n - Z => v {
+        c |- n => v
+    }
+    c |- n - (S m) => l {
+        c |- n - m => S l
+    }
+    c |- e1 - e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        c |- v1 - v2 => v
+    }
+
+    Z less than (S n) is true 
+    S n1 less than S n2 is true {
+        n1 less than n2 is true
+    }
+    n less than Z is false
+    S n1 less than S n2 is false {
+        n1 less than n2 is false
+    }
+    c |- e1 < e2 => v {
+        c |- e1 => v1
+        c |- e2 => v2
+        v1 less than v2 is v
+    }
+
+    c |- if e1 then e2 else e3 => v {
+        c |- e1 => true
+        c |- e2 => v
+    }
+    c |- if e1 then e2 else e3 => v {
+        c |- e1 => false
+        c |- e3 => v
+    }
+
+    x = v |- x => v
+    c, x = v |- x => v
+    c, y = v' |- x => v {
+        <x \= y>
+        c |- x => v
+    }
+
+    c |- let x = e1 in e2 => v {
+        c |- e1 => v1
+        c, x = v1 |- e2 => v
+    }
+    c |- letrec x = fun y -> e1 in e2 => v {
+        c, x = [c, x = fun y -> e1] |- e2 => v
+    }
+
+    c |- fun x -> e => [c, fun x -> e]
+    c |- e1 * e2 => v {
+        c |- e1 => [c2, fun x -> e0]
+        c |- e2 => v2
+        c2, x = v2 |- e0 => v
+    }
+    c |- e1 * e2 => v { 
+        c |- e1 => [c2, x = fun y -> e0]
+        c |- e2 => v2
+        c2, x = [c2, x = fun y -> e0] , y = v2 |- e0 => v
+    }
+
+    main {
+        0 |- letrec fib = fun n -> if n < S S Z then n else fib * (n - S Z) + fib * (n - S S Z) in fib * (S S S S S S S Z) => v
+    }

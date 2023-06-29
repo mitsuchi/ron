@@ -1,0 +1,11 @@
+op 50 : _ + _ = _
+op 50 : succ _
+
+0 + n = n
+succ m + n = succ p {
+    m + n = p
+}
+
+main {
+    succ 0 + succ 0 = x
+}

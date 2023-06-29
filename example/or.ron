@@ -1,0 +1,16 @@
+op 50 : _ or _
+op 30 : _ -> _
+op 30 : _ => _
+
+false or b -> b
+true or b -> true
+
+x or y -> x' or y { x -> x' }
+x or y -> x or y' { y -> y' }
+x => true { x -> true }
+x => false { x -> false }
+x => y { x -> z; z => y }
+
+main {
+    (false or false) or (false or false) => x
+}
