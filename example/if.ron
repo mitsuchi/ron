@@ -1,0 +1,14 @@
+op 50 : _ |- _ => _
+op 50 : if _ then _ else _
+
+c |- 0 => 0
+c |- 1 => 1
+c |- true => true
+c |- if e1 then e2 else e3 => v {
+    c |- e1 => true
+    c |- e2 => v
+}
+
+main {
+    _ |- if true then 0 else 1 => v
+}
