@@ -34,7 +34,8 @@ tests :-
     test_type2,
     test_plus,
     test_eval_if,
-    test_skip.
+    test_skip,
+    test_comment.
 
 test_arrow1 :- code_mi("op 50 : _ -> _ ; 1 -> 2; main { 1 -> 2; }").
 test_arrow2 :- code_mi("op 50 : _ -> _ ; 1 -> 2; main { 1 -> x; }").
@@ -54,6 +55,8 @@ test_main :-
     code_mi("1 -> 2; 2 -> 3; main { x -> 3; }").
 
 test_lf :-
+    test("1 -> 2;",
+        "1 -> 2"),
     code_mi("op 50 : _ -> _
         1 -> 2
         2 -> 3
@@ -95,6 +98,18 @@ test_calc :-
     code_mi("op 60 : _ ** _ ;"),
     code_pred_canonical("(1 ++ 2) ** 3", W), str(W, U), writeln(U),
     code_pred_canonical("1 ** (2 ++ 3)", W2), str(W2, U2), writeln(U2).
+
+test_comment :-
+    code_mi("
+        op 50 : _ -> _ ;
+        # 3 から 4 に矢印が伸びている
+        3 -> 4
+
+        main {
+            # 3 から 4 に矢印があるか？
+            3 -> 4
+        }
+    ").
 
 :- tests.
 :- halt.
