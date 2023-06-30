@@ -4,8 +4,14 @@
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
+tokens(Ts) --> comment, !, tokens(Ts).
 tokens([T|Ts]) --> tok(T), !, tokens(Ts).
 tokens([]) --> "".
+
+% # から行末までがコメント
+comment --> "#", string(_), "\n", !.
+string([]) --> [].
+string([X|Xs]) --> [X], string(Xs).
 
 tok(N) --> num(N).
 tok(;) --> ['\n'].
