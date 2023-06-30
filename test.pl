@@ -95,3 +95,6 @@ test_calc :-
     code_mi("op 60 : _ ** _ ;"),
     code_pred_canonical("(1 ++ 2) ** 3", W), str(W, U), writeln(U),
     code_pred_canonical("1 ** (2 ++ 3)", W2), str(W2, U2), writeln(U2).
+
+:- tests.
+:- halt.
