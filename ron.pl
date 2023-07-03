@@ -1,6 +1,9 @@
 :- set_prolog_flag(double_quotes, chars).
 :- dynamic ops/4.
 :- dynamic '_main'/0.
+:- assert(use(nothing)).
+
+useid :- assert(use(id)).
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
@@ -114,6 +117,7 @@ all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
 rules([R | Rs]) --> skip(";"), rul(R), {add_rule(R)}, rules(Rs).
 rules([]) --> skip(";").
 
+rul(useid) --> [use], [id], ";".
 rul(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
 rul(P :- true) --> pred(P), ";".
 rul(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
@@ -130,6 +134,8 @@ body((P,Bs)) --> pred(P), ";", body(Bs).
 add_rules([R]) :- add_rule(R).
 add_rules([R | Rs]) :- add_rule(R), add_rules(Rs).
 
+add_rule(useid) :-
+    useid.
 add_rule(op(Prec, ['_' | Ns])) :-
     replaceUnderScore(Ns, Prec, Ns_),
     pickPunct(Ns, Punct),
@@ -234,7 +240,7 @@ pickPunct([], '').
 query(C) :-
     clause(C, B),
     varnumbers_names(B, T, P), !,
-    mi(T),
+    (use(id) -> mi_id(T) ; mi(T)),
     (P \= [] -> unparseAnswers(P) ; true).
 
 query_string(S) :-
@@ -302,9 +308,11 @@ code_mi(Code) :-
 
 mi(true).
 mi((A,B)) :-
-        mi(A),
-        mi(B).
-mi(Goal) :- predicate_property(Goal,built_in), !, call(Goal).
+    mi(A),
+    mi(B).
+mi(Goal) :-
+    predicate_property(Goal,built_in), !, 
+    call(Goal).
 mi(Goal) :-
         Goal \= true,
         Goal \= (_,_),
@@ -312,6 +320,33 @@ mi(Goal) :-
         %sleep(0.1),
         clause(Goal, Body),
         mi(Body).
+
+mi_limit(Goal, Max) :-
+    mi_limit(Goal, Max, _).
+
+mi_limit(true, N, N).
+mi_limit((A,B), N0, N) :-
+    mi_limit(A, N0, N1),
+    mi_limit(B, N1, N).
+mi_limit(G, N, N) :-
+    G \= true,
+    G \= (_, _),
+    predicate_property(G, built_in),
+    call(G).
+mi_limit(G, N0, N) :- 
+    G \= true,
+    G \= (_, _),
+    predicate_property(G, interpreted),
+    N0 > 0,
+    N1 = N0 - 1,
+    %writeln(G),
+    %sleep(0.1),
+    clause(G, Body),
+    mi_limit(Body, N1, N), !.
+
+mi_id(Goal) :-
+    length(_, N),
+    mi_limit(Goal, N).
 
 run :-
     current_prolog_flag(argv, Argv),

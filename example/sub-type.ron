@@ -1,0 +1,19 @@
+# 深さ優先探索だと解決できない部分型関係の例
+
+# 反復深化（iterative deepening）深さ優先探索を行う
+use id
+# s <: t  <=>  s が t の部分型
+op 50 : _ <: _
+
+# s <:u かつ u <: t なら s <: t
+s <: t {
+    s <: u
+    u <: t
+}
+# 任意の型 s は top の部分型
+s <: top
+
+main {
+    # 型 T は何の部分型か？ : t = top が返る
+    T <: t
+}
