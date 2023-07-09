@@ -28,6 +28,9 @@ num(N) --> digits(Cs), { number_chars(N, Cs) }.
 word([C|Cs]) --> [C], { code_type(C, lower) }, word(Cs).
 word([C]) --> [C], { code_type(C, lower) }.
 alpha(T) --> [C], { code_type(C, lower), T = '$VAR'(C) }.
+alnum(T) --> [C], [N], "'",
+    { code_type(C, lower), code_type(N, digit), atom_concat(C, N, CN),
+    atom_concat(CN, '\'', CND), T = '$VAR'(CND) }.
 alnum(T) --> [C], [N],
     { code_type(C, lower), code_type(N, digit), atom_concat(C, N, CN), T = '$VAR'(CN) }.
 alnum(T) --> [C], "'",
