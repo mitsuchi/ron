@@ -1,0 +1,7 @@
+# import文を追加
+import tapl
+
+# メイン関数
+main {
+    (S Z) plus (S Z) is x
+} 

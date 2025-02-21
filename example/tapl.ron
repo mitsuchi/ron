@@ -1,0 +1,11 @@
+# 演算子を宣言
+op 50 : S _
+op 50 : _ plus _ is _
+    
+# 規則1
+Z plus n is n
+
+# 規則2
+(S n1) plus n2 is (S n) {
+    n1 plus n2 is n
+} 

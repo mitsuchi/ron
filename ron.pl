@@ -1,6 +1,10 @@
 :- set_prolog_flag(double_quotes, chars).
 :- dynamic ops/4.
 :- dynamic '_main'/0.
+:- dynamic imported_files/1.
+
+% Initialize imported files list
+:- asserta(imported_files([])).
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
@@ -102,9 +106,10 @@ all_punct_chars([C]) :- code_type(C, punct).
 all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
 
 % parse
-% rules ::= rule | rule rules
+% rules ::= import_stmt rules | rule rules
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
+rules([import(File) | Rs]) --> [import], [File], ";", rules(Rs).
 rules([R | Rs]) --> skip(";"), rul(R), {add_rule(R)}, rules(Rs).
 rules([]) --> skip(";").
 
@@ -121,8 +126,11 @@ body(P) --> pred(P), skip(";").
 body((P,Bs)) --> pred(P), ";", body(Bs).
 
 % make rules
-add_rules([R]) :- add_rule(R).
+add_rules([import(File) | Rs]) :-
+    process_import(File),
+    add_rules(Rs).
 add_rules([R | Rs]) :- add_rule(R), add_rules(Rs).
+add_rules([]).
 
 add_rule(op(Prec, ['_' | Ns])) :-
     replaceUnderScore(Ns, Prec, Ns_),
@@ -976,3 +984,32 @@ test_dcont :- code_mi("
 % 3 * reset 1 + shift k in 2 ~> v
 % 3 * reset 1 + shift k in 2 * (shift l in k (l 5) ) ~> v
 % 2 * reset (3 + shift k in k (k 4) ) ~> v
+
+% Import handling
+process_import(File) :-
+    imported_files(Files),
+    (member(File, Files) ->
+        true  % Already imported, skip
+    ;
+        atom_concat('example/', File, FilePath),
+        atom_concat(FilePath, '.ron', FullPath),
+        read_file_to_string(FullPath, Content, []),
+        string_chars(Content, Chars),
+        phrase(tokens(Tokens), Chars),
+        phrase(rules(Rules), Tokens),
+        retract(imported_files(Files)),
+        asserta(imported_files([File|Files])),
+        add_rules(Rules)
+    ).
+
+% Main execution
+:- initialization(main).
+
+main :-
+    current_prolog_flag(argv, [File|_]),
+    read_file_to_string(File, Content, []),
+    string_chars(Content, Chars),
+    phrase(tokens(Tokens), Chars),
+    phrase(rules(Rules), Tokens),
+    add_rules(Rules),
+    query_string("main").
