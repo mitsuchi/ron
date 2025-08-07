@@ -1,58 +1,57 @@
 # ron
 
-小さい計算体系をなるべくシンプルに定義できるような言語を作ってみたいと思って作りちゅう。
+I'm trying to create a language that allows me to define small computational systems as simply as possible.
 
-例：ペアノ自然数の足し算
+Example: Peano number addition
 
 ```
-# 演算子を宣言
+# Declare operators
 op 50 : S _
 op 50 : _ plus _ is _
     
-# 規則1
+# Rule 1
 Z plus n is n
 
-# 規則2
+# Rule 2
 (S n1) plus n2 is (S n) {
     n1 plus n2 is n
 }
 
-# 問い合わせ
+# Query
 main {
     (S Z) plus (S Z) is x
 }
 ```
 
+Example: SKI combinator calculus
 
-
-例：SKIコンビネータ計算
 ```
-# 演算子を宣言
+# Declare operators
 op 50 : _ -> _
 op 50 : _ => _
 op 100 : _ _
 
-# 規則1
+# Rule 1
 I x     -> x
 K x y   -> x
 S x y z -> x z (y z)
 
-# 規則2
+# Rule 2
 x y -> x’ y { x -> x’ }
 x y -> x y’ { y -> y’ }
 
-# 規則3
+# Rule 3
 x => y { x -> y }
 x => y { x -> z; z => y }
 
-# 問い合わせ
+# Query
 main {
     S K S K => x
 }
 ```
 
+Example: Fibonacci function with OCaml-style syntax
 
-例：OCaml 風の構文でフィボナッチ関数
 ```
 op 90 : _ _
 op 80 : integer _
@@ -70,14 +69,14 @@ op 20 : if _ then _ else _
 op 20 : let rec _ _ = _ in _
 op 10 : _ |- _ => _   
 
-# c |- e => v は、環境 c で式 e を評価すると値 v になるの意味
+# c |- e => v means that in environment c, expression e evaluates to value v
 
-# 整数はそのままで値
+# Integers evaluate to themselves
 c |- n => n {
     <integer n>
 }
 
-# 足し算と引き算
+# Addition and subtraction
 c |- e1 + e2 => v {
     c |- e1 => v1
     c |- e2 => v2
@@ -89,7 +88,7 @@ c |- e1 - e2 => v {
     <v is v1 - v2>
 }
 
-# 大小比較
+# Comparison
 c |- e1 < e2 => true {
     c |- e1 => v1
     c |- e2 => v2
@@ -101,7 +100,7 @@ c |- e1 < e2 => false {
     <v1 >= v2>
 }
 
-# if 式
+# if expression
 c |- if e1 then e2 else e3 => v {
     c |- e1 => true
     c |- e2 => v
@@ -111,7 +110,7 @@ c |- if e1 then e2 else e3 => v {
     c |- e3 => v
 }
 
-# 環境と変数
+# Environment and variables
 x = v |- x => v
 c, x = v |- x => v
 c, y = v' |- x => v {
@@ -119,12 +118,12 @@ c, y = v' |- x => v {
     c |- x => v
 }
 
-# let rec による関数定義
+# let rec function definition
 c |- let rec f x = e1 in e2 => v {
     c, f = [c |- f = x -> e1] |- e2 => v
 }
 
-# 関数の適用　
+# Function application
 c |- e1 e2 => v { 
     c |- e1 => [c2 |- f = x -> e0]
     c |- e2 => v2
@@ -136,26 +135,26 @@ main {
 }
 ```
 
-## やりたいこと
+## Goals
 
-- 「プログラミング言語の基礎概念」とか TaPL にあるような計算体系を、なるべく簡単に実装できるような言語を作りたい
-- やりたいことは Prolog でほぼできるので、見た目をもうちょっと自分好みにしたい。
-- 具体的には、
-    - mixfix 演算子を定義して自然な文法で書けるようにしたい
-    - {} で括って ALGOL 風の見た目にしたい
-    - 変数名に小文字を使いたい
-    - 変数名の末尾に ' を使って x' みたいに書きたい
-    - main を定義したらそこが出発点になるようにしたい
+- I want to create a language that makes it as easy as possible to implement computational systems like those in "Concepts of Programming Languages" or TaPL.
+- Most of what I want to do can be done in Prolog, so I want to make the appearance a little more to my liking.
+- Specifically:
+    - I want to be able to define mixfix operators to write in a natural grammar.
+    - I want to use {} to create an ALGOL-like look.
+    - I want to use lowercase letters for variable names.
+    - I want to be able to write things like x' by using ' at the end of a variable name.
+    - I want to make it so that when main is defined, it becomes the starting point.
 
-## やっていること
+## What it does
 
-- Prolog でパーズして、そのまま1:1で Prolog の述語に変換して、Prolog の処理系で実行させている
+- It parses in Prolog, converts it 1:1 to a Prolog predicate, and executes it in the Prolog processor.
 
-## できていること
+## What works
 
-- 上記の例は動く。
+- The examples above work.
 
-## 使い方
+## Usage
 
 ```
 $ swipl ron.pl example/if.ron
