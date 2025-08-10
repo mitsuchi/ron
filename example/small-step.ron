@@ -1,0 +1,24 @@
+op 70 : zero _
+op 50 : if _ then _ else _
+op 20 : _ => _
+op 20 : _ -> _
+op 20 : _ --> _
+op 10 : not _
+
+zero Z -> true
+if t1 then t2 else t3 -> if t1' then t2 else t3 {
+    t1 -> t1'
+}
+if true then t2 else t3 -> t2
+
+t1 --> t2 { t1 -> t2 }
+t1 --> t2 { t1 -> t3; t3 --> t2 }
+
+t1 => t2 {
+    t1 --> t2
+    <not t2 -> t3>
+}
+
+main {
+    if (zero Z) then true else false => x
+}

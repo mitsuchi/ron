@@ -1,0 +1,50 @@
+op 90 : V _
+op 90 : E _
+op 50 : if _ then _ else _
+op 10 : _ -> _
+op 10 : _ --> _
+op 10 : _ ~> _
+
+V true
+V false
+
+E true
+E false
+
+E (if e1 then e2 else e3)
+
+if true then e1 else e2 -> e1
+
+if false then e1 else e2 -> e2
+
+if e then e1 else e2 -> if e' then e1 else e2 {
+  e -> e'    
+#  E e
+#  E e'
+#  E e1
+#  E e2
+}
+
+e1 --> e2 {
+   E e1    
+   E e2   
+   e1 -> e2
+}
+
+e1 --> e2 {
+   E e1
+   E e2
+   E e3
+   e1 -> e3
+   e3 --> e2
+}
+
+e ~> v {
+   E e
+   V v
+   e --> v
+}
+
+main {
+    if true then (if true then false else true) else false ~> v
+}
