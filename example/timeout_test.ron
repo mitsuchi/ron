@@ -1,0 +1,10 @@
+# Test infinite recursion detection
+op 50 : infinite_loop
+
+infinite_loop {
+    infinite_loop
+}
+
+main {
+    infinite_loop
+}

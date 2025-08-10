@@ -1,0 +1,10 @@
+# Simple loop test
+op 50 : loop _
+
+loop x {
+    loop x
+}
+
+main {
+    loop test
+}
