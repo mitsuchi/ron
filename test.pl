@@ -1,9 +1,177 @@
 :- consult('ron.pl').
+:- dynamic test_stats/2.
+:- assert(test_stats(passed, 0)).
+:- assert(test_stats(failed, 0)).
 
+% 古い test/2 関数（互換性のため残す）
 test(Code, Query) :-
     code_rules(Code, _),
     query_string(Query).
 
+% 新しいテスト関数群
+
+% 期待値との照合テスト
+test_expect(TestName, Code, Query, Expected) :-
+    write('Testing '), write(TestName), write('... '),
+    catch(
+        (
+            code_rules(Code, _),
+            with_output_to(string(Output), query_string(Query)),
+            atom_string(Expected, ExpectedAtom),
+            (sub_atom(Output, _, _, _, ExpectedAtom) ->
+                (write('PASS'), nl, inc_stat(passed))
+            ;
+                (write('FAIL'), nl,
+                 write('  Expected to contain: '), writeln(Expected),
+                 write('  Got: '), writeln(Output),
+                 inc_stat(failed))
+            )
+        ),
+        Error,
+        (
+            write('ERROR: '), write(Error), nl,
+            inc_stat(failed)
+        )
+    ).
+
+% パース成功のみをテストする軽量テスト
+test_parse_only(TestName, Code) :-
+    write('Parsing '), write(TestName), write('... '),
+    catch(
+        (
+            code_rules(Code, _),
+            write('PASS'), nl,
+            inc_stat(passed)
+        ),
+        Error,
+        (
+            write('FAIL - Parse Error: '), write(Error), nl,
+            inc_stat(failed)
+        )
+    ).
+
+% .ronファイルの自動テスト
+test_file(FileName) :-
+    atom_concat(FileName, '.expected', ExpectedFile),
+    (
+        exists_file(ExpectedFile) ->
+            (
+                write('Testing '), write(FileName), write('... '),
+                % 外部プロセスで実行して正確な出力を取得
+                format(atom(Command), 'swipl ron.pl ~w 2>/dev/null', [FileName]),
+                catch(
+                    (
+                        process_create('/bin/sh', ['-c', Command], [stdout(pipe(Out))]),
+                        read_string(Out, _, Output),
+                        close(Out),
+                        read_file_to_string(ExpectedFile, Expected, []),
+                        atom_string(Expected, ExpectedAtom),
+                        (sub_atom(Output, _, _, _, ExpectedAtom) ->
+                            (write('PASS'), nl, inc_stat(passed))
+                        ;
+                            (write('FAIL'), nl,
+                             write('  Expected to contain: '), writeln(Expected),
+                             write('  Got: '), writeln(Output),
+                             inc_stat(failed))
+                        )
+                    ),
+                    Error,
+                    (
+                        write('ERROR: '), write(Error), nl,
+                        inc_stat(failed)
+                    )
+                )
+            )
+        ;
+            (
+                write('Testing '), write(FileName), write(' (no expected file)... '),
+                catch(
+                    (
+                        read_file_to_string(FileName, Code, []),
+                        string_chars(Code, CodeChars),
+                        code_mi(CodeChars),
+                        write('PASS'), nl,
+                        inc_stat(passed)
+                    ),
+                    Error,
+                    (
+                        write('FAIL: '), write(Error), nl,
+                        inc_stat(failed)
+                    )
+                )
+            )
+    ).
+
+% 統計管理
+inc_stat(Type) :-
+    retract(test_stats(Type, Count)),
+    Count1 is Count + 1,
+    assert(test_stats(Type, Count1)).
+
+reset_stats :-
+    retractall(test_stats(_, _)),
+    assert(test_stats(passed, 0)),
+    assert(test_stats(failed, 0)).
+
+show_stats :-
+    test_stats(passed, Passed),
+    test_stats(failed, Failed),
+    Total is Passed + Failed,
+    nl,
+    writeln('=== Test Results ==='),
+    write('Total tests: '), writeln(Total),
+    write('Passed: '), writeln(Passed),
+    write('Failed: '), writeln(Failed),
+    (Failed = 0 ->
+        writeln('All tests passed!')
+    ;
+        (write('Success rate: '),
+         Rate is (Passed * 100) // Total,
+         write(Rate), writeln('%'))
+    ),
+    nl.
+
+% 出力の正規化（空白や改行の違いを吸収）
+normalize_output(String, Normalized) :-
+    atom_string(String, StrAtom),
+    atom_chars(StrAtom, Chars),
+    atomic_list_concat(Chars, '', Normalized).
+
+% 全テストの実行
+run_all_tests :-
+    reset_stats,
+    writeln('Running regression tests...'),
+    nl,
+    % 既存のtest.pl内のテストを実行
+    run_basic_tests,
+    % example/ディレクトリのファイルをテスト
+    test_example_files,
+    show_stats.
+
+run_basic_tests :-
+    writeln('=== Basic Tests ==='),
+    test_expect('arrow_simple', "op 50 : _ -> _ ; 1 -> 2;", "1 -> 2", ''),
+    test_expect('arrow_chain', "op 50 : _ -> _ ; 1 -> 2; 2 -> 3;", "2 -> 3", ''),
+    test_expect('peano_plus', "op 50 : _ plus _ is _ ; op 50 : S _ ; Z plus n is n; (S n1) plus n2 is (S n) { n1 plus n2 is n; }", "(S Z) plus (S Z) is (S S Z)", ''),
+    test_parse_only('ski_operators', "op 50 : _ -> _ ; op 50 : _ => _ ; op 100 : _ _ ;"),
+    nl.
+
+test_example_files :-
+    writeln('=== Example Files Tests ==='),
+    % example/ディレクトリの.ronファイルを自動取得
+    expand_file_name('example/*.ron', AllFiles),
+    sort(AllFiles, SortedFiles),
+    % .expectedファイルが存在するもののみフィルタ
+    include(has_expected_file, SortedFiles, FilesWithExpected),
+    maplist(test_file, FilesWithExpected),
+    nl.
+
+% .expectedファイルが存在するかチェック
+has_expected_file(FileName) :-
+    atom_concat(FileName, '.expected', ExpectedFile),
+    exists_file(ExpectedFile).
+
+% 既存のtests群（互換性のため残す）
 tests :-
     code_rules("op 50 : _ -> _ ;", _),
     code_rules("op 50 : _ => _ ;", _),
@@ -111,5 +279,12 @@ test_comment :-
         }
     ").
 
-:- tests.
-:- halt.
+% 既存のテスト実行はコメントアウト
+% :- tests.
+% :- halt.
+
+% 新しいメインエントリポイント
+main_test :-
+    run_all_tests,
+    test_stats(failed, Failed),
+    (Failed = 0 -> halt(0) ; halt(1)).

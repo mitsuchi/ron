@@ -1,0 +1,25 @@
+op 90 : val _
+op 90 : exp _
+op 50 : if _ then _ else _
+op 10 : _ -> _
+op 10 : _ --> _
+op 10 : _ ~> _
+
+# syntax
+val true
+val false
+exp v1 { val v1 }
+exp (if e1 then e2 else e3) { exp e1; exp e2; exp e3 }
+
+# rule
+if true then e1 else e2 -> e1
+if false then e1 else e2 -> e2
+if e1 then e2 else e3 -> if e4 then e2 else e3 { e1 -> e4 }
+
+e1 --> e2 { e1 -> e2 }
+e1 --> e2 { e1 -> e3; e3 --> e2 }
+e ~> v { e --> v; exp e; val v }
+
+main {
+    if (if false then true else false) then true else false ~> v
+}

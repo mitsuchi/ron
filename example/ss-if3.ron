@@ -1,0 +1,125 @@
+op 90 : writeln _
+op 90 : V _
+op 90 : E _
+op 50 : if _ then _ else _
+op 10 : _ -> _
+op 10 : _ --> _
+op 10 : _ ~> _
+
+V true
+V false
+
+E v {
+#   <writeln 1>
+#   <writeln v>
+   V v
+#   <writeln 11>
+#   <writeln v>
+}
+
+E (if e1 then e2 else e3) {
+#   <writeln 2>
+#   <writeln e1>
+#   <writeln e2>
+#   <writeln e3>
+   E e1
+#   <writeln 21>
+#   <writeln e1>
+#   <writeln e2>
+#   <writeln e3>
+   E e2
+#   <writeln 22>
+#   <writeln e1>
+#   <writeln e2>
+#   <writeln e3>
+   E e3
+#   <writeln 23>
+#   <writeln e1>
+#   <writeln e2>
+#   <writeln e3>
+}
+
+if true then e1 else e2 -> e1 {
+#   <writeln 3>
+   E e1
+   E e2
+}
+
+if false then e1 else e2 -> e2 {
+#   <writeln 4>
+   E e1
+   E e2
+}
+
+if e then e1 else e2 -> if e' then e1 else e2 {
+#  <writeln 5>
+  e -> e'    
+  E e
+  E e'
+  E e1
+  E e2
+}
+
+e1 --> e1 {
+#   <writeln 6>
+#   <writeln e1>
+   E e1
+#   <writeln 61>
+#   <writeln e1>
+}
+
+e1 --> e2 {
+#   <writeln 7>
+#   <writeln e1>
+#   <writeln e2>
+   e1 -> e2
+#   <writeln 73>
+#   <writeln e1>
+#   <writeln e2>
+   E e1    
+#   <writeln 71>
+#   <writeln e1>
+#   <writeln e2>
+   E e2   
+#   <writeln 72>
+#   <writeln e1>
+#   <writeln e2>
+}
+
+e1 --> e2 {
+#   <writeln 8>   
+   e1 -> e3
+#   <writeln 84>
+   e3 --> e2
+#   <writeln 85>
+   E e1
+#   <writeln 81>
+   E e2
+#   <writeln 82>
+   E e3
+#   <writeln 83>   
+}
+
+e ~> v {
+#   <writeln 9>
+#   <writeln e>
+#   <writeln v>
+   E e
+#   <writeln 91>
+#   <writeln e>
+#   <writeln v>
+   V v
+#   <writeln 92>
+#   <writeln e>
+#   <writeln v>
+   e --> v
+#   <writeln 93>
+#   <writeln e>
+#   <writeln v>
+}
+
+main {
+#   <writeln 0>
+   if true then (if false then false else false) else true ~> v
+#   <writeln 01>
+}
