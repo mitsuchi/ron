@@ -106,13 +106,6 @@ all_alpha_chars([C]) :- code_type(C, lower).
 all_alpha_chars([C]) :- code_type(C, upper).
 all_alpha_chars([C|Cs]) :- code_type(C, alpha), all_alpha_chars(Cs).
 
-all_punct(U) :-
-    not(U = '$VAR'(_)),
-    atom_chars(U, Cs), all_punct_chars(Cs).
-
-all_punct_chars([C]) :- code_type(C, punct).
-all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
-
 % parse
 % rules ::= rule | rule rules
 % rule ::= pred ';' | pred '{' body '}'
@@ -143,28 +136,20 @@ add_rule(op(Prec, ['_' | Ns])) :-
     replaceUnderScore(Ns, Prec, Ns_),
     pickPunct(Ns, Punct),
     Term = ops(a(Punct), Prec, following, [Prec|Ns_]),
-    %write('rule1: '), writeln(Term),
     assert(Term).
 add_rule(op(Prec, [N | Ns])) :-
     N \= '_',
     replaceUnderScore(Ns, Prec, Ns_),
     pickPunct([N|Ns], Punct),
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
-    %write('rule2: '), writeln(Term),
     assert(Term).
 add_rule(main :- Body) :-
-    %get_time(T),
-    %write('a '), writeln(T),
-    canonical2(Body, BodyC), % writeln('before cut'), !, writeln('after cut'),
-    %write('main BodyC '), writeln(BodyC),
+    canonical2(Body, BodyC),
     assert(main :- BodyC).
 add_rule(Head :- Body) :-
-    %get_time(T),
-    %write('b '), writeln(T),
     canonical(Head, HeadC),
     canonical(Body, BodyC),
     varnumbers_names(HeadC :- BodyC, Term, _),
-    %write('rule3: '), writeln(HeadC :- BodyC), sleep(0.1),
     assert(Term).
 
 % () はあらかじめ定義しておく
@@ -301,13 +286,9 @@ code_pred_canonical(Code, C) :-
     canonical(Pred, C).
     
 code_mi(Code) :-
-    %code_rules(Code, Rules),
     code_rules(Code, _),
     !,
     query(main).
-    %writeln(Rules).
-    %maplist(writeln, Rules).
-    %add_rules(Rules).
 
 % デフォルトのステップ制限
 :- dynamic max_steps/1.
