@@ -1,0 +1,15 @@
+# Limited execution test
+use id;
+
+op 50 : count _ _
+
+count 0 n is n
+count x n is m {
+    x1 is x - 1
+    y is n + 1
+    count x1 y is m
+}
+
+main {
+    count 5 0 is result
+}

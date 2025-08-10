@@ -309,20 +309,63 @@ code_mi(Code) :-
     %maplist(writeln, Rules).
     %add_rules(Rules).
 
-mi(true).
-mi((A,B)) :-
-    mi(A),
-    mi(B).
-mi(Goal) :-
+% デフォルトのステップ制限
+:- dynamic max_steps/1.
+:- assert(max_steps(10000)).
+
+% ステップ制限の設定
+set_max_steps(N) :-
+    retractall(max_steps(_)),
+    assert(max_steps(N)).
+
+% 現在の制限値を取得
+get_max_steps(N) :-
+    max_steps(N).
+
+mi(Goal) :- 
+    max_steps(Max),
+    mi_with_limit(Goal, Max).
+
+mi_with_limit(true, _).
+mi_with_limit((A,B), N) :-
+    mi_with_limit(A, N),
+    mi_with_limit(B, N).
+mi_with_limit(Goal, N) :-
+    N > 0,
     predicate_property(Goal,built_in), !, 
     call(Goal).
-mi(Goal) :-
+mi_with_limit(Goal, N0) :-
+    N0 > 0,
+    Goal \= true,
+    Goal \= (_,_),
+    N1 is N0 - 1,
+    (N1 =< 0 -> 
+        (write('Execution limit reached ('), 
+         max_steps(Max),
+         Steps is Max - N1,
+         write(Steps), writeln(' steps)'), 
+         halt(2))
+    ;
+        (catch(
+            (clause(Goal, Body), mi_with_limit(Body, N1)),
+            Error,
+            (write('Error during execution: '), write(Error), nl, halt(3))
+        ))
+    ).
+
+% 元のmi関数も残す（後方互換性）
+mi_original(true).
+mi_original((A,B)) :-
+    mi_original(A),
+    mi_original(B).
+mi_original(Goal) :-
+    predicate_property(Goal,built_in), !, 
+    call(Goal).
+mi_original(Goal) :-
         Goal \= true,
         Goal \= (_,_),
-        %writeln(Goal),
-        %sleep(0.1),
         clause(Goal, Body),
-        mi(Body).
+        mi_original(Body).
 
 mi_limit(Goal, Max) :-
     mi_limit(Goal, Max, _).
@@ -353,19 +396,27 @@ mi_id(Goal) :-
 
 run :-
     current_prolog_flag(argv, Argv),
-    nth1(1, Argv, FilePath) ->
+    (nth1(1, Argv, FilePath) ->
         (catch(
             read_file(FilePath),
             Exception,
             (
                 write('error: '), write(Exception), nl,
-                fail
+                halt(1)
             )
-        ), halt) ; true.
+        ), halt(0))
+    ; 
+        (write('No file specified'), nl, halt(1))
+    ).
 
 read_file(FilePath) :-
     read_file_to_string(FilePath, String, []),
     string_chars(String, Chars),
     code_mi(Chars).
 
-:- run, !.
+% ファイル実行時のみrun実行（テスト時は実行しない）
+main_execution :-
+    run.
+
+% コンパイル時の自動実行（consultやloading時は実行しない）
+:- (current_prolog_flag(argv, [_|_]) -> main_execution ; true).
