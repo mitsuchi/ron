@@ -1,0 +1,26 @@
+op 30 : _ -> _
+op 30 : _ --> _
+op 50 : if _ then _ else _
+
+syntax {
+  v ::= true | false
+  t ::= true | false | if t then t else t
+}
+
+if true then t1 else t2 -> t1
+if false then t1 else t2 -> t2
+if t1 then t2 else t3 -> if t4 then t2 else t3 {
+  t1 -> t4
+}
+
+t1 --> t2 {
+  t1 -> t3
+  t3 --> t2
+}
+t --> t' {
+  t -> t'
+}
+
+main {
+  if (if true then true else false) then true else false --> v
+}
