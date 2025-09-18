@@ -1,0 +1,10 @@
+op 99 : _ == _
+
+syntax {
+  v ::= true
+  v ::= false  
+}
+
+main {
+  true == v
+}

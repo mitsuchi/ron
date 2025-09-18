@@ -1,0 +1,42 @@
+op 30 : _ -> _
+op 30 : _ --> _
+op 40 : _ :: _
+op 50 : if _ then _ else _
+
+true :: T
+false :: T
+
+if t0 then t1 else t2 :: T {
+    t0 :: T
+    t1 :: T
+    t2 :: T
+}
+
+true :: V
+false :: V
+
+if true then t2 else t3 -> t2 {
+    t2 :: T
+}
+if false then t2 else t3 -> t3 {
+    t3 :: T
+}
+if t1 then t2 else t3 -> if t1' then t2 else t3 {
+    t1 -> t1'
+    t1 :: T
+    t1' :: T
+    t2 :: T
+    t3 :: T
+}
+
+t1 --> t2 {
+    t1 -> t3
+    t3 --> t2
+}
+t1 --> t2 {
+    t1 -> t2
+}
+
+main {
+    if (if true then false else true) then false else true --> x
+}
