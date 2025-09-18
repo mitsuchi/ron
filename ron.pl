@@ -3,6 +3,8 @@
 :- dynamic '_main'/0.
 :- dynamic debug_syntax/0.
 :- dynamic ebnf_nonterminal/2.
+:- dynamic processing_nt/1.
+:- dynamic deferred_rule/3.
 :- assert(use(nothing)).
 
 useid :- assert(use(id)).
@@ -810,12 +812,17 @@ pickPunct([N|Ns], Punct) :-
     atom_concat(N, Ps, Punct).
 pickPunct([], '').
 
-% EBNF syntax processing
+% EBNF syntax processing with cycle detection
 process_syntax_rules([]).
 process_syntax_rules(Rules) :-
+    % Initialize processing state
+    retractall(processing_nt(_)),
+    retractall(deferred_rule(_, _, _)),
     % Group rules by non-terminal to avoid duplicates
     group_rules_by_nt(Rules, GroupedRules),
-    process_grouped_syntax_rules(GroupedRules).
+    process_grouped_syntax_rules(GroupedRules),
+    % Process any deferred rules
+    process_deferred_rules().
 
 % Group rules by non-terminal
 group_rules_by_nt([], []).
@@ -833,27 +840,63 @@ collect_productions_for_nt([rule(NT, Productions)|Rules], NT, AllProductions, Re
 collect_productions_for_nt([Rule|Rules], NT, Productions, [Rule|RestRules]) :-
     collect_productions_for_nt(Rules, NT, Productions, RestRules).
 
-% Process grouped syntax rules  
+% Process grouped syntax rules with cycle detection
 process_grouped_syntax_rules([]).
 process_grouped_syntax_rules([rule(NT, Productions)|Rules]) :-
-    get_nt_char(NT, C),
-    code_type(C, lower),
-    char_code(C, Code),
-    UpperCode is Code - 32,
-    char_code(UC, UpperCode),
-    debug_msg('Processing non-terminal: ~w -> ~w', [NT, UC]),
-    debug_msg('Productions: ~w', [Productions]),
-    % Record non-terminal for rule transformation
-    assert(ebnf_nonterminal(NT, UC)),
-    % Generate operator for non-terminal recognition (op 99: UC _)
-    OpTerm = ops(a(UC), 99, following, [99, UC]),
-    assert(OpTerm),
-    debug_msg('Generated operator: op 99: ~w _', [UC]),
-    % Create direct predicate rules for easier access
-    create_direct_nt_rules(UC, Productions),
-    process_syntax_rules(Rules).
+    % Check for cycles
+    (processing_nt(NT) ->
+        debug_msg('Warning: Cycle detected for non-terminal ~w, skipping', [NT]),
+        process_grouped_syntax_rules(Rules)
+    ;
+        % Mark this non-terminal as being processed
+        assert(processing_nt(NT)),
+        get_nt_char(NT, C),
+        code_type(C, lower),
+        char_code(C, Code),
+        UpperCode is Code - 32,
+        char_code(UC, UpperCode),
+        debug_msg('Processing non-terminal: ~w -> ~w', [NT, UC]),
+        debug_msg('Productions: ~w', [Productions]),
+        % Record non-terminal for rule transformation
+        assert(ebnf_nonterminal(NT, UC)),
+        % Generate operator for non-terminal recognition (op 99: UC _)
+        OpTerm = ops(a(UC), 99, following, [99, UC]),
+        assert(OpTerm),
+        debug_msg('Generated operator: op 99: ~w _', [UC]),
+        % Create direct predicate rules for easier access
+        create_direct_nt_rules(UC, Productions),
+        % Remove processing mark before recursing
+        retract(processing_nt(NT)),
+        process_grouped_syntax_rules(Rules)
+    ).
 
+% Process deferred rules after all non-terminals have been defined
+process_deferred_rules :-
+    findall(deferred_rule(DirectUC, Production, Var), deferred_rule(DirectUC, Production, Var), DeferredRules),
+    (DeferredRules = [] ->
+        debug_msg('No deferred rules to process', [])
+    ;
+        debug_msg('Processing ~w deferred rules', [DeferredRules]),
+        maplist(process_single_deferred_rule, DeferredRules),
+        % Clean up deferred rules
+        retractall(deferred_rule(_, _, _))
+    ).
 
+% Process a single deferred rule
+process_single_deferred_rule(deferred_rule(DirectUC, _Production, Var)) :-
+    debug_msg('Processing deferred rule: ~w for variable ~w', [DirectUC, Var]),
+    % Check if the variable is now defined
+    (ebnf_nonterminal(Var, VarUC) ->
+        atom_concat('_', VarUC, VarDirectUC),
+        Head =.. [DirectUC, X],  % Use fresh variable
+        Body =.. [VarDirectUC, X],  % Same variable
+        Rule = (Head :- Body),
+        store_debug_rule_form(Rule),
+        assert(Rule),
+        debug_msg('  Successfully processed deferred rule: ~w', [Rule])
+    ;
+        debug_msg('  Warning: Variable ~w still not defined, rule ignored', [Var])
+    ).
 
 % Transform a single rule by adding EBNF constraints
 transform_rule(rule(Head, Body)) :-
@@ -1183,15 +1226,20 @@ create_direct_nt_rule(DirectUC, Production) :-
         assert(Fact),
         debug_msg('  Added fact: ~w', [Fact])
     ; Production = '$VAR'(Var) ->
-        % Variable: _T(X) :- _V(X)
-        ebnf_nonterminal(Var, VarUC),
-        atom_concat('_', VarUC, VarDirectUC),
-        Head =.. [DirectUC, X],  % Use fresh variable
-        Body =.. [VarDirectUC, X],  % Same variable
-        Rule = (Head :- Body),
-        store_debug_rule_form(Rule),
-        assert(Rule),
-        debug_msg('  Added rule: ~w', [Rule])
+        % Variable: _T(X) :- _V(X) - but check for cycles first
+        (ebnf_nonterminal(Var, VarUC) ->
+            atom_concat('_', VarUC, VarDirectUC),
+            Head =.. [DirectUC, X],  % Use fresh variable
+            Body =.. [VarDirectUC, X],  % Same variable
+            Rule = (Head :- Body),
+            store_debug_rule_form(Rule),
+            assert(Rule),
+            debug_msg('  Added rule: ~w', [Rule])
+        ;
+            % Variable not yet defined, defer this rule
+            debug_msg('  Deferred variable rule for ~w (not yet defined)', [Var]),
+            assertz(deferred_rule(DirectUC, Production, Var))
+        )
     ; compound(Production) ->
         % Compound: _T(if(X,Y,Z)) :- _T(X), _T(Y), _T(Z)
         % First canonicalize the production to handle mixfix operators
