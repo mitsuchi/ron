@@ -2,6 +2,37 @@
 :- dynamic ops/4.
 :- dynamic '_main'/0.
 
+:- initialization(run).
+
+run :- 
+    current_prolog_flag(argv, Argv),
+    nth1(1, Argv, FilePath) ->
+        (catch(
+            file_eval(FilePath),
+            Exception,
+            (write('error: '), write(Exception), nl, fail)
+        ), halt) ; true.
+
+file_eval(FilePath) :-
+    file_chars(FilePath, Chars),
+    chars_eval(Chars).
+
+file_chars(FilePath, Chars) :-
+    read_file_to_string(FilePath, String, []),
+    string_chars(String, Chars).
+
+chars_eval(Chars) :-
+    chars_rules(Chars, _),
+    !,
+    query(main).
+
+chars_rules(Code, Rules) :-
+    chars_tokens(Code, Tokens),
+    phrase(rules(Rules), Tokens).
+
+chars_tokens(Code, Tokens) :-
+    phrase(tokens(Tokens), Code).
+
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
 tokens(Ts) --> comment, !, tokens(Ts).
@@ -276,13 +307,6 @@ str(E, Op1, Str, Paren) :-
     ((P1 > P2 ; Paren, Op1 = Op2) -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
             ; str(E, Str)).
 
-code_tokens(Code, Tokens) :-
-    phrase(tokens(Tokens), Code).
-
-code_rules(Code, Rules) :-
-    code_tokens(Code, Tokens),
-    phrase(rules(Rules), Tokens).
-
 code_pred(Code, Pred) :-
     code_tokens(Code, Tokens),
     phrase(pred(Pred), Tokens).
@@ -291,14 +315,7 @@ code_pred_canonical(Code, C) :-
     code_pred(Code, Pred),
     canonical(Pred, C).
     
-code_mi(Code) :-
-    %code_rules(Code, Rules),
-    code_rules(Code, _),
-    !,
-    query(main).
-    %writeln(Rules).
-    %maplist(writeln, Rules).
-    %add_rules(Rules).
+
 
 mi(true).
 mi((A,B)) :-
@@ -313,21 +330,3 @@ mi(Goal) :-
         clause(Goal, Body),
         mi(Body).
 
-run :-
-    current_prolog_flag(argv, Argv),
-    nth1(1, Argv, FilePath) ->
-        (catch(
-            read_file(FilePath),
-            Exception,
-            (
-                write('error: '), write(Exception), nl,
-                fail
-            )
-        ), halt) ; true.
-
-read_file(FilePath) :-
-    read_file_to_string(FilePath, String, []),
-    string_chars(String, Chars),
-    code_mi(Chars).
-
-:- run, !.
