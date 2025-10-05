@@ -22,18 +22,17 @@ file_chars(FilePath, Chars) :-
     string_chars(String, Chars).
 
 chars_eval(Chars) :-
-    chars_ops_rules(Chars, _, Rules). % 第2引数は Ops
-    % !,
-    %assert_rules(Rules),
+    chars_ops_rules(Chars, _, Rules), !. % 第2引数は Ops
+    %assert_rules(Rules)
     %query(main).
 
 chars_ops_rules(Chars, Ops, Rules) :-
-    chars_tokens(Chars, Tokens), !,
+    chars_tokens(Chars, Tokens),
     writeln('Tokens = '), writeln(Tokens),
-    tokens_ops(Ops, Tokens, RestTokens), !, 
+    tokens_ops(Ops, Tokens, RestTokens),
     writeln('Ops = '), writeln(Ops),
-    writeln('RestTokens = '), writeln(RestTokens).
-    %assert_ops(Ops),
+    writeln('RestTokens = '), writeln(RestTokens),
+    assert_ops(Ops).
     %tokens_rules(Tokens, Rules),
     %writeln('Rules = '), writeln(Rules).
     %writeln(Rules),
@@ -48,6 +47,9 @@ tokens_ops([]) --> skip(";").
 rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
 rule_pred(P :- true) --> pred(P), ";".
 rule_pred(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
+
+assert_ops([R|Rs]) :- assert_op(R), assert_ops(Rs).
+assert_ops([]). 
 
 assert_op(op(Prec, ['_' | Ns])) :-
     replaceUnderScore(Ns, Prec, Ns_),
