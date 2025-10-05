@@ -35,7 +35,11 @@ chars_tokens(Chars, Tokens) :-
 tokens_ops([R|Rs]) --> skip(";"), rule_op(R), !, tokens_ops(Rs).
 tokens_ops([]) --> skip(";").
 
+% op ::= 'op' precedence ':' notation ';'
 rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
+
+notation([R]) --> [R], {not(R = ';')}.
+notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
 
 assert_op(op(Prec, ['_' | Ns])) :-
     replaceUnderScore(Ns, Prec, Ns_),
@@ -63,14 +67,18 @@ assert_rule(op(_)).
 tokens_rules(Tokens, Rules) :-
     phrase(rules_pred(Rules), Tokens).
 
+% rule ::= pred ';' | pred '{' body '}'
+% body ::= pred ';' | pred ';' body
 rules_pred([R | Rs]) --> skip(";"), rule_pred(R), rules_pred(Rs).
 rules_pred([]) --> skip(";").
 
 rule_pred(P :- true) --> pred(P), ";".
 rule_pred(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
 
+body(P) --> pred(P), skip(";").
+body((P,Bs)) --> pred(P), ";", body(Bs).
 
-
+pred(O) --> e(0, O).
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
@@ -177,21 +185,6 @@ all_punct(U) :-
 all_punct_chars([C]) :- code_type(C, punct).
 all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
 
-% parse
-% rules ::= rule | rule rules
-% rule ::= pred ';' | pred '{' body '}'
-% body ::= pred ';' | pred ';' body
-rules([R | Rs]) --> skip(";"), rul(R), rules(Rs).
-rules([]) --> skip(";").
-
-notation([R]) --> [R], {not(R = ';')}.
-notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
-
-pred(O) --> e(0, O).
-
-body(P) --> pred(P), skip(";").
-body((P,Bs)) --> pred(P), ";", body(Bs).
-
 % () はあらかじめ定義しておく
 ops(a('()'), 0, leading, ['(',0,')']).
 
@@ -221,7 +214,6 @@ canonicalList([], []).
 canonicalList([A|As], [C|Cs]) :-
     canonical(A,C),
     canonicalList(As, Cs).
-
 
 canonical2((B, Bs), (P, Ps)) :-
     canonical2(B, P),
@@ -268,7 +260,7 @@ pickPunct([], '').
 query(C) :-
     clause(C, B),
     varnumbers_names(B, T, P), !,
-    mi(T),
+    eval(T),
     (P \= [] -> unparseAnswers(P) ; true).
 
 query_string(S) :-
@@ -311,24 +303,20 @@ str(E, Op1, Str, Paren) :-
             ; str(E, Str)).
 
 code_pred(Code, Pred) :-
-    code_tokens(Code, Tokens),
+    chars_tokens(Code, Tokens),
     phrase(pred(Pred), Tokens).
 
 code_pred_canonical(Code, C) :-
     code_pred(Code, Pred),
     canonical(Pred, C).
     
-
-
-mi(true).
-mi((A,B)) :-
-        mi(A),
-        mi(B).
-mi(Goal) :- predicate_property(Goal,built_in), !, call(Goal).
-mi(Goal) :-
+eval(true).
+eval((A,B)) :-
+        eval(A),
+        eval(B).
+eval(Goal) :- predicate_property(Goal,built_in), !, call(Goal).
+eval(Goal) :-
         Goal \= true,
         Goal \= (_,_),
-        %writeln(Goal),
-        %sleep(0.1),
         clause(Goal, Body),
-        mi(Body).
+        eval(Body).
