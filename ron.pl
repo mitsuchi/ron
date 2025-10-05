@@ -72,7 +72,7 @@ rule_pred(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
 tokens(Ts) --> comment, !, tokens(Ts).
-tokens([T|Ts]) --> tok(T), !, tokens(Ts).
+tokens([T|Ts]) --> token(T), !, tokens(Ts).
 tokens([]) --> "".
 
 % # から行末までがコメント
@@ -80,14 +80,14 @@ comment --> "#", string(_), "\n", !.
 string([]) --> [].
 string([X|Xs]) --> [X], string(Xs).
 
-tok(N) --> num(N).
-tok(;) --> ['\n'].
-tok(;) --> ";".
-tok(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
-tok(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
-tok(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
-tok(Alnum) --> alnum(Alnum).
-tok(Alpha) --> alpha(Alpha).
+token(N) --> num(N).
+token(;) --> ['\n'].
+token(;) --> ";".
+token(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
+token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
+token(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
+token(Alnum) --> alnum(Alnum).
+token(Alpha) --> alpha(Alpha).
 num(N) --> digits(Cs), { number_chars(N, Cs) }.
 word([C|Cs]) --> [C], { code_type(C, lower) }, word(Cs).
 word([C]) --> [C], { code_type(C, lower) }.
