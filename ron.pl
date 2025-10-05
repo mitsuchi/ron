@@ -198,7 +198,6 @@ all_alpha(U) :-
     atom_chars(U, Cs), all_alpha_chars(Cs).
 all_alpha_chars([C|Cs]) :- 
     maplist(is_alpha_char, [C|Cs]).
-
 is_alpha_char(Char) :-
     code_type(Char, alpha).
 
@@ -207,7 +206,6 @@ all_punct(U) :-
     atom_chars(U, Cs), all_punct_chars(Cs).
 all_punct_chars([C|Cs]) :- 
     maplist(is_punct_char, [C|Cs]).
-
 is_punct_char(Char) :-
     code_type(Char, punct).
 
@@ -247,14 +245,6 @@ normalize_list([], [], _).
 normalize_list([A|As], [C|Cs], SimplifyVars) :-
     normalize_term(A, C, SimplifyVars),
     normalize_list(As, Cs, SimplifyVars).
-
-% canonical2 は normalize_term に統合
-canonical2(Term, Canonical) :-
-    normalize_term(Term, Canonical, true).
-
-% 後方互換性のため
-canonical(Term, Canonical) :-
-    normalize_term(Term, Canonical).
 
 replaceUnderScore([A|As], R, [R_|Bs]) :-
     replaceUnderScore(A, R, R_),
