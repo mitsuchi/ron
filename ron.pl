@@ -13,18 +13,20 @@ run :-
             (write('error: '), write(Exception), nl, fail)
         ), halt) ; true.
 
+% ファイルを読み込んで評価する
 file_eval(FilePath) :-
-    read_file_to_string(FilePath, String, []),
-    string_chars(String, Chars),
-    chars_eval(Chars).
-
-chars_eval(Chars) :-
-    chars_tokens(Chars, Tokens),
+    read_file_to_string(FilePath, String, []), % ファイルを文字列にする
+    string_chars(String, Chars),               % 文字列を文字リストにする
+    chars_tokens(Chars, Tokens),               % 文字リストをトークンリストにする
+    % トークンリストから演算子リストをパーズして残りトークンリストを得る
     tokens_ops(Ops, Tokens, RestTokens),
-    assert_ops(Ops),
+    % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
+    assert_ops(Ops), 
+    % 残りのトークンからルール部分をパーズしてルールリストを得る
     tokens_rules(RestTokens, Rules),
-    !,
+    % ルールを Prolog の規則に登録して、問い合わせを実行できるようにする    
     assert_rules(Rules),
+    % 問い合わせを実行する
     query(main).
 
 chars_tokens(Chars, Tokens) :-
