@@ -196,17 +196,20 @@ variable(U) :- U = '$VAR'(_).
 all_alpha(U) :-
     not(U = '$VAR'(_)),
     atom_chars(U, Cs), all_alpha_chars(Cs).
+all_alpha_chars([C|Cs]) :- 
+    maplist(is_alpha_char, [C|Cs]).
 
-all_alpha_chars([C]) :- code_type(C, lower).
-all_alpha_chars([C]) :- code_type(C, upper).
-all_alpha_chars([C|Cs]) :- code_type(C, alpha), all_alpha_chars(Cs).
+is_alpha_char(Char) :-
+    code_type(Char, alpha).
 
 all_punct(U) :-
     not(U = '$VAR'(_)),
     atom_chars(U, Cs), all_punct_chars(Cs).
+all_punct_chars([C|Cs]) :- 
+    maplist(is_punct_char, [C|Cs]).
 
-all_punct_chars([C]) :- code_type(C, punct).
-all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
+is_punct_char(Char) :-
+    code_type(Char, punct).
 
 % () はあらかじめ定義しておく
 ops(a('()'), 0, leading, ['(',0,')']).
