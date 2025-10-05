@@ -22,21 +22,16 @@ file_chars(FilePath, Chars) :-
     string_chars(String, Chars).
 
 chars_eval(Chars) :-
-    chars_ops_rules(Chars, _, Rules), !. % 第2引数は Ops
-    %assert_rules(Rules)
-    %query(main).
+    chars_ops_rules(Chars, _, Rules), % 第2引数は Ops
+    !,
+    assert_rules(Rules),
+    query(main).
 
 chars_ops_rules(Chars, Ops, Rules) :-
     chars_tokens(Chars, Tokens),
-    writeln('Tokens = '), writeln(Tokens),
     tokens_ops(Ops, Tokens, RestTokens),
-    writeln('Ops = '), writeln(Ops),
-    writeln('RestTokens = '), writeln(RestTokens),
-    assert_ops(Ops).
-    %tokens_rules(Tokens, Rules),
-    %writeln('Rules = '), writeln(Rules).
-    %writeln(Rules),
-    %assert_rules(Rules).
+    assert_ops(Ops),
+    tokens_rules(RestTokens, Rules).
 
 chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars).
@@ -45,8 +40,6 @@ tokens_ops([R|Rs]) --> skip(";"), rule_op(R), !, tokens_ops(Rs).
 tokens_ops([]) --> skip(";").
 
 rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
-rule_pred(P :- true) --> pred(P), ";".
-rule_pred(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
 
 assert_ops([R|Rs]) :- assert_op(R), assert_ops(Rs).
 assert_ops([]). 
@@ -64,9 +57,6 @@ assert_op(op(Prec, [N | Ns])) :-
     assert(Term).
 assert_op(_ :- _).
 
-tokens_rules(Tokens, Rules) :-
-    phrase(rules(Rules), Tokens).
-
 assert_rules([R | Rs]) :- assert_rule(R), assert_rules(Rs).
 assert_rules([]).
 
@@ -80,6 +70,14 @@ assert_rule(Head :- Body) :-
     assert(Term).
 assert_rule(op(_)).
 
+tokens_rules(Tokens, Rules) :-
+    phrase(rules_pred(Rules), Tokens).
+
+rules_pred([R | Rs]) --> skip(";"), rule_pred(R), rules_pred(Rs).
+rules_pred([]) --> skip(";").
+
+rule_pred(P :- true) --> pred(P), ";".
+rule_pred(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
