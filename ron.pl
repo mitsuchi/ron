@@ -215,7 +215,7 @@ ops(a('()'), 0, leading, ['(',0,')']).
 % (( )) は prolog を参照することにする
 ops(a('<>'), 0, leading, ['<',0,'>']).
 
-% Prolog Term を内部形式に変換
+% 述語の各項に _ をつける : if(x,+(1,2),y) を _if(x,_+(1,2),y) に
 normalize_term(Term, Normalized) :-
     normalize_term(Term, Normalized, false).
 normalize_term((B, Bs), (P, Ps), SimplifyVars) :-
