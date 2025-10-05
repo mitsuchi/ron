@@ -260,46 +260,47 @@ query(C) :-
     clause(C, B),
     varnumbers_names(B, T, P), !,
     eval(T),
-    (P \= [] -> unparseAnswers(P) ; true).
+    (P \= [] -> unparse_answers(P) ; true).
 
 query_string(S) :-
     code_pred_canonical(S, C),
     !,
     query(C).
 
-unparseAnswers([X = A|Ps]) :-
-    str(A, F), atomics_to_string([X, =, F], ' ', UA), writeln(UA),
-    unparseAnswers(Ps).
-unparseAnswers([]).
+unparse_answers([X = A|Ps]) :-
+    format_term(A, F), atomics_to_string([X, =, F], ' ', UA), writeln(UA),
+    unparse_answers(Ps).
+unparse_answers([]).
 
-str(A, A) :- atom(A); number(A).
-str(E, Str) :-
+% 結果を読みやすくする
+% ex: _S(_S(Z)) を S S Z に
+format_term(A, A) :- atom(A); number(A).
+format_term(E, Str) :-
     functor(E, _, _, compound),
     E =.. [Op | Terms],
-    %ops(Op, _, _, As),
     atom_concat('_', Op1, Op), 
     ops(a(Op1), _, _, As),
-    str_each(Op1, As, Terms, Strs, false),
+    format_each(Op1, As, Terms, Strs, false),
     atomic_list_concat(Strs, ' ', Str).
 
-str_each(_, [], _, [], _).
-str_each(Op, [A|As], [Term|Ts], [Str1|Rest], Paren) :-
+format_each(_, [], _, [], _).
+format_each(Op, [A|As], [Term|Ts], [Str1|Rest], Paren) :-
     number(A),
-    str(Term, Op, Str1, Paren),
-    str_each(Op, As, Ts, Rest, true).
-str_each(Op, [A|As], Ts, [A|Rest], Paren) :-
+    format_term_with_priority(Term, Op, Str1, Paren),
+    format_each(Op, As, Ts, Rest, true).
+format_each(Op, [A|As], Ts, [A|Rest], Paren) :-
     not(number(A)),
-    str_each(Op, As, Ts, Rest, Paren).
+    format_each(Op, As, Ts, Rest, Paren).
 
-str(A, _, A, _) :- atom(A); number(A).
-str(E, Op1, Str, Paren) :-
+format_term_with_priority(A, _, A, _) :- atom(A); number(A).
+format_term_with_priority(E, Op1, Str, Paren) :-
     functor(E, _, _, compound),
     E =.. [Op | _],
     atom_concat('_', Op2, Op),
     ops(a(Op2), P2, _, _),
     ops(a(Op1), P1, _, _),
-    ((P1 > P2 ; Paren, Op1 = Op2) -> str(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
-            ; str(E, Str)).
+    ((P1 > P2 ; Paren, Op1 = Op2) -> format_term(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
+            ; format_term(E, Str)).
 
 code_pred(Code, Pred) :-
     chars_tokens(Code, Tokens),
