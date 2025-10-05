@@ -119,31 +119,39 @@ skip(W) --> "" | (W, skip(W)).
 % https://zenn.dev/pandaman64/books/pratt-parsing
 % https://qiita.com/h_sakurai/items/40abccdaad4728e0602e
 
+% 式をパーズして項をつくり O に入れる。現在の優先順位を P とする。
 e(P,O)-->
     [U], 
     {is_expression_token(U)},
     t(P,U,O).
+% 前置演算子の項をパーズして項をつくり O に入れる。現在の優先順位を P, 作成中の項を T とする。
 t(P,T,O)-->
+    % 種類を leading とする　
     {ops(A, _, leading, [L|M])},
     {L=T},     
     f(M,V),             
     {call(A,V,W)},      
-    t(P,W,O).           
+    t(P,W,O).
+% 中置演算子の項をパーズして項をつくり O に入れる。現在の優先順位を P, 作成中の項を T とする。
 t(P,T,O)-->   
     [U],      
     {is_expression_token(U)},
+    % 種類を following とする
     {ops(A, _, following, [L,L2|M])},
     {L2=U, P<L},        
     f(M,V),             
     {call(A,[T|V],W)},   
     t(P,W,O).            
+% 関数適用 _ _ の項をパーズして項をつくり O に入れる。現在の優先順位を P, 作成中の項を T とする。
 t(P,T,O)-->
+    % 種類を following とする
     {ops(A, _, following, [L,L2|M])},
     {number(L2), P<L},
     g([L2|M],V),      
     {call(A,[T|V],W)},
     t(P,W,O)          
     ; {T=O}.          
+% 演算子の項の残りをパーズして引数の項のリストをつくり R に入れる。
 f([P|N],R)-->         
     (
         {number(P),!},
@@ -153,19 +161,20 @@ f([P|N],R)-->
         {R=I}),       
     f(N,I).           
 f([],[])-->!.         
-
+% f と同様だが関数適用の場合はこちらを使う
 g([P|N],R)-->         
     e1(P,T),         
     {R=[T|I]},       
     g(N,I).            
 g([],[])-->!.          
-
+% e と同様だが関数適用の場合はこちらを使う
 e1(P,O)-->    
     [U],     
     {is_expression_token(U)},
     {number(U) ; variable(U); all_alpha(U); U = '('; U = '{'},
     t(P,U,O).
 
+% P(T) を R とする。ex: if と [1,2,3] から if(1,2,3) を得る
 a(P,T,R) :- R=..[P|T].
 
 % 式を構成するトークンかどうか
