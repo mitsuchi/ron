@@ -69,6 +69,9 @@ rules_pred([]) --> skip(";").
 rule_pred(P :- true) --> pred(P), ";".
 rule_pred(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
 
+
+
+
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
 tokens(Ts) --> comment, !, tokens(Ts).
@@ -180,10 +183,6 @@ all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
 % body ::= pred ';' | pred ';' body
 rules([R | Rs]) --> skip(";"), rul(R), rules(Rs).
 rules([]) --> skip(";").
-
-%rul(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
-%rul(P :- true) --> pred(P), ";".
-%rul(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
 
 notation([R]) --> [R], {not(R = ';')}.
 notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
