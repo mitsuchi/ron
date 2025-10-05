@@ -21,11 +21,11 @@ file_eval(FilePath) :-
     % トークンリストから演算子リストをパーズして残りトークンリストを得る
     tokens_ops(Ops, Tokens, RestTokens),
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
-    assert_ops(Ops), 
+    maplist(assert_op, Ops), 
     % 残りのトークンからルール部分をパーズしてルールリストを得る
     tokens_rules(RestTokens, Rules),
     % ルールを Prolog の規則に登録して、問い合わせを実行できるようにする    
-    assert_rules(Rules),
+    maplist(assert_rule, Rules),
     % 問い合わせを実行する
     query(main).
 
@@ -36,9 +36,6 @@ tokens_ops([R|Rs]) --> skip(";"), rule_op(R), !, tokens_ops(Rs).
 tokens_ops([]) --> skip(";").
 
 rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
-
-assert_ops([R|Rs]) :- assert_op(R), assert_ops(Rs).
-assert_ops([]). 
 
 assert_op(op(Prec, ['_' | Ns])) :-
     replaceUnderScore(Ns, Prec, Ns_),
@@ -52,9 +49,6 @@ assert_op(op(Prec, [N | Ns])) :-
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     assert(Term).
 assert_op(_ :- _).
-
-assert_rules([R | Rs]) :- assert_rule(R), assert_rules(Rs).
-assert_rules([]).
 
 assert_rule(main :- Body) :-
     canonical2(Body, BodyC),
