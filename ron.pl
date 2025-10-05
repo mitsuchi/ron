@@ -163,15 +163,15 @@ f([P|N],R)-->
 f([],[])-->!.         
 % f と同様だが関数適用の場合はこちらを使う
 g([P|N],R)-->         
-    e1(P,T),         
+    e_function(P,T),
     {R=[T|I]},       
     g(N,I).            
 g([],[])-->!.          
-% e と同様だが関数適用の場合はこちらを使う
-e1(P,O)-->    
+% 関数適用の左辺として式をパーズ
+e_function(P,O)-->
     [U],     
     {is_expression_token(U)},
-    {number(U) ; variable(U); all_alpha(U); U = '('; U = '{'},
+    {is_function_left_side(U)},
     t(P,U,O).
 
 % P(T) を R とする。ex: if と [1,2,3] から if(1,2,3) を得る
@@ -182,6 +182,14 @@ is_expression_token(Token) :-
     not(Token = ';'),
     not(Token = '{'),
     not(Token = '}').
+
+% 関数適用の左辺の最初の項として有効なトークンかどうか
+is_function_left_side(Token) :-
+    (number(Token) ; 
+     variable(Token) ; 
+     all_alpha(Token) ; 
+     Token = '(' ; 
+     Token = '{').
 
 variable(U) :- U = '$VAR'(_).
 
