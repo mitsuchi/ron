@@ -55,12 +55,12 @@ assert_op(op(Prec, [N | Ns])) :-
 assert_op(_ :- _).
 
 assert_rule(main :- Body) :-
-    canonical2(Body, BodyC),
-    assert(main :- BodyC).
+    normalize_term(Body, BodyN, true),
+    assert(main :- BodyN).
 assert_rule(Head :- Body) :-
-    canonical(Head, HeadC),
-    canonical(Body, BodyC),
-    varnumbers_names(HeadC :- BodyC, Term, _),
+    normalize_term(Head, HeadN),
+    normalize_term(Body, BodyN),
+    varnumbers_names(HeadN :- BodyN, Term, _),
     assert(Term).
 assert_rule(op(_)).
 
@@ -191,53 +191,44 @@ ops(a('()'), 0, leading, ['(',0,')']).
 % (( )) は prolog を参照することにする
 ops(a('<>'), 0, leading, ['<',0,'>']).
 
-% Prolog Term としての標準記法に変換
-canonical((B, Bs), (P, Ps)) :-
-    canonical(B, P),
-    canonical(Bs, Ps).
-canonical(Term, Canonical) :-
+% Prolog Term を内部形式に変換
+normalize_term(Term, Normalized) :-
+    normalize_term(Term, Normalized, false).
+normalize_term((B, Bs), (P, Ps), SimplifyVars) :-
+    normalize_term(B, P, SimplifyVars),
+    normalize_term(Bs, Ps, SimplifyVars).
+normalize_term(Term, Normalized, SimplifyVars) :-
     functor(Term, _, _, compound),
     Term =.. [Functor | Args],
     % (a) は a にする
-    (Functor = '()' -> [Arg] = Args, canonical(Arg, Canonical)
+    (Functor = '()' -> [Arg] = Args, normalize_term(Arg, Normalized, SimplifyVars)
     % <a> は a にするが、functor の先頭に _ をつけない
-    ; Functor = '<>' -> [Arg] = Args, Arg = Canonical
-    % $VAR はそのまま
-    ; Functor = '$VAR' -> Canonical = Term
+    ; Functor = '<>' -> [Arg] = Args, Arg = Normalized
+    % $VAR の処理
+    ; Functor = '$VAR' -> 
+        (SimplifyVars = true ->
+            ([Arg] = Args, not(member(Arg, [t,u,v,w,x,y,z])) -> Normalized = Arg; Normalized = Term)
+        ;
+            Normalized = Term
+        )
     % それ以外は Functor の先頭に _ をつける
     ; atomic_concat('_', Functor, FunctorC),
-                        canonicalList(Args, ArgsC),
-                        Canonical =.. [FunctorC | ArgsC]).  
-canonical(T, T).
+                        normalize_list(Args, ArgsC, SimplifyVars),
+                        Normalized =.. [FunctorC | ArgsC]).  
+normalize_term(T, T, _).
 
-canonicalList([], []).
-canonicalList([A|As], [C|Cs]) :-
-    canonical(A,C),
-    canonicalList(As, Cs).
+normalize_list([], [], _).
+normalize_list([A|As], [C|Cs], SimplifyVars) :-
+    normalize_term(A, C, SimplifyVars),
+    normalize_list(As, Cs, SimplifyVars).
 
-canonical2((B, Bs), (P, Ps)) :-
-    canonical2(B, P),
-    canonical2(Bs, Ps).
+% canonical2 は normalize_term に統合
 canonical2(Term, Canonical) :-
-    functor(Term, _, _, compound),
-    Term =.. [Functor | Args],
-    % (a) は a にする
-    (Functor = '()' -> [Arg] = Args, canonical2(Arg, Canonical)
-    % <a> は a にするが、functor の先頭に _ をつけない
-    ; Functor = '<>' -> [Arg] = Args, Arg = Canonical
-    % $VAR は、$VAR(n) だけ n にする。他はそのまま
-    %; Functor = '$VAR' -> Canonical = Term
-    ; Functor = '$VAR' -> ([Arg] = Args, not(member(Arg, [t,u,v,w,x,y,z])) -> Canonical = Arg; Canonical = Term)
-    % それ以外は Functor の先頭に _ をつける
-    ; atomic_concat('_', Functor, FunctorC),
-                        canonicalList2(Args, ArgsC),
-                        Canonical =.. [FunctorC | ArgsC]).  
-canonical2(T, T).
+    normalize_term(Term, Canonical, true).
 
-canonicalList2([], []).
-canonicalList2([A|As], [C|Cs]) :-
-    canonical2(A,C),
-    canonicalList2(As, Cs).
+% 後方互換性のため
+canonical(Term, Canonical) :-
+    normalize_term(Term, Canonical).
 
 replaceUnderScore([A|As], R, [R_|Bs]) :-
     replaceUnderScore(A, R, R_),
@@ -308,7 +299,7 @@ code_pred(Code, Pred) :-
 
 code_pred_canonical(Code, C) :-
     code_pred(Code, Pred),
-    canonical(Pred, C).
+    normalize_term(Pred, C).
     
 eval(true).
 eval((A,B)) :-
