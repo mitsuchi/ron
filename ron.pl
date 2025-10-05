@@ -14,24 +14,18 @@ run :-
         ), halt) ; true.
 
 file_eval(FilePath) :-
-    file_chars(FilePath, Chars),
+    read_file_to_string(FilePath, String, []),
+    string_chars(String, Chars),
     chars_eval(Chars).
 
-file_chars(FilePath, Chars) :-
-    read_file_to_string(FilePath, String, []),
-    string_chars(String, Chars).
-
 chars_eval(Chars) :-
-    chars_ops_rules(Chars, _, Rules), % 第2引数は Ops
-    !,
-    assert_rules(Rules),
-    query(main).
-
-chars_ops_rules(Chars, Ops, Rules) :-
     chars_tokens(Chars, Tokens),
     tokens_ops(Ops, Tokens, RestTokens),
     assert_ops(Ops),
-    tokens_rules(RestTokens, Rules).
+    tokens_rules(RestTokens, Rules),
+    !,
+    assert_rules(Rules),
+    query(main).
 
 chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars).
