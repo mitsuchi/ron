@@ -22,16 +22,62 @@ file_chars(FilePath, Chars) :-
     string_chars(String, Chars).
 
 chars_eval(Chars) :-
-    chars_rules(Chars, _),
-    !,
-    query(main).
+    chars_ops_rules(Chars, _, Rules). % 第2引数は Ops
+    % !,
+    %assert_rules(Rules),
+    %query(main).
 
-chars_rules(Code, Rules) :-
-    chars_tokens(Code, Tokens),
+chars_ops_rules(Chars, Ops, Rules) :-
+    chars_tokens(Chars, Tokens), !,
+    writeln('Tokens = '), writeln(Tokens),
+    tokens_ops(Ops, Tokens, RestTokens), !, 
+    writeln('Ops = '), writeln(Ops),
+    writeln('RestTokens = '), writeln(RestTokens).
+    %assert_ops(Ops),
+    %tokens_rules(Tokens, Rules),
+    %writeln('Rules = '), writeln(Rules).
+    %writeln(Rules),
+    %assert_rules(Rules).
+
+chars_tokens(Chars, Tokens) :-
+    phrase(tokens(Tokens), Chars).
+
+tokens_ops([R|Rs]) --> skip(";"), rule_op(R), !, tokens_ops(Rs).
+tokens_ops([]) --> skip(";").
+
+rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
+rule_pred(P :- true) --> pred(P), ";".
+rule_pred(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
+
+assert_op(op(Prec, ['_' | Ns])) :-
+    replaceUnderScore(Ns, Prec, Ns_),
+    pickPunct(Ns, Punct),
+    Term = ops(a(Punct), Prec, following, [Prec|Ns_]),
+    assert(Term).
+assert_op(op(Prec, [N | Ns])) :-
+    N \= '_',
+    replaceUnderScore(Ns, Prec, Ns_),
+    pickPunct([N|Ns], Punct),
+    Term = ops(a(Punct), Prec, leading, [N|Ns_]),
+    assert(Term).
+assert_op(_ :- _).
+
+tokens_rules(Tokens, Rules) :-
     phrase(rules(Rules), Tokens).
 
-chars_tokens(Code, Tokens) :-
-    phrase(tokens(Tokens), Code).
+assert_rules([R | Rs]) :- assert_rule(R), assert_rules(Rs).
+assert_rules([]).
+
+assert_rule(main :- Body) :-
+    canonical2(Body, BodyC),
+    assert(main :- BodyC).
+assert_rule(Head :- Body) :-
+    canonical(Head, HeadC),
+    canonical(Body, BodyC),
+    varnumbers_names(HeadC :- BodyC, Term, _),
+    assert(Term).
+assert_rule(op(_)).
+
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
@@ -142,12 +188,12 @@ all_punct_chars([C|Cs]) :- code_type(C, punct), all_punct_chars(Cs).
 % rules ::= rule | rule rules
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
-rules([R | Rs]) --> skip(";"), rul(R), {add_rule(R)}, rules(Rs).
+rules([R | Rs]) --> skip(";"), rul(R), rules(Rs).
 rules([]) --> skip(";").
 
-rul(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
-rul(P :- true) --> pred(P), ";".
-rul(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
+%rul(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
+%rul(P :- true) --> pred(P), ";".
+%rul(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
 
 notation([R]) --> [R], {not(R = ';')}.
 notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
@@ -156,38 +202,6 @@ pred(O) --> e(0, O).
 
 body(P) --> pred(P), skip(";").
 body((P,Bs)) --> pred(P), ";", body(Bs).
-
-% make rules
-add_rules([R]) :- add_rule(R).
-add_rules([R | Rs]) :- add_rule(R), add_rules(Rs).
-
-add_rule(op(Prec, ['_' | Ns])) :-
-    replaceUnderScore(Ns, Prec, Ns_),
-    pickPunct(Ns, Punct),
-    Term = ops(a(Punct), Prec, following, [Prec|Ns_]),
-    %write('rule1: '), writeln(Term),
-    assert(Term).
-add_rule(op(Prec, [N | Ns])) :-
-    N \= '_',
-    replaceUnderScore(Ns, Prec, Ns_),
-    pickPunct([N|Ns], Punct),
-    Term = ops(a(Punct), Prec, leading, [N|Ns_]),
-    %write('rule2: '), writeln(Term),
-    assert(Term).
-add_rule(main :- Body) :-
-    %get_time(T),
-    %write('a '), writeln(T),
-    canonical2(Body, BodyC), % writeln('before cut'), !, writeln('after cut'),
-    %write('main BodyC '), writeln(BodyC),
-    assert(main :- BodyC).
-add_rule(Head :- Body) :-
-    %get_time(T),
-    %write('b '), writeln(T),
-    canonical(Head, HeadC),
-    canonical(Body, BodyC),
-    varnumbers_names(HeadC :- BodyC, Term, _),
-    %write('rule3: '), writeln(HeadC :- BodyC), sleep(0.1),
-    assert(Term).
 
 % () はあらかじめ定義しておく
 ops(a('()'), 0, leading, ['(',0,')']).
@@ -329,4 +343,3 @@ mi(Goal) :-
         %sleep(0.1),
         clause(Goal, Body),
         mi(Body).
-
