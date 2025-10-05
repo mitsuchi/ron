@@ -42,14 +42,14 @@ notation([R]) --> [R], {not(R = ';')}.
 notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
 
 assert_op(op(Prec, ['_' | Ns])) :-
-    replaceUnderScore(Ns, Prec, Ns_),
-    pickPunct(Ns, Punct),
+    replace_underscore_list(Ns, Prec, Ns_),
+    concat_without_underscores(Ns, Punct),
     Term = ops(a(Punct), Prec, following, [Prec|Ns_]),
     assert(Term).
 assert_op(op(Prec, [N | Ns])) :-
     N \= '_',
-    replaceUnderScore(Ns, Prec, Ns_),
-    pickPunct([N|Ns], Punct),
+    replace_underscore_list(Ns, Prec, Ns_),
+    concat_without_underscores([N|Ns], Punct),
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     assert(Term).
 assert_op(_ :- _).
@@ -246,22 +246,14 @@ normalize_list([A|As], [C|Cs], SimplifyVars) :-
     normalize_term(A, C, SimplifyVars),
     normalize_list(As, Cs, SimplifyVars).
 
-replaceUnderScore([A|As], R, [R_|Bs]) :-
-    replaceUnderScore(A, R, R_),
-    replaceUnderScore(As, R, Bs).
-replaceUnderScore([A], R, [R_]) :-
-    replaceUnderScore(A, R, R_).
-replaceUnderScore([], _, []).
-replaceUnderScore('_', R, R).
-replaceUnderScore(A, _, A) :- A \= '_'.
+replace_underscore_list(List, R, Result) :-
+    maplist(replace_underscore(R), List, Result).
+replace_underscore(R, '_', R).
+replace_underscore(_, A, A) :- A \= '_'.
 
-pickPunct(['_'|Ns], Punct) :-
-    pickPunct(Ns, Punct).
-pickPunct([N|Ns], Punct) :-
-    N \= '_',
-    pickPunct(Ns, Ps),
-    atom_concat(N, Ps, Punct).
-pickPunct([], '').
+concat_without_underscores(List, Result) :-
+    exclude(==('_'), List, Filtered),
+    atomic_list_concat(Filtered, Result).
 
 % 問い合わせ
 query(C) :-
