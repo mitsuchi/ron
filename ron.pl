@@ -121,7 +121,7 @@ skip(W) --> "" | (W, skip(W)).
 
 e(P,O)-->
     [U], 
-    {not(U = ';'), not(U = '{'), not(U = '}') },
+    {is_expression_token(U)},
     t(P,U,O).
 t(P,T,O)-->
     {ops(A, _, leading, [L|M])},
@@ -131,7 +131,7 @@ t(P,T,O)-->
     t(P,W,O).           
 t(P,T,O)-->   
     [U],      
-    {not(U = ';'), not(U = '{'), not(U = '}') },
+    {is_expression_token(U)},
     {ops(A, _, following, [L,L2|M])},
     {L2=U, P<L},        
     f(M,V),             
@@ -162,11 +162,17 @@ g([],[])-->!.
 
 e1(P,O)-->    
     [U],     
-    {not(U = ';'), not(U = '{'), not(U = '}') },
+    {is_expression_token(U)},
     {number(U) ; variable(U); all_alpha(U); U = '('; U = '{'},
     t(P,U,O).
 
 a(P,T,R) :- R=..[P|T].
+
+% 式を構成するトークンかどうか
+is_expression_token(Token) :-
+    not(Token = ';'),
+    not(Token = '{'),
+    not(Token = '}').
 
 variable(U) :- U = '$VAR'(_).
 
