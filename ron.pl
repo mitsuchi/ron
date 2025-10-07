@@ -2,6 +2,9 @@
 :- dynamic ops/4.
 :- dynamic '_main'/0.
 
+% メモ化用のキャッシュ
+:- dynamic eval_cache/2.
+
 :- initialization(run).
 
 run :- 
@@ -15,6 +18,8 @@ run :-
 
 % ファイルを読み込んで評価する
 file_eval(FilePath) :-
+    % キャッシュをクリア
+    retractall(eval_cache(_, _)),
     read_file_to_string(FilePath, String, []), % ファイルを文字列にする
     string_chars(String, Chars),               % 文字列を文字リストにする
     chars_tokens(Chars, Tokens),               % 文字リストをトークンリストにする
@@ -477,5 +482,12 @@ eval(Goal) :- predicate_property(Goal,built_in), !, call(Goal).
 eval(Goal) :-
         Goal \= true,
         Goal \= (_,_),
-        clause(Goal, Body),
-        eval(Body).
+        % キャッシュを確認
+        (eval_cache(Goal, Result) ->
+            Result = true
+        ;
+            % 新規評価してキャッシュに保存
+            clause(Goal, Body),
+            eval(Body),
+            assertz(eval_cache(Goal, true))
+        ).
