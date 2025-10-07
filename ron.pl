@@ -20,9 +20,12 @@ run :-
 file_eval(FilePath) :-
     % キャッシュをクリア
     retractall(eval_cache(_, _)),
-    read_file_to_string(FilePath, String, []), % ファイルを文字列にする
-    string_chars(String, Chars),               % 文字列を文字リストにする
-    chars_tokens(Chars, Tokens),               % 文字リストをトークンリストにする
+    % ファイルを文字列にする
+    read_file_to_string(FilePath, String, []),
+    % 文字列を文字リストにする
+    string_chars(String, Chars),
+    % 文字リストをトークンリストにする
+    chars_tokens(Chars, Tokens),
     % トークンリストから演算子リストをパーズして残りトークンリストを得る
     tokens_ops(Ops, Tokens, RestTokens),
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
