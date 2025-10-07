@@ -1,4 +1,5 @@
 op 30 : _ -> _
+op 30 : _ --> _
 op 50 : if _ then _ else _
 op 99 : V _
 op 99 : T _
@@ -6,7 +7,7 @@ op 99 : T _
 V true
 V false
 T v1 {
-  V v 
+  V v1
 }
 T (if t1 then t2 else t3) {
   T t1
@@ -18,8 +19,32 @@ if true then t1 else t2 -> t1 {
   T t1
   T t2
 }
+if false then t1 else t2 -> t2 {
+  T t1
+  T t2
+}
+if t1 then t2 else t3 -> if t4 then t2 else t3 {
+  t1 -> t4
+  T t1
+  T t2
+  T t3
+  T t4
+}
+
+t --> t' {
+  t -> t'
+  T t
+  T t'
+}
+t1 --> t2 {
+  t1 -> t3
+  t3 --> t2
+  T t1
+  T t2
+  T t3
+}
 
 main {
-   if true then true else false -> v
+   if (if true then true else false) then true else false --> v
    V v
 }
