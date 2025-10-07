@@ -23,7 +23,7 @@ file_eval(FilePath) :-
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
-    tokens_syntaxes(Syntaxes, RestTokens, RestTokens2), writeln(Syntaxes),
+    parse_syntax(_Syntaxes, RestTokens, RestTokens2),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
     tokens_rules(RestTokens2, Rules),
     % ルールを Prolog の規則に登録して、問い合わせを実行できるようにする    
@@ -36,6 +36,18 @@ chars_tokens(Chars, Tokens) :-
 
 tokens_ops([R|Rs]) --> skip(";"), rule_op(R), !, tokens_ops(Rs).
 tokens_ops([]) --> skip(";").
+
+% 文法定義用の演算子を一時的に登録してパースし、その後削除する
+parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
+    % 文法定義用の演算子を一時的に登録（他の演算子よりも低い優先順位）
+    assert(ops(a('::='), -2, following, [-2,'::=',-2])),
+    assert(ops(a('|'), -1, following, [-1,'|',-1])),
+    % トークンリストから文法部分をパーズ
+    tokens_syntaxes(Syntaxes, RestTokens, RestTokens2),
+    writeln(Syntaxes),
+    % 文法定義用の演算子を削除
+    retract(ops(a('::='), -2, following, [-2,'::=',-2])),
+    retract(ops(a('|'), -1, following, [-1,'|',-1])).
 
 % op ::= 'op' precedence ':' notation ';'
 rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
@@ -228,11 +240,6 @@ ops(a('()'), 0, leading, ['(',0,')']).
 
 % (( )) は prolog を参照することにする
 ops(a('<>'), 0, leading, ['<',0,'>']).
-
-% 文法定義用にあらかじめ定義しておく。文法の処理が終わったら削除する
-% 他の演算子よりも低い優先順位にする
-ops(a('::='), -2, following, [-2,'::=',-2]).
-ops(a('|'), -1, following, [-1,'|',-1]).
 
 % 述語の各項に _ をつける : if(x,+(1,2),y) を _if(x,_+(1,2),y) に
 normalize_term(Term, Normalized) :-
