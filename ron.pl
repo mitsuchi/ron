@@ -73,10 +73,18 @@ sequence(_, []) --> [].
 sequence(DCG, [X|Xs]) --> call(DCG, X), sequence(DCG, Xs).
 
 % syntax ::= 'syntax' '{' (pred ';'?)* '}'
-tokens_syntaxes(S) --> [syntax], skip(";"), "{", skip(";"), sequence(pred_skip, S), "}", skip(";").
-tokens_syntaxes([]) --> skip(";").
-% 述語を読んで改行をスキップする
-pred_skip(P) --> pred(P), skip(";").
+tokens_syntaxes(S) --> [syntax], skip_token(;), ['{'], skip_token(;),
+    collect_until_brace(Tokens),
+    {exclude(=(;), Tokens, TokensNoSemi)},
+    {phrase(sequence(pred, S), TokensNoSemi)},
+    skip_token(;).
+tokens_syntaxes([]) --> skip_token(;).
+% トークンを0回以上スキップ
+skip_token(T) --> [T], skip_token(T).
+skip_token(_) --> [].
+% '}' まで全てのトークンを収集
+collect_until_brace([]) --> ['}'].
+collect_until_brace([T|Ts]) --> [T], {T \= '}'}, collect_until_brace(Ts).
 
 assert_op(op(Prec, ['_' | Ns])) :-
     replace_underscore_list(Ns, Prec, Ns_),

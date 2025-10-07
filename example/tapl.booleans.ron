@@ -3,10 +3,17 @@ op 30 : _ --> _
 op 50 : if _ then _ else _
 
 syntax {
-  v ::= true | false
-  t ::= true | false | if t then t else t
+  t ::=                      # terms:
+        true                 # constant true
+      | false                # constant false
+      | if t then t else t   # conditional
+
+  v ::=                      # values:
+        true                 # true value
+      | false                # false value
 }
 
+# evaluation
 if true then t2 else t3 -> t2
 if false then t2 else t3 -> t3
 if t1 then t2 else t3 -> if t1' then t2 else t3 {
