@@ -1,0 +1,14 @@
+# 論理演算の例（UTF-8記号使用）
+op 10 : _ → _
+op 50 : _ ∧ _
+
+# AND 演算
+true ∧ true → true
+true ∧ false → false
+false ∧ true → false
+false ∧ false → false
+
+main {
+    true ∧ false → x
+}
+

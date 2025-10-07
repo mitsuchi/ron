@@ -38,8 +38,8 @@ K x y   -> x
 S x y z -> x z (y z)
 
 # 規則2
-x y -> x’ y { x -> x’ }
-x y -> x y’ { y -> y’ }
+x y -> x' y { x -> x' }
+x y -> x y' { y -> y' }
 
 # 規則3
 x => y { x -> y }
@@ -51,6 +51,22 @@ main {
 }
 ```
 
+例：UTF-8の数学記号を使ってもいい
+```
+# 論理演算の例
+op 10 : _ → _
+op 50 : _ ∧ _
+
+# AND 演算
+true ∧ true → true
+true ∧ false → false
+false ∧ true → false
+false ∧ false → false
+
+main {
+    true ∧ false → x
+}
+```
 
 例：OCaml 風の構文でフィボナッチ関数
 ```
@@ -154,6 +170,7 @@ main {
 ## できていること
 
 - 上記の例は動く。
+- UTF-8 の数学記号が使える（例：`→`、`⇒`、`∧`、`∨` など）
 
 ## 使い方
 

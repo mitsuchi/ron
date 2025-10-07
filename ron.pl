@@ -286,8 +286,8 @@ var_suffix(C, Name) --> [N], "'", { code_type(N, digit), atom_concat(C, N, CN), 
 var_suffix(C, Name) --> [N], { code_type(N, digit), atom_concat(C, N, Name) }.
 var_suffix(C, Name) --> "'", { atom_concat(C, '\'', Name) }.
 var_suffix(C, C) --> "".
-puncts([C|Cs]) --> [C], { code_type(C, punct) }, puncts(Cs).
-puncts([C]) -->  [C], { code_type(C, punct) }.
+puncts([C|Cs]) --> [C], { is_punct_or_symbol(C) }, puncts(Cs).
+puncts([C]) -->  [C], { is_punct_or_symbol(C) }.
 digits([C|Cs]) --> digit(C), digits(Cs).
 digits([C])    --> digit(C).
 digit(C)   --> [C], { code_type(C, digit) }.
@@ -387,6 +387,24 @@ all_punct_chars([C|Cs]) :-
     maplist(is_punct_char, [C|Cs]).
 is_punct_char(Char) :-
     code_type(Char, punct).
+
+% 句読点または数学記号かどうかを判定
+% 通常の ASCII 句読点に加えて、Unicode の数学記号（矢印など）も認識する
+is_punct_or_symbol(Char) :-
+    code_type(Char, punct).
+is_punct_or_symbol(Char) :-
+    % Unicode の矢印記号や数学記号を認識
+    char_code(Char, Code),
+    (
+        % 矢印記号 (U+2190 - U+21FF)
+        (Code >= 0x2190, Code =< 0x21FF) ;
+        % 数学演算子 (U+2200 - U+22FF)
+        (Code >= 0x2200, Code =< 0x22FF) ;
+        % その他の数学記号 (U+2A00 - U+2AFF)
+        (Code >= 0x2A00, Code =< 0x2AFF) ;
+        % 補助的な数学演算子 (U+2900 - U+297F)
+        (Code >= 0x2900, Code =< 0x297F)
+    ).
 
 % () はあらかじめ定義しておく
 ops(a('()'), 0, leading, ['(',0,')']).

@@ -1,0 +1,23 @@
+# 演算子を宣言（UTF-8の矢印記号を使用）
+op 50 : _ → _
+op 50 : _ ⇒ _
+op 100 : _ _
+
+# 規則1
+I x     → x
+K x y   → x
+S x y z → x z (y z)
+
+# 規則2
+x y → x' y { x → x' }
+x y → x y' { y → y' }
+
+# 規則3
+x ⇒ y { x → y }
+x ⇒ y { x → z; z ⇒ y }
+
+# 問い合わせ
+main {
+    S K S K ⇒ x
+}
+
