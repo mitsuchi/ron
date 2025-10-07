@@ -261,14 +261,14 @@ pred(O) --> e(-100, O).
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
-tokens(Ts) --> comment, !, tokens(Ts).
+tokens([;|Ts]) --> comment, !, tokens(Ts).
 tokens([T|Ts]) --> token(T), !, tokens(Ts).
 tokens([]) --> "".
 
-% # から行末までがコメント
-comment --> "#", string(_), "\n", !.
-string([]) --> [].
-string([X|Xs]) --> [X], string(Xs).
+% # から行末までがコメント（改行も消費して ; トークンに置き換える）
+comment --> "#", skip_until_newline.
+skip_until_newline --> "\n", !.
+skip_until_newline --> [C], {C \= '\n'}, skip_until_newline.
 
 token(N) --> num(N).
 token(;) --> ['\n'].

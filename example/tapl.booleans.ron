@@ -13,9 +13,9 @@ syntax {
       | false                # false value
 }
 
-# evaluation
-if true then t2 else t3 -> t2
-if false then t2 else t3 -> t3
+if true then t2 else t3 -> t2   # E-IfTrue
+if false then t2 else t3 -> t3  # E-ifFalse
+# E-If
 if t1 then t2 else t3 -> if t1' then t2 else t3 {
   t1 -> t1'
 }
