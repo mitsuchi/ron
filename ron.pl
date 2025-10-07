@@ -113,8 +113,12 @@ syntax_rules('::='('$VAR'(VarName), RHS), Rules) :-
     % 各選択肢に対してルールを作る
     maplist(alternative_rule(UpperVarName), Alts, Rules).
 
-% | で区切られた選択肢をリストに分解
-alternatives((A | B), [A|Rest]) :- !, alternatives(B, Rest).
+% | で区切られた選択肢をリストに分解（入れ子の | もフラット化する）
+alternatives((A | B), Alts) :-
+    !,
+    alternatives(A, AltsA),
+    alternatives(B, AltsB),
+    append(AltsA, AltsB, Alts).
 alternatives(A, [A]).
 
 % 選択肢からルールを作る
