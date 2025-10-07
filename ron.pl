@@ -268,16 +268,16 @@ token(;) --> ";".
 token(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
 token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
 token(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
-token(Alnum) --> alnum(Alnum).
-token(Alpha) --> alpha(Alpha).
+token(Var) --> var(Var).
 num(N) --> digits(Cs), { number_chars(N, Cs) }.
 word([C|Cs]) --> [C], { code_type(C, lower) }, word(Cs).
 word([C]) --> [C], { code_type(C, lower) }.
-alpha(T) --> [C], { code_type(C, lower), T = '$VAR'(C) }.
-alnum(T) --> [C], [N],
-    { code_type(C, lower), code_type(N, digit), atom_concat(C, N, CN), T = '$VAR'(CN) }.
-alnum(T) --> [C], "'",
-    { code_type(C, lower), atom_concat(C, '\'', CN), T = '$VAR'(CN) }.
+% [a-z][0-9]?"'"? のパターンを変数名として扱う
+var('$VAR'(Name)) --> [C], { code_type(C, lower) }, var_suffix(C, Name).
+var_suffix(C, Name) --> [N], "'", { code_type(N, digit), atom_concat(C, N, CN), atom_concat(CN, '\'', Name) }.
+var_suffix(C, Name) --> [N], { code_type(N, digit), atom_concat(C, N, Name) }.
+var_suffix(C, Name) --> "'", { atom_concat(C, '\'', Name) }.
+var_suffix(C, C) --> "".
 puncts([C|Cs]) --> [C], { code_type(C, punct) }, puncts(Cs).
 puncts([C]) -->  [C], { code_type(C, punct) }.
 digits([C|Cs]) --> digit(C), digits(Cs).
