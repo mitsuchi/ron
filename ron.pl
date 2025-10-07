@@ -34,7 +34,7 @@ file_eval(FilePath) :-
     % 残りのトークンからルール部分をパーズしてルールリストを得る
     tokens_rules(RestTokens2, Rules),
     % 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
-    update_rules(Syntaxes, Rules, UpdatedRules), maplist(writeln, UpdatedRules),
+    update_rules(Syntaxes, Rules, UpdatedRules),
     % 文法用のルールリストを Prolog の規則に登録する
     maplist(assert_rule, RulesForSyntax),
     % 更新後のルールリストを Prolog の規則に登録する

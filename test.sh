@@ -98,6 +98,8 @@ test_all() {
     run_test "example/ski.ron" "x = K K (S K)"
     run_test "example/succ.ron" "x = succ succ 0"
     run_test "example/type.ron" "t = int"
+    run_test "example/syntax.ron" "v = true"
+    run_test "example/syntax-without-macro.ron" "v = true"
     
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"

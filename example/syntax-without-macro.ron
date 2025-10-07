@@ -45,6 +45,6 @@ t1 --> t2 {
 }
 
 main {
-   if (if true then true else false) then true else false --> v
+   if (if true then false else true) then false else true --> v
    V v
 }
