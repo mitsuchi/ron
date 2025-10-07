@@ -76,32 +76,32 @@ op 30 : _ --> _
 op 50 : if _ then _ else _
 
 syntax {
-  t ::=                      # terms :
-        true                 # constant true
-      | false                # constant false
-      | if t then t else t   # conditional
+    t ::=                      # terms :
+          true                 # constant true
+        | false                # constant false
+        | if t then t else t   # conditional
 
-  v ::=                      # values :
-        true                 # true value
-      | false                # false value
+    v ::=                      # values :
+          true                 # true value
+        | false                # false value
 }
 
 if true then t2 else t3 -> t2                     # E-IfTrue
 if false then t2 else t3 -> t3                    # E-ifFalse
 if t1 then t2 else t3 -> if t1' then t2 else t3 { # E-If
-  t1 -> t1'
+    t1 -> t1'
 }
 
 t --> t' {
-  t -> t'
+    t -> t'
 }
 t1 --> t2 {
-  t1 -> t3
-  t3 --> t2
+    t1 -> t3
+    t3 --> t2
 }
 
 main {
-   if (if true then false else true) then false else true --> v
+     if (if true then false else true) then false else true --> v
 }
 ```
 
