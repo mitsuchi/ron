@@ -1,9 +1,22 @@
 op 30 : _ -> _
 op 50 : if _ then _ else _
+op 99 : V _
+op 99 : T _
 
 syntax {
   v ::= true | false
   t ::= v | if t then t else t
+}
+
+V true
+V false
+T v1 {
+    V v1
+}
+T(if t1 then t2 else t3) {
+    T t1
+    T t2
+    T t3
 }
 
 if true then t1 else t2 -> t1

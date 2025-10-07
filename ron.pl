@@ -23,7 +23,9 @@ file_eval(FilePath) :-
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
-    parse_syntax(_Syntaxes, RestTokens, RestTokens2),
+    parse_syntax(Syntaxes, RestTokens, RestTokens2),
+    % 文法リストから新たに登録するべきルールリストを作る
+    syntaxes_rules(Syntaxes, RulesForSyntax), writeln(RulesForSyntax),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
     tokens_rules(RestTokens2, Rules),
     % ルールを Prolog の規則に登録して、問い合わせを実行できるようにする    
@@ -45,7 +47,6 @@ parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
     maplist(assert, Ops),
     % トークンリストから文法部分をパーズ
     tokens_syntaxes(Syntaxes, RestTokens, RestTokens2),
-    writeln(Syntaxes),
     % 文法定義用の演算子を削除
     maplist(retract, Ops).
 
@@ -77,6 +78,77 @@ assert_op(op(Prec, [N | Ns])) :-
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     assert(Term).
 assert_op(_ :- _).
+
+% 文法リストから新たに登録するべきルールリストを作る
+% ex1: syntax { v ::= true | false } のとき、生成するルールは V true; V false; となる。そのとき、
+% 文法リストは [ ::=($VAR(v),(true | false)) ] となり
+% ルールリストは  [V(true) :- true, V(false) :- true] となる
+% ex2: syntax { t ::= v | if t then t else t } のとき
+% 生成するルールは T v1 { V v1 }; T(if t1 then t2 else t3) { T t1; T t2; T t3 } となる。そのとき、
+% 文法リストは　[ ::=($VAR(t), ($VAR(v) | ifthenelse($VAR(t),$VAR(t),$VAR(t)))) ] となり
+% ルールリストは [T($VAR(v1)):-V($VAR(v1)),T(()(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3)))):-T($VAR(t1)),T($VAR(t2)),T($VAR(t3))] となる
+% 要件: 文法リストの非終端記号は、ルールリストの述語では大文字にする( v -> V, t -> T)
+syntaxes_rules(Syntaxes, RulesForSyntax) :-
+    maplist(syntax_rules, Syntaxes, RulesLists),
+    append(RulesLists, RulesForSyntax).
+
+% 1つの文法定義からルールリストを作る
+syntax_rules('::='('$VAR'(VarName), RHS), Rules) :-
+    % 非終端記号を大文字に変換
+    upcase_atom(VarName, UpperVarName),
+    % 右辺を選択肢に分解
+    alternatives(RHS, Alts),
+    % 各選択肢に対してルールを作る
+    maplist(alternative_rule(UpperVarName), Alts, Rules).
+
+% | で区切られた選択肢をリストに分解
+alternatives((A | B), [A|Rest]) :- !, alternatives(B, Rest).
+alternatives(A, [A]).
+
+% 選択肢からルールを作る
+% アトムの場合: V(atom) :- true
+alternative_rule(VarName, Alt, (Head :- true)) :-
+    atom(Alt),
+    Head =.. [VarName, Alt].
+% 変数の場合: T($VAR(v1)) :- V($VAR(v1))
+alternative_rule(VarName, '$VAR'(OtherVarName), (Head :- Body)) :-
+    % 新しい変数名を生成
+    atom_concat(OtherVarName, '1', NewVarName),
+    upcase_atom(OtherVarName, UpperOtherVarName),
+    NewVar = '$VAR'(NewVarName),
+    Head =.. [VarName, NewVar],
+    Body =.. [UpperOtherVarName, NewVar].
+% 複合項の場合: T(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3))) :- T($VAR(t1)), T($VAR(t2)), T($VAR(t3))
+alternative_rule(VarName, Alt, (Head :- Body)) :-
+    compound(Alt),
+    Alt =.. [Functor | Args],
+    % 引数ごとに新しい$VAR変数を作る
+    length(Args, Len),
+    numlist(1, Len, Nums),
+    maplist(make_var_from_arg, Args, Nums, NewVars),
+    % ヘッドを作る
+    NewAlt =.. [Functor | NewVars],
+    Head =.. [VarName, NewAlt],
+    % ボディを作る（各引数に対して型チェック）
+    maplist(make_body(VarName), NewVars, BodyList),
+    list_to_conjunction(BodyList, Body).
+
+% 引数から新しい$VAR変数を生成
+% 引数が$VAR(name)の場合、$VAR(name + 番号)を生成
+make_var_from_arg('$VAR'(ArgName), Num, '$VAR'(NewName)) :-
+    atom_concat(ArgName, Num, NewName).
+% 引数がその他の場合（将来の拡張用）
+make_var_from_arg(_, Num, '$VAR'(NewName)) :-
+    atom_concat('_', Num, NewName).
+
+% ボディの各項を作る
+make_body(VarName, Arg, Body) :-
+    Body =.. [VarName, Arg].
+
+% リストを , で結合した項に変換
+list_to_conjunction([X], X) :- !.
+list_to_conjunction([X|Xs], (X, Rest)) :-
+    list_to_conjunction(Xs, Rest).
 
 assert_rule(main :- Body) :-
     normalize_term(Body, BodyN, true),
