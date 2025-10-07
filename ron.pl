@@ -40,14 +40,14 @@ tokens_ops([]) --> skip(";").
 % 文法定義用の演算子を一時的に登録してパースし、その後削除する
 parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
     % 文法定義用の演算子を一時的に登録（他の演算子よりも低い優先順位）
-    assert(ops(a('::='), -2, following, [-2,'::=',-2])),
-    assert(ops(a('|'), -1, following, [-1,'|',-1])),
+    Ops = [ops(a('::='), -2, following, [-2,'::=',-2]),
+           ops(a('|'), -1, following, [-1,'|',-1])],
+    maplist(assert, Ops),
     % トークンリストから文法部分をパーズ
     tokens_syntaxes(Syntaxes, RestTokens, RestTokens2),
     writeln(Syntaxes),
     % 文法定義用の演算子を削除
-    retract(ops(a('::='), -2, following, [-2,'::=',-2])),
-    retract(ops(a('|'), -1, following, [-1,'|',-1])).
+    maplist(retract, Ops).
 
 % op ::= 'op' precedence ':' notation ';'
 rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
