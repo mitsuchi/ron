@@ -22,8 +22,10 @@ file_eval(FilePath) :-
     tokens_ops(Ops, Tokens, RestTokens),
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
+    % トークンリストから文法部分をパーズして文法リストを得る
+    tokens_syntaxes(Syntaxes, RestTokens, RestTokens2), writeln(Syntaxes),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
-    tokens_rules(RestTokens, Rules),
+    tokens_rules(RestTokens2, Rules),
     % ルールを Prolog の規則に登録して、問い合わせを実行できるようにする    
     maplist(assert_rule, Rules),
     % 問い合わせを実行する
@@ -40,6 +42,16 @@ rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation
 
 notation([R]) --> [R], {not(R = ';')}.
 notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
+
+% 任意の DCG ルールを 0回以上適用してリストを作る
+sequence(_, []) --> [].
+sequence(DCG, [X|Xs]) --> call(DCG, X), sequence(DCG, Xs).
+
+% syntax ::= 'syntax' '{' (pred ';'?)* '}'
+tokens_syntaxes(S) --> [syntax], skip(";"), "{", skip(";"), sequence(pred_skip, S), "}", skip(";").
+tokens_syntaxes([]) --> skip(";").
+% 述語を読んで改行をスキップする
+pred_skip(P) --> pred(P), skip(";").
 
 assert_op(op(Prec, ['_' | Ns])) :-
     replace_underscore_list(Ns, Prec, Ns_),
@@ -78,7 +90,9 @@ rule_pred(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
 body(P) --> pred(P), skip(";").
 body((P,Bs)) --> pred(P), ";", body(Bs).
 
-pred(O) --> e(0, O).
+% 述語をパーズして結果の項を O に入れる
+% 現在の優先順位を考えられる最低にして式をパーズする。::= が -2 だったりするので。
+pred(O) --> e(-100, O).
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
@@ -113,7 +127,7 @@ digits([C|Cs]) --> digit(C), digits(Cs).
 digits([C])    --> digit(C).
 digit(C)   --> [C], { code_type(C, digit) }.
 
-skip(W) --> "" | (W, skip(W)).
+skip(W) --> (W, skip(W)) | "".
 
 % mixfix parser
 % https://zenn.dev/pandaman64/books/pratt-parsing
@@ -214,6 +228,11 @@ ops(a('()'), 0, leading, ['(',0,')']).
 
 % (( )) は prolog を参照することにする
 ops(a('<>'), 0, leading, ['<',0,'>']).
+
+% 文法定義用にあらかじめ定義しておく。文法の処理が終わったら削除する
+% 他の演算子よりも低い優先順位にする
+ops(a('::='), -2, following, [-2,'::=',-2]).
+ops(a('|'), -1, following, [-1,'|',-1]).
 
 % 述語の各項に _ をつける : if(x,+(1,2),y) を _if(x,_+(1,2),y) に
 normalize_term(Term, Normalized) :-
