@@ -79,13 +79,13 @@ assert_op(op(Prec, ['_' | Ns])) :-
     replace_underscore_list(Ns, Prec, Ns_),
     concat_without_underscores(Ns, Punct),
     Term = ops(a(Punct), Prec, following, [Prec|Ns_]),
-    assert(Term).
+    assertz(Term).
 assert_op(op(Prec, [N | Ns])) :-
     N \= '_',
     replace_underscore_list(Ns, Prec, Ns_),
     concat_without_underscores([N|Ns], Punct),
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
-    assert(Term).
+    assertz(Term).
 assert_op(_ :- _).
 
 % 文法リストから新たに登録するべきルールリストを作る
@@ -218,12 +218,12 @@ collect_vars_in_term(_, []).
 
 assert_rule(main :- Body) :-
     normalize_term(Body, BodyN, true),
-    assert(main :- BodyN).
+    assertz(main :- BodyN).
 assert_rule(Head :- Body) :-
     normalize_term(Head, HeadN),
     normalize_term(Body, BodyN),
     varnumbers_names(HeadN :- BodyN, Term, _),
-    assert(Term).
+    assertz(Term).
 assert_rule(op(_)).
 
 tokens_rules(Tokens, Rules) :-
