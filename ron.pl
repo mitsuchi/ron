@@ -25,12 +25,16 @@ file_eval(FilePath) :-
     % トークンリストから文法部分をパーズして文法リストを得る
     parse_syntax(Syntaxes, RestTokens, RestTokens2),
     % 文法リストから新たに登録するべきルールリストを作る
-    syntaxes_rules(Syntaxes, RulesForSyntax), writeln(RulesForSyntax),
+    syntaxes_rules(Syntaxes, RulesForSyntax),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
     tokens_rules(RestTokens2, Rules),
-    % ルールを Prolog の規則に登録して、問い合わせを実行できるようにする    
-    maplist(assert_rule, Rules),
-    % 問い合わせを実行する
+    % 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
+    update_rules(Syntaxes, Rules, UpdatedRules),
+    % 文法用のルールリストを Prolog の規則に登録する
+    maplist(assert_rule, RulesForSyntax),
+    % 更新後のルールリストを Prolog の規則に登録する
+    maplist(assert_rule, UpdatedRules),
+    % main を問い合わせする
     query(main).
 
 chars_tokens(Chars, Tokens) :-
@@ -149,6 +153,63 @@ make_body(VarName, Arg, Body) :-
 list_to_conjunction([X], X) :- !.
 list_to_conjunction([X|Xs], (X, Rest)) :-
     list_to_conjunction(Xs, Rest).
+
+% 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
+% ex: 文法が syntax { v ::= true | false; t ::= v | if t then t else t } で
+% ルールが if true then t1 else t2 -> t1; main { if true then true else false -> v } のとき、
+% 更新後のルールは if true then t1 else t2 -> t1 { T t1; T t2}; main { if true then true else false -> v; V v } となる
+% そのとき、文法リストは [::=($VAR(v),(true|false)),::=($VAR(t),($VAR(v)|ifthenelse($VAR(t),$VAR(t),$VAR(t))))] であり
+% 非終端記号は [v, t] となり、
+% 更新前のルールリストは [(ifthenelse(true,$VAR(t1),$VAR(t2))-> $VAR(t1):-true),(main:-ifthenelse(true,true,false)-> $VAR(v))]
+% 更新後のルールリストは [(ifthenelse(true,$VAR(t1),$VAR(t2))-> $VAR(t1):-T($VAR(t1)),T($VAR(t2))),(main:-(ifthenelse(true,true,false)-> $VAR(v)),V($VAR(v)))] となる
+update_rules(Syntaxes, Rules, UpdatedRules) :-
+    % 文法リストから非終端記号を抽出
+    extract_nonterminals(Syntaxes, Nonterminals),
+    % 各ルールを更新
+    maplist(update_rule(Nonterminals), Rules, UpdatedRules).
+
+% 文法リストから非終端記号を抽出
+extract_nonterminals(Syntaxes, Nonterminals) :-
+    maplist(extract_nonterminal, Syntaxes, Nonterminals).
+
+extract_nonterminal('::='('$VAR'(VarName), _), VarName).
+
+% 1つのルールを更新して型チェックを追加
+update_rule(Nonterminals, (Head :- Body), (Head :- NewBody)) :-
+    % ルール内の変数を収集
+    collect_vars_in_term(Head, VarsInHead),
+    collect_vars_in_term(Body, VarsInBody),
+    append(VarsInHead, VarsInBody, AllVarsWithDup),
+    % 重複を除去
+    sort(AllVarsWithDup, AllVars),
+    % 非終端記号に対応する変数から型チェックを生成
+    findall(TypeCheck,
+            (member('$VAR'(VarName), AllVars),
+             member(NTName, Nonterminals),
+             atom_concat(NTName, _, VarName),  % 変数名が非終端記号で始まる
+             upcase_atom(NTName, UpperNTName),
+             TypeCheck =.. [UpperNTName, '$VAR'(VarName)]),
+            TypeChecks),
+    % ボディに型チェックを追加
+    (TypeChecks = [] ->
+        NewBody = Body
+    ;
+        list_to_conjunction(TypeChecks, TypeCheckConj),
+        (Body = true ->
+            NewBody = TypeCheckConj
+        ;
+            NewBody = (Body, TypeCheckConj)
+        )
+    ).
+
+% 項内の$VAR変数を収集
+collect_vars_in_term('$VAR'(Name), ['$VAR'(Name)]) :- !.
+collect_vars_in_term(Term, Vars) :-
+    compound(Term),
+    Term =.. [_ | Args],
+    maplist(collect_vars_in_term, Args, VarLists),
+    append(VarLists, Vars), !.
+collect_vars_in_term(_, []).
 
 assert_rule(main :- Body) :-
     normalize_term(Body, BodyN, true),
