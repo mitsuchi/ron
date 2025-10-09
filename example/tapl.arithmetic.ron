@@ -1,0 +1,58 @@
+op 30 : _ -> _
+op 30 : _ --> _
+op 50 : if _ then _ else _
+op 80 : succ _
+op 80 : pred _
+op 80 : iszero _
+
+syntax {
+  t ::=                      # terms:
+        true                 # constant true
+      | false                # constant false
+      | if t then t else t   # conditional
+      | 0
+      | succ t
+      | pred t
+      | iszero t
+
+  v ::=                      # values:
+        true                 # true value
+      | false                # false value
+      | n                    # number value
+  
+  n ::= 
+        0                    # zero
+     |  succ n
+}
+
+if true then t2 else t3 -> t2
+if false then t2 else t3 -> t3
+if t1 then t2 else t3 -> if t1' then t2 else t3 {
+  t1 -> t1'
+}
+
+succ t1 -> succ t2 {
+  t1 -> t2
+}
+pred 0 -> 0
+pred (succ n) -> n
+pred t1 -> pred t1' {
+  t1 -> t1'
+}
+iszero 0 -> true
+iszero (succ n) -> false
+iszero t1 -> iszero t1' {
+  t1 -> t1'
+}
+
+t --> t' {
+  t -> t'
+}
+t1 --> t2 {
+  t1 -> t3
+  t3 --> t2
+}
+
+main {
+   if iszero (pred (succ 0)) then (succ 0) else 0 --> v
+}

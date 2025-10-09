@@ -102,6 +102,7 @@ test_all() {
     run_test "example/syntax-without-macro.ron" "v = true"
     run_test "example/tapl.booleans.ron" "v = true"
     run_test "example/logic.utf8.ron" "x = false"
+    run_test "example/tapl.arithmetic.ron" "v = succ 0"
     
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"

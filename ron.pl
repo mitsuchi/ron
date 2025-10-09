@@ -156,7 +156,10 @@ alternative_rule(VarName, Alt, (Head :- Body)) :-
     % ボディを作る（各引数に対して型チェック）
     maplist(make_body(VarName), NewVars, BodyList),
     list_to_conjunction(BodyList, Body).
-
+% 数値の場合: V(0) :- true
+alternative_rule(VarName, Alt, (Head :- true)) :-
+    number(Alt),
+    Head =.. [VarName, Alt].
 % 引数から新しい$VAR変数を生成
 % 引数が$VAR(name)の場合、$VAR(name + 番号)を生成
 make_var_from_arg('$VAR'(ArgName), Num, '$VAR'(NewName)) :-
@@ -271,8 +274,13 @@ skip_until_newline --> "\n", !.
 skip_until_newline --> [C], {C \= '\n'}, skip_until_newline.
 
 token(N) --> num(N).
+% 区切り文字っぽい記号は一つずつ別のトークンとする
+% たとえば (pred (succ 0)) の最後の )) が一つのトークンと見なされるのを避ける
 token(;) --> ['\n'].
 token(;) --> ";".
+token('(') --> "(".
+token(')') --> ")".
+token(',') --> ",".
 token(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
 token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
 token(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
