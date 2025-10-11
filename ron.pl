@@ -284,9 +284,10 @@ token(Var) --> var(Var).
 num(N) --> digits(Cs), { number_chars(N, Cs) }.
 word(Cs) --> many1(lower, Cs).
 lower(C) --> [C], { code_type(C, lower) }.
-% [a-z][0-9]?"'"? のパターンを変数名として扱う
-var('$VAR'(NameND)) --> lower(Cs), optional(digit, N), optional(dash, D),
-   {append([Cs], N, CsN), append(CsN, D, CsND), atom_chars(NameND, CsND)}.
+% [a-Z]+[0-9]*"'"* のパターンを変数名として扱う
+var(Name) --> many1(alpha, A), many(digit, N), many(dash, D),
+   {append(A, N, AN), append(AN, D, AND), atom_chars(Name, AND)}.
+alpha(C) --> [C], { code_type(C, alpha) }.
 dash('\'') --> "'".
 puncts(Cs) --> many1(punct, Cs).
 punct(C) --> [C], { is_punct_or_symbol(C) }.
