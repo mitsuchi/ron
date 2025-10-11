@@ -2,6 +2,10 @@
 op 50 : S _
 op 50 : _ plus _ is _
     
+syntax {
+    constants ::= Z
+}
+
 # 規則1
 Z plus n is n
 

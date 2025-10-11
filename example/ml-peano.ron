@@ -14,6 +14,10 @@
     op 20 : fun _ -> _
     op 10 : _ |- _ => _
     
+    syntax {
+        constants ::= true | false | Z
+    }
+
     c |- Z => Z
     c |- S n => S v {
         c |- n => v

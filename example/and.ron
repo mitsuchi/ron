@@ -3,6 +3,10 @@ op 40 : _ is _
 op 30 : if _ then _ else _
 op 10 : _ => _
 
+syntax {
+    constants ::= false | true
+}
+
 false => false
 true => true
 

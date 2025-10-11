@@ -26,29 +26,29 @@ file_eval(FilePath) :-
     string_chars(String, Chars),
     % 文字リストをトークンリストにする
     chars_tokens(Chars, Tokens),
-    writeln('Tokens:'), maplist(writeln, Tokens),
+    %writeln('Tokens:'), maplist(writeln, Tokens),
     % トークンリストから演算子リストをパーズして残りトークンリストと予約語リストを得る
     tokens_ops(Ops, ReservedWords, Tokens, RestTokens),
-    writeln('ReservedWords:'), maplist(writeln, ReservedWords), !,
+    %writeln('ReservedWords:'), maplist(writeln, ReservedWords), !,
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
     parse_syntax(Syntaxes, RestTokens, RestTokens2),
-    writeln('Syntaxes:'), maplist(writeln, Syntaxes),
+    %writeln('Syntaxes:'), maplist(writeln, Syntaxes),
     % 文法リストから予約語リストを得る
     syntaxes_reserved_words(Syntaxes, ReservedWords2),
-    writeln('ReservedWords2:'), maplist(writeln, ReservedWords2),
+    %writeln('ReservedWords2:'), maplist(writeln, ReservedWords2),
     % ReservedWords と ReservedWords2 を結合したうえでユニークにする
     % main も予約語とする
     append([main | ReservedWords], ReservedWords2, ReservedWords3),
     sort(ReservedWords3, ReservedWords4),
-    writeln('ReservedWords4:'), maplist(writeln, ReservedWords4),
+    %writeln('ReservedWords4:'), maplist(writeln, ReservedWords4),
     % RestTokens2 のうち、[a-Z]+[0-9]*"'"* のパターンに一致するものを $VAR() に変換して RestTokens3 にする
     convert_vars_in_tokens(ReservedWords4, RestTokens2, RestTokens3),
-    writeln('RestTokens3:'), maplist(writeln, RestTokens3),
+    %writeln('RestTokens3:'), maplist(writeln, RestTokens3),
     % 文法リストから新たに登録するべきルールリストを作る
     syntaxes_rules(Syntaxes, RulesForSyntax),
-    writeln('RulesForSyntax:'), maplist(writeln, RulesForSyntax),
+    %writeln('RulesForSyntax:'), maplist(writeln, RulesForSyntax),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
     tokens_rules(RestTokens3, Rules),
     % 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
@@ -218,7 +218,7 @@ alternative_rule(Nonterminals, UpperVarName, Alt, (Head :- Body)) :-
     maplist(make_body_for_arg(Nonterminals), Args, NewVars, BodyList),
     list_to_conjunction(BodyList, Body).
 % 数値の場合: V(0) :- true
-alternative_rule(Nonterminals, UpperVarName, Alt, (Head :- true)) :-
+alternative_rule(_, UpperVarName, Alt, (Head :- true)) :-
     number(Alt),
     Head =.. [UpperVarName, Alt].
 

@@ -6,6 +6,10 @@ op 20 : _ >> _
 op 10 : _ => _ // _
 op 10 : _ >> _ // _
 
+syntax {
+    constants ::= H
+}
+
 v => 0 // v {
     <integer v>
 }
