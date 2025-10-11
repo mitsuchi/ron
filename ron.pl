@@ -36,7 +36,7 @@ file_eval(FilePath) :-
     parse_syntax(Syntaxes, RestTokens, RestTokens2),
     writeln('Syntaxes:'), maplist(writeln, Syntaxes),
     % 文法リストから予約語リストを得る
-    syntaxes_reserved_words(SyntaxesRaw, ReservedWords2),
+    syntaxes_reserved_words(Syntaxes, ReservedWords2),
     writeln('ReservedWords2:'), maplist(writeln, ReservedWords2),
     % ReservedWords と ReservedWords2 を結合したうえでユニークにする
     % main も予約語とする
@@ -163,17 +163,21 @@ assert_op(_ :- _).
 % ルールリストは [T($VAR(v1):-V($VAR(v1)),T(()(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3)))):-T($VAR(t1)),T($VAR(t2)),T($VAR(t3))] となる
 % 要件: 文法リストの非終端記号は、ルールリストの述語では大文字にする( v -> V, t -> T)
 syntaxes_rules(Syntaxes, RulesForSyntax) :-
-    maplist(syntax_rules, Syntaxes, RulesLists),
+    % 全ての非終端記号を抽出
+    extract_nonterminals(Syntaxes, Nonterminals),
+    % 各文法定義に非終端記号リストを渡してルールを生成
+    maplist(syntax_rules(Nonterminals), Syntaxes, RulesLists),
     append(RulesLists, RulesForSyntax).
 
 % 1つの文法定義からルールリストを作る
-syntax_rules('::='('$VAR'(VarName), RHS), Rules) :-
+syntax_rules(Nonterminals, '::='(VarName, RHS), Rules) :-
+    atom(VarName),
     % 非終端記号を大文字に変換
     upcase_atom(VarName, UpperVarName),
     % 右辺を選択肢に分解
     alternatives(RHS, Alts),
     % 各選択肢に対してルールを作る
-    maplist(alternative_rule(UpperVarName), Alts, Rules).
+    maplist(alternative_rule(Nonterminals, UpperVarName), Alts, Rules).
 
 % | で区切られた選択肢をリストに分解（入れ子の | もフラット化する）
 alternatives((A | B), Alts) :-
@@ -184,20 +188,23 @@ alternatives((A | B), Alts) :-
 alternatives(A, [A]).
 
 % 選択肢からルールを作る
-% アトムの場合: V(atom) :- true
-alternative_rule(VarName, Alt, (Head :- true)) :-
+% アトムの場合で、他の非終端記号でない場合: V(atom) :- true
+alternative_rule(Nonterminals, UpperVarName, Alt, (Head :- true)) :-
     atom(Alt),
-    Head =.. [VarName, Alt].
-% 変数の場合: T($VAR(v1)) :- V($VAR(v1))
-alternative_rule(VarName, '$VAR'(OtherVarName), (Head :- Body)) :-
+    \+ member(Alt, Nonterminals),
+    Head =.. [UpperVarName, Alt].
+% アトムの場合で、他の非終端記号への参照の場合: T($VAR(v1)) :- V($VAR(v1))
+alternative_rule(Nonterminals, UpperVarName, OtherVarName, (Head :- Body)) :-
+    atom(OtherVarName),
+    member(OtherVarName, Nonterminals),
     % 新しい変数名を生成
     atom_concat(OtherVarName, '1', NewVarName),
     upcase_atom(OtherVarName, UpperOtherVarName),
     NewVar = '$VAR'(NewVarName),
-    Head =.. [VarName, NewVar],
+    Head =.. [UpperVarName, NewVar],
     Body =.. [UpperOtherVarName, NewVar].
 % 複合項の場合: T(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3))) :- T($VAR(t1)), T($VAR(t2)), T($VAR(t3))
-alternative_rule(VarName, Alt, (Head :- Body)) :-
+alternative_rule(Nonterminals, UpperVarName, Alt, (Head :- Body)) :-
     compound(Alt),
     Alt =.. [Functor | Args],
     % 引数ごとに新しい$VAR変数を作る
@@ -206,25 +213,27 @@ alternative_rule(VarName, Alt, (Head :- Body)) :-
     maplist(make_var_from_arg, Args, Nums, NewVars),
     % ヘッドを作る
     NewAlt =.. [Functor | NewVars],
-    Head =.. [VarName, NewAlt],
+    Head =.. [UpperVarName, NewAlt],
     % ボディを作る（各引数に対して型チェック）
-    maplist(make_body(VarName), NewVars, BodyList),
+    maplist(make_body_for_arg(Nonterminals), Args, NewVars, BodyList),
     list_to_conjunction(BodyList, Body).
 % 数値の場合: V(0) :- true
-alternative_rule(VarName, Alt, (Head :- true)) :-
+alternative_rule(Nonterminals, UpperVarName, Alt, (Head :- true)) :-
     number(Alt),
-    Head =.. [VarName, Alt].
-% 引数から新しい$VAR変数を生成
-% 引数が$VAR(name)の場合、$VAR(name + 番号)を生成
-make_var_from_arg('$VAR'(ArgName), Num, '$VAR'(NewName)) :-
-    atom_concat(ArgName, Num, NewName).
-% 引数がその他の場合（将来の拡張用）
-make_var_from_arg(_, Num, '$VAR'(NewName)) :-
-    atom_concat('_', Num, NewName).
+    Head =.. [UpperVarName, Alt].
 
-% ボディの各項を作る
-make_body(VarName, Arg, Body) :-
-    Body =.. [VarName, Arg].
+% 引数から新しい$VAR変数を生成
+% 引数が単なるアトム（非終端記号への参照）の場合、$VAR(name + 番号)を生成
+make_var_from_arg(ArgName, Num, '$VAR'(NewName)) :-
+    atom(ArgName),
+    atom_concat(ArgName, Num, NewName).
+
+% ボディの各項を作る（元の引数と新しい変数から）
+make_body_for_arg(Nonterminals, ArgName, NewVar, Body) :-
+    atom(ArgName),
+    member(ArgName, Nonterminals),
+    upcase_atom(ArgName, UpperArgName),
+    Body =.. [UpperArgName, NewVar].
 
 % リストを , で結合した項に変換
 list_to_conjunction([X], X) :- !.
@@ -249,7 +258,8 @@ update_rules(Syntaxes, Rules, UpdatedRules) :-
 extract_nonterminals(Syntaxes, Nonterminals) :-
     maplist(extract_nonterminal, Syntaxes, Nonterminals).
 
-extract_nonterminal('::='('$VAR'(VarName), _), VarName).
+extract_nonterminal('::='(VarName, _), VarName) :-
+    atom(VarName).
 
 % 文法リストから予約語リストを得る
 % Syntaxes のそれぞれについて、::= の第一引数で all_alpha を満たすものを取得してリスト化し（LeftWords とする）、
