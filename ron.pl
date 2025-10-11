@@ -33,8 +33,8 @@ file_eval(FilePath) :-
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
-    parse_syntax(SyntaxesRaw, RestTokens, RestTokens2),
-    writeln('SyntaxesRaw:'), maplist(writeln, SyntaxesRaw),
+    parse_syntax(Syntaxes, RestTokens, RestTokens2),
+    writeln('Syntaxes:'), maplist(writeln, Syntaxes),
     % 文法リストから予約語リストを得る
     syntaxes_reserved_words(SyntaxesRaw, ReservedWords2),
     writeln('ReservedWords2:'), maplist(writeln, ReservedWords2),
@@ -48,6 +48,7 @@ file_eval(FilePath) :-
     writeln('RestTokens3:'), maplist(writeln, RestTokens3),
     % 文法リストから新たに登録するべきルールリストを作る
     syntaxes_rules(Syntaxes, RulesForSyntax),
+    writeln('RulesForSyntax:'), maplist(writeln, RulesForSyntax),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
     tokens_rules(RestTokens3, Rules),
     % 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
@@ -154,12 +155,12 @@ assert_op(_ :- _).
 
 % 文法リストから新たに登録するべきルールリストを作る
 % ex1: syntax { v ::= true | false } のとき、生成するルールは V true; V false; となる。そのとき、
-% 文法リストは [ ::=($VAR(v),(true | false)) ] となり
+% 文法リストは [ ::=(v,(true | false)) ] となり
 % ルールリストは  [V(true) :- true, V(false) :- true] となる
 % ex2: syntax { t ::= v | if t then t else t } のとき
 % 生成するルールは T v1 { V v1 }; T(if t1 then t2 else t3) { T t1; T t2; T t3 } となる。そのとき、
-% 文法リストは　[ ::=($VAR(t), ($VAR(v) | ifthenelse($VAR(t),$VAR(t),$VAR(t)))) ] となり
-% ルールリストは [T($VAR(v1)):-V($VAR(v1)),T(()(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3)))):-T($VAR(t1)),T($VAR(t2)),T($VAR(t3))] となる
+% 文法リストは　[ ::=(t, v) | ifthenelse(t,t,t))) ] となり
+% ルールリストは [T($VAR(v1):-V($VAR(v1)),T(()(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3)))):-T($VAR(t1)),T($VAR(t2)),T($VAR(t3))] となる
 % 要件: 文法リストの非終端記号は、ルールリストの述語では大文字にする( v -> V, t -> T)
 syntaxes_rules(Syntaxes, RulesForSyntax) :-
     maplist(syntax_rules, Syntaxes, RulesLists),
