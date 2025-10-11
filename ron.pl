@@ -26,12 +26,18 @@ file_eval(FilePath) :-
     string_chars(String, Chars),
     % 文字リストをトークンリストにする
     chars_tokens(Chars, Tokens),
-    % トークンリストから演算子リストをパーズして残りトークンリストを得る
-    tokens_ops(Ops, Tokens, RestTokens),
+    writeln('Tokens:'), maplist(writeln, Tokens),
+    % トークンリストから演算子リストをパーズして残りトークンリストと予約語リストを得る
+    tokens_ops(Ops, ReservedWords, Tokens, RestTokens),
+    writeln('ReservedWords:'), maplist(writeln, ReservedWords), !,
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
     parse_syntax(Syntaxes, RestTokens, RestTokens2),
+    writeln('Syntaxes:'), maplist(writeln, Syntaxes),
+    % 文法リストから予約語リストを得る
+    syntaxes_reserved_words(Syntaxes, ReservedWords2),
+    writeln('ReservedWords2:'), maplist(writeln, ReservedWords2),
     % 文法リストから新たに登録するべきルールリストを作る
     syntaxes_rules(Syntaxes, RulesForSyntax),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
@@ -48,8 +54,14 @@ file_eval(FilePath) :-
 chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars).
 
-tokens_ops([R|Rs]) --> skip(";"), rule_op(R), !, tokens_ops(Rs).
-tokens_ops([]) --> skip(";").
+tokens_ops(Ops, ReservedWords) --> tokens_ops_impl(Ops, ReservedWordsNested), {flatten(ReservedWordsNested, ReservedWords)}.
+
+tokens_ops_impl([R|Rs], [RWs|RWsRest]) -->
+    skip(";"),
+    rule_op_with_reserved(R, RWs),
+    !,
+    tokens_ops_impl(Rs, RWsRest).
+tokens_ops_impl([], []) --> skip(";").
 
 % 文法定義用の演算子を一時的に登録してパースし、その後削除する
 parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
@@ -64,6 +76,11 @@ parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
 
 % op ::= 'op' precedence ':' notation ';'
 rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
+
+% op をパーズして予約語も抽出する
+rule_op_with_reserved(op(Precedence, Notation), ReservedWords) -->
+    [op], [Precedence], ":", notation(Notation), ";",
+    {findall(Word, (member(Word, Notation), atom(Word), all_alpha(Word)), ReservedWords)}.
 
 notation([R]) --> [R], {not(R = ';')}.
 notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
@@ -192,6 +209,50 @@ extract_nonterminals(Syntaxes, Nonterminals) :-
     maplist(extract_nonterminal, Syntaxes, Nonterminals).
 
 extract_nonterminal('::='('$VAR'(VarName), _), VarName).
+
+% 文法リストから予約語リストを得る
+% Syntaxes のそれぞれについて、::= の第一引数で all_alpha を満たすものを取得してリスト化し（LeftWords とする）、
+% ::= の第二引数である複合項に含まれる関数名や引数で all_alpha を満たすものを再帰的に取得してリスト化してユニークにし（RightWords とする）、
+% RightWords に含まれるが LeftWords に含まれないものを ReservedWords2 とする
+syntaxes_reserved_words(Syntaxes, ReservedWords2) :-
+    extract_left_words(Syntaxes, LeftWords),
+    extract_right_words(Syntaxes, RightWords),
+    % RightWords - LeftWords の差集合を計算
+    subtract(RightWords, LeftWords, ReservedWords2).
+
+% 文法リストの左辺から all_alpha を満たすアトムを抽出
+extract_left_words(Syntaxes, LeftWords) :-
+    findall(Left,
+            (member('::='(Left, _), Syntaxes),
+             atom(Left),
+             all_alpha(Left)),
+            LeftWords).
+
+% 文法リストの右辺から all_alpha を満たすアトムを再帰的に抽出してユニーク化
+extract_right_words(Syntaxes, RightWords) :-
+    findall(Word,
+            (member('::='(_, Right), Syntaxes),
+             collect_all_alpha_terms(Right, Words),
+             member(Word, Words)),
+            AllWords),
+    sort(AllWords, RightWords).  % sort でユニーク化
+
+% 項を再帰的に走査して all_alpha を満たすアトムをすべて収集
+collect_all_alpha_terms(Term, Words) :-
+    atom(Term),
+    all_alpha(Term),
+    !,
+    Words = [Term].
+collect_all_alpha_terms(Term, Words) :-
+    compound(Term),
+    Term =.. [Functor | Args],
+    % ファンクターをチェック
+    (all_alpha(Functor) -> FunctorWords = [Functor] ; FunctorWords = []),
+    % 引数を再帰的に処理
+    maplist(collect_all_alpha_terms, Args, ArgWordsList),
+    append([FunctorWords | ArgWordsList], Words),
+    !.
+collect_all_alpha_terms(_, []).
 
 % 1つのルールを更新して型チェックを追加
 update_rule(Nonterminals, (Head :- Body), (Head :- NewBody)) :-

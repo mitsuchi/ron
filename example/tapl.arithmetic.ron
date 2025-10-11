@@ -18,11 +18,11 @@ syntax {
   v ::=                      # values:
         true                 # true value
       | false                # false value
-      | n                    # number value
+      | nv                    # number value
   
-  n ::= 
+  nv ::=
         0                    # zero
-     |  succ n
+     |  succ nv
 }
 
 if true then t2 else t3 -> t2
@@ -35,12 +35,12 @@ succ t1 -> succ t2 {
   t1 -> t2
 }
 pred 0 -> 0
-pred (succ n) -> n
+pred (succ nv) -> nv
 pred t1 -> pred t1' {
   t1 -> t1'
 }
 iszero 0 -> true
-iszero (succ n) -> false
+iszero (succ nv) -> false
 iszero t1 -> iszero t1' {
   t1 -> t1'
 }
