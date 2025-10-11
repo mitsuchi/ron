@@ -286,21 +286,25 @@ token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
 token(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
 token(Var) --> var(Var).
 num(N) --> digits(Cs), { number_chars(N, Cs) }.
-word([C|Cs]) --> [C], { code_type(C, lower) }, word(Cs).
-word([C]) --> [C], { code_type(C, lower) }.
+word(Cs) --> many1(lower, Cs).
+lower(C) --> [C], { code_type(C, lower) }.
 % [a-z][0-9]?"'"? のパターンを変数名として扱う
-var('$VAR'(Name)) --> [C], { code_type(C, lower) }, var_suffix(C, Name).
-var_suffix(C, Name) --> [N], "'", { code_type(N, digit), atom_concat(C, N, CN), atom_concat(CN, '\'', Name) }.
-var_suffix(C, Name) --> [N], { code_type(N, digit), atom_concat(C, N, Name) }.
-var_suffix(C, Name) --> "'", { atom_concat(C, '\'', Name) }.
-var_suffix(C, C) --> "".
-puncts([C|Cs]) --> [C], { is_punct_or_symbol(C) }, puncts(Cs).
-puncts([C]) -->  [C], { is_punct_or_symbol(C) }.
-digits([C|Cs]) --> digit(C), digits(Cs).
-digits([C])    --> digit(C).
+var('$VAR'(NameND)) --> lower(Cs), optional(digit, N), optional(dash, D),
+   {append([Cs], N, CsN), append(CsN, D, CsND), atom_chars(NameND, CsND)}.
+dash('\'') --> "'".
+puncts(Cs) --> many1(punct, Cs).
+punct(C) --> [C], { is_punct_or_symbol(C) }.
+digits(Cs) --> many1(digit, Cs).
 digit(C)   --> [C], { code_type(C, digit) }.
 
 skip(W) --> (W, skip(W)) | "".
+
+many1(CFG, [Elem|Rest]) --> call(CFG, Elem), many1(CFG, Rest).
+many1(CFG, [Elem]) --> call(CFG, Elem).
+many(CFG, [Elem|Rest]) --> call(CFG, Elem), many(CFG, Rest).
+many(_CFG, []) --> [].
+optional(CFG, [Elem]) --> call(CFG, Elem).
+optional(_CFG, []) --> [].
 
 % mixfix parser
 % https://zenn.dev/pandaman64/books/pratt-parsing
@@ -382,17 +386,13 @@ variable(U) :- U = '$VAR'(_).
 
 all_alpha(U) :-
     not(U = '$VAR'(_)),
-    atom_chars(U, Cs), all_alpha_chars(Cs).
-all_alpha_chars([C|Cs]) :- 
-    maplist(is_alpha_char, [C|Cs]).
+    atom_chars(U, Cs), maplist(is_alpha_char, Cs).
 is_alpha_char(Char) :-
     code_type(Char, alpha).
 
 all_punct(U) :-
     not(U = '$VAR'(_)),
-    atom_chars(U, Cs), all_punct_chars(Cs).
-all_punct_chars([C|Cs]) :- 
-    maplist(is_punct_char, [C|Cs]).
+    atom_chars(U, Cs), maplist(is_punct_char, Cs).
 is_punct_char(Char) :-
     code_type(Char, punct).
 
