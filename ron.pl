@@ -33,15 +33,23 @@ file_eval(FilePath) :-
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
-    parse_syntax(Syntaxes, RestTokens, RestTokens2),
-    writeln('Syntaxes:'), maplist(writeln, Syntaxes),
+    parse_syntax(SyntaxesRaw, RestTokens, RestTokens2),
+    writeln('SyntaxesRaw:'), maplist(writeln, SyntaxesRaw),
     % 文法リストから予約語リストを得る
-    syntaxes_reserved_words(Syntaxes, ReservedWords2),
+    syntaxes_reserved_words(SyntaxesRaw, ReservedWords2),
     writeln('ReservedWords2:'), maplist(writeln, ReservedWords2),
+    % ReservedWords と ReservedWords2 を結合したうえでユニークにする
+    % main も予約語とする
+    append([main | ReservedWords], ReservedWords2, ReservedWords3),
+    sort(ReservedWords3, ReservedWords4),
+    writeln('ReservedWords4:'), maplist(writeln, ReservedWords4),
+    % RestTokens2 のうち、[a-Z]+[0-9]*"'"* のパターンに一致するものを $VAR() に変換して RestTokens3 にする
+    convert_vars_in_tokens(ReservedWords4, RestTokens2, RestTokens3),
+    writeln('RestTokens3:'), maplist(writeln, RestTokens3),
     % 文法リストから新たに登録するべきルールリストを作る
     syntaxes_rules(Syntaxes, RulesForSyntax),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
-    tokens_rules(RestTokens2, Rules),
+    tokens_rules(RestTokens3, Rules),
     % 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
     update_rules(Syntaxes, Rules, UpdatedRules),
     % 文法用のルールリストを Prolog の規則に登録する
@@ -53,6 +61,38 @@ file_eval(FilePath) :-
 
 chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars).
+
+% トークンリストのうち変数パターンに一致し予約語でないものを $VAR() に変換
+convert_vars_in_tokens(ReservedWords, TokensIn, TokensOut) :-
+    maplist(convert_token(ReservedWords), TokensIn, TokensOut).
+
+% 1つのトークンを変換
+convert_token(ReservedWords, Token, '$VAR'(Token)) :-
+    atom(Token),
+    is_var_pattern(Token),
+    \+ member(Token, ReservedWords),
+    !.
+convert_token(_, Token, Token).
+
+% トークンが変数パターン [a-Z]+[0-9]*"'"* に一致するかチェック
+is_var_pattern(Token) :-
+    atom(Token),
+    atom_chars(Token, Chars),
+    Chars = [First|Rest],
+    code_type(First, alpha),  % 最初の文字はアルファベット
+    check_var_rest(Rest).
+
+% 残りの文字が数字またはクォートかチェック
+check_var_rest([]).
+check_var_rest([C|Cs]) :-
+    (code_type(C, alpha) ; code_type(C, digit) ; C = '\''),
+    check_var_rest(Cs).
+
+% リストの最初のN要素を取得（デバッグ用）
+take_first(N, List, First) :-
+    length(First, N),
+    append(First, _, List), !.
+take_first(_, List, List).
 
 tokens_ops(Ops, ReservedWords) --> tokens_ops_impl(Ops, ReservedWordsNested), {flatten(ReservedWordsNested, ReservedWords)}.
 
