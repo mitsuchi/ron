@@ -10,19 +10,19 @@ syntax {
         true                 # constant true
       | false                # constant false
       | if t then t else t   # conditional
-      | 0
-      | succ t
-      | pred t
-      | iszero t
+      | 0                    # constant zero
+      | succ t               # successor
+      | pred t               # predecessor
+      | iszero t             # zero test
 
   v ::=                      # values:
         true                 # true value
       | false                # false value
-      | nv                    # number value
+      | nv                   # numeric value
   
-  nv ::=
+  nv ::=                     # numeric values:
         0                    # zero
-     |  succ nv
+     |  succ nv              # successor value
 }
 
 if true then t2 else t3 -> t2
