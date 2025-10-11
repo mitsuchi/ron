@@ -68,15 +68,11 @@ rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation
 notation([R]) --> [R], {not(R = ';')}.
 notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
 
-% 任意の DCG ルールを 0回以上適用してリストを作る
-sequence(_, []) --> [].
-sequence(DCG, [X|Xs]) --> call(DCG, X), sequence(DCG, Xs).
-
 % syntax ::= 'syntax' '{' (pred ';'?)* '}'
 tokens_syntaxes(S) --> [syntax], skip_token(;), ['{'], skip_token(;),
     collect_until_brace(Tokens),
     {exclude(=(;), Tokens, TokensNoSemi)},
-    {phrase(sequence(pred, S), TokensNoSemi)},
+    {phrase(many(pred, S), TokensNoSemi)},
     skip_token(;).
 tokens_syntaxes([]) --> skip_token(;).
 % トークンを0回以上スキップ
