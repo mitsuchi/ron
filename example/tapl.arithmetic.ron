@@ -1,9 +1,9 @@
-op 30 : _ -> _
-op 30 : _ --> _
-op 50 : if _ then _ else _
-op 80 : succ _
-op 80 : pred _
-op 80 : iszero _
+op 30 : _ -> _               # one step evaluation
+op 30 : _ --> _              # multi step evaluation
+op 50 : if _ then _ else _   # conditional
+op 80 : succ _               # successor
+op 80 : pred _               # predecessor
+op 80 : iszero _             # zero test
 
 syntax {
   t ::=                      # terms:
@@ -25,23 +25,23 @@ syntax {
      |  succ nv              # successor value
 }
 
-if true then t2 else t3 -> t2
-if false then t2 else t3 -> t3
+if true then t2 else t3 -> t2    # E-IfTrue
+if false then t2 else t3 -> t3   # E-IfFalse
 if t1 then t2 else t3 -> if t1' then t2 else t3 {
-  t1 -> t1'
+  t1 -> t1'                      # E-If
 }
 
-succ t1 -> succ t2 {
+succ t1 -> succ t2 {             # E-Succ
   t1 -> t2
 }
-pred 0 -> 0
-pred (succ nv) -> nv
-pred t1 -> pred t1' {
+pred 0 -> 0                      # E-PredZero
+pred (succ nv) -> nv             # E-PredSucc
+pred t1 -> pred t1' {            # E-Pred
   t1 -> t1'
 }
-iszero 0 -> true
-iszero (succ nv) -> false
-iszero t1 -> iszero t1' {
+iszero 0 -> true                 # E-IsZeroZero
+iszero (succ nv) -> false        # E-IsZeroSucc
+iszero t1 -> iszero t1' {        # E-IsZero
   t1 -> t1'
 }
 
@@ -55,4 +55,5 @@ t1 --> t2 {
 
 main {
    if iszero (pred (succ 0)) then (succ 0) else 0 --> v
+   # v = succ 0
 }
