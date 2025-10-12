@@ -100,7 +100,7 @@ parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
     % 文法定義用の演算子を一時的に登録（他の演算子よりも低い優先順位）
     Ops = [ops(a('::='), -2, following, [-2,'::=',-2]),
            ops(a('|'), -1, following, [-1,'|',-1])],
-    maplist(assert, Ops),
+    maplist(assertz, Ops),
     % トークンリストから文法部分をパーズ
     tokens_syntaxes(Syntaxes, RestTokens, RestTokens2),
     % 文法定義用の演算子を削除
@@ -194,6 +194,19 @@ alternative_rule(Nonterminals, UpperVarName, OtherVarName, (Head :- Body)) :-
     NewVar = '$VAR'(NewVarName),
     Head =.. [UpperVarName, NewVar],
     Body =.. [UpperOtherVarName, NewVar].
+% <述語> の形式（引数なし）：N($VAR(n1)) :- <>(integer($VAR(n1)))
+% ボディに <> を保持することで、normalize_term で integer が _integer にならない
+alternative_rule(_Nonterminals, UpperVarName, '<>'(PredicateName), (Head :- Body)) :-
+    atom(PredicateName),
+    % 非終端記号名から変数名を生成（UpperVarName を小文字化して使用）
+    downcase_atom(UpperVarName, LowerVarName),
+    atom_concat(LowerVarName, '1', NewVarName),
+    NewVar = '$VAR'(NewVarName),
+    % ヘッドを作る
+    Head =.. [UpperVarName, NewVar],
+    % ボディはPrologの述語呼び出し（<> で囲む）
+    Call =.. [PredicateName, NewVar],
+    Body = '<>'(Call).
 % 複合項の場合: T(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3))) :- T($VAR(t1)), T($VAR(t2)), T($VAR(t3))
 alternative_rule(Nonterminals, UpperVarName, Alt, (Head :- Body)) :-
     compound(Alt),
@@ -517,8 +530,8 @@ is_punct_or_symbol(Char) :-
 % () はあらかじめ定義しておく
 ops(a('()'), 0, leading, ['(',0,')']).
 
-% (( )) は prolog を参照することにする
-ops(a('<>'), 0, leading, ['<',0,'>']).
+% <> は prolog の述語を参照することにする（優先順位を ::= より高くする）
+ops(a('<>'), -10, leading, ['<',-10,'>']).
 
 % 述語の各項に _ をつける : if(x,+(1,2),y) を _if(x,_+(1,2),y) に
 normalize_term(Term, Normalized) :-
