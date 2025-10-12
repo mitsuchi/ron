@@ -15,10 +15,6 @@ op 20 : if _ then _ else _
 op 20 : let rec _ _ = _ in _
 op 10 : _ |- _ => _   
 
-syntax {
-    constants ::= true | false
-}
-
 # c |- e => v は、環境 c で式 e を評価すると値 v になるの意味
 
 # 整数はそのままで値

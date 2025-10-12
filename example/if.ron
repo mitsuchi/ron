@@ -1,10 +1,6 @@
 op 50 : _ |- _ => _
 op 50 : if _ then _ else _
 
-syntax {
-    constants ::= true
-}
-
 c |- 0 => 0
 c |- 1 => 1
 c |- true => true

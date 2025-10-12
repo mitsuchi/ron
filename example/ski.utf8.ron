@@ -3,6 +3,10 @@ op 50 : _ → _
 op 50 : _ ⇒ _
 op 100 : _ _
 
+syntax {
+    constants ::= I | K | S
+}
+
 # 規則1
 I x     → x
 K x y   → x

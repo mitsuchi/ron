@@ -15,7 +15,7 @@
     op 10 : _ |- _ => _
     
     syntax {
-        constants ::= true | false | Z
+        constants ::= Z
     }
 
     c |- Z => Z

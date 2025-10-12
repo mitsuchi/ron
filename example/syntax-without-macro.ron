@@ -4,10 +4,6 @@ op 50 : if _ then _ else _
 op 99 : V _
 op 99 : T _
 
-syntax {
-    constants ::= true | false
-}
-
 V true
 V false
 T v1 {
