@@ -75,25 +75,14 @@ convert_token(ReservedWords, Token, '$VAR'(Token)) :-
     !.
 convert_token(_, Token, Token).
 
-% トークンが変数パターン [a-Z][a-Z]?[0-9]*"'"* に一致するかチェック
+% トークンが変数パターン [a-Z][a-Z]?[0-9]*'* に一致するかチェック
 is_var_pattern(Token) :-
     atom(Token),
     atom_chars(Token, Chars),
-    Chars = [First|Rest],
-    code_type(First, alpha),  % 最初の文字はアルファベット
-    check_var_second(Rest).
+    phrase(var_pattern, Chars).
 
-% 残りの文字がアルファベットまたは数字またはクォートかチェック
-check_var_second([]).
-check_var_second([C|Cs]) :-
-    (code_type(C, alpha) ; code_type(C, digit) ; C = '\''),
-    check_var_rest(Cs).
-
-% 残りの文字が数字またはクォートかチェック
-check_var_rest([]).
-check_var_rest([C|Cs]) :-
-    (code_type(C, digit) ; C = '\''),
-    check_var_rest(Cs).
+% 変数パターン: [a-Z][a-Z]?[0-9]*'*
+var_pattern --> alpha(_), optional(alpha, _), many(digit, _), many(quote, _).
 
 % リストの最初のN要素を取得（デバッグ用）
 take_first(N, List, First) :-
@@ -403,10 +392,10 @@ num(N) --> digits(Cs), { number_chars(N, Cs) }.
 word(Cs) --> many1(lower, Cs).
 lower(C) --> [C], { code_type(C, lower) }.
 % [a-Z]+[0-9]*"'"* のパターンを変数名候補として扱う
-var(Name) --> many1(alpha, A), many(digit, N), many(dash, D),
+var(Name) --> many1(alpha, A), many(digit, N), many(quote, D),
    {append(A, N, AN), append(AN, D, AND), atom_chars(Name, AND)}.
 alpha(C) --> [C], { code_type(C, alpha) }.
-dash('\'') --> "'".
+quote('\'') --> "'".
 puncts(Cs) --> many1(punct, Cs).
 punct(C) --> [C], { is_punct_or_symbol(C) }.
 digits(Cs) --> many1(digit, Cs).
