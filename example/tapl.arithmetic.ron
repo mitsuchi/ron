@@ -22,7 +22,7 @@ syntax {
   
   nv ::=                         # numeric values:
         0                        # zero
-     |  succ nv                  # successor value
+      | succ nv                  # successor value
 }
 
 if true then t2 else t3 -> t2    # E-IfTrue
