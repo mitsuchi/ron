@@ -1,28 +1,28 @@
-op 30 : _ -> _               # one step evaluation
-op 30 : _ --> _              # multi step evaluation
-op 50 : if _ then _ else _   # conditional
-op 80 : succ _               # successor
-op 80 : pred _               # predecessor
-op 80 : iszero _             # zero test
+op 30 : _ -> _                   # one step evaluation
+op 30 : _ --> _                  # multi step evaluation
+op 50 : if _ then _ else _       # conditional
+op 80 : succ _                   # successor
+op 80 : pred _                   # predecessor
+op 80 : iszero _                 # zero test
 
 syntax {
-  t ::=                      # terms:
-        true                 # constant true
-      | false                # constant false
-      | if t then t else t   # conditional
-      | 0                    # constant zero
-      | succ t               # successor
-      | pred t               # predecessor
-      | iszero t             # zero test
+  t ::=                          # terms:
+        true                     # constant true
+      | false                    # constant false
+      | if t then t else t       # conditional
+      | 0                        # constant zero
+      | succ t                   # successor
+      | pred t                   # predecessor
+      | iszero t                 # zero test
 
-  v ::=                      # values:
-        true                 # true value
-      | false                # false value
-      | nv                   # numeric value
+  v ::=                          # values:
+        true                     # true value
+      | false                    # false value
+      | nv                       # numeric value
   
-  nv ::=                     # numeric values:
-        0                    # zero
-     |  succ nv              # successor value
+  nv ::=                         # numeric values:
+        0                        # zero
+     |  succ nv                  # successor value
 }
 
 if true then t2 else t3 -> t2    # E-IfTrue
