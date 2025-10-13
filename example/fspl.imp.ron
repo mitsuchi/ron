@@ -16,7 +16,7 @@ op 30 : _ ∧ _                    # logical AND
 op 35 : _ : _                    # status delimiter
 op 30 : _ , _
 op 20 : _ ∨ _                    # logical OR
-op 18 : if _ then _else _
+op 18 : if _ then _ else _
 op 16 : while _ do _
 op 14 : _ // _                   # command sequence
 op 10 : sub _ [ _ / _ ] => _     # status substitution
