@@ -101,25 +101,25 @@ true or true is true
 # rules for commands
 <skip, s> -> s
 
+<X := a, s1> -> s2 {
+    <a, s1> -> m
+    sub s1 [m / X] => s2
+}
+
+# substitution
+sub 0 [m / X] => 0
+sub s : X = n [m / X] => s : X = m
+sub s1 : X = n [m / y] => s2 : X = n {
+    <X \= y>
+    sub s1 [m / y] => s2
+}
+
 # sequence
 <c0 // c1, s1> -> s2 {
     <c0, s1> -> s3
     <c1, s3> -> s2
 }
 
-# substitution
-sub 0 [m / x] => 0
-sub s : x = n [m / x] => s : x = m
-sub s1 : x = n [m / y] => s2 : x = n {
-    <x \= y>
-    sub s1 [m / y] => s2
-}
-
-<X := a, s1> -> s2 {
-    <a, s1> -> m
-    sub s1 [m / X] => s2
-}
-
 main {
-    <q := 20, 0 : p = 1 : q = 2> -> v
+    <q := 20 // p := 10, 0 : p = 1 : q = 2> -> v
 }
