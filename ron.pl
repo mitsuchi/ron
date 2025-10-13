@@ -60,18 +60,7 @@ file_eval(FilePath) :-
     % 文法リストから新たに登録するべきルールリストを作る
     syntaxes_rules(Syntaxes, RulesForSyntax),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
-    (tokens_rules(RestTokens3, Rules) ->
-        true
-    ;
-        % パース失敗時はファイルを読み直して行番号を特定
-        current_prolog_flag(argv, Argv),
-        (member('--debug', Argv) -> Argv2 = Argv ; delete(Argv, '--debug', Argv2)),
-        nth1(1, Argv2, FilePath),
-        read_file_to_string(FilePath, String, []),
-        string_chars(String, Chars),
-        count_lines(Chars, 1, LineCount),
-        write('error at line '), write(LineCount), nl, halt(1)
-    ),
+    tokens_rules(RestTokens3, Rules),
     % 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
     update_rules(Syntaxes, Rules, UpdatedRules),
     % 文法用のルールリストを Prolog の規則に登録する
@@ -84,15 +73,6 @@ file_eval(FilePath) :-
 chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars),
     debug_print('Tokens:', Tokens).
-
-
-% 行数をカウント
-count_lines([], LineCount, LineCount).
-count_lines(['\n'|Rest], Line, LineCount) :-
-    NewLine is Line + 1,
-    count_lines(Rest, NewLine, LineCount).
-count_lines([_|Rest], Line, LineCount) :-
-    count_lines(Rest, Line, LineCount).
 
 % 予約語リストをマージしてユニーク化（main も含める）
 merge_reserved_words(ReservedWords1, ReservedWords2, MergedWords) :-
@@ -404,7 +384,6 @@ assert_rule(op(_)).
 tokens_rules(Tokens, Rules) :-
     phrase(rules_pred(Rules), Tokens),
     debug_print('Rules:', Rules).
-
 
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
