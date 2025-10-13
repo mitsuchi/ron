@@ -16,7 +16,9 @@ op 30 : _ and _
 op 35 : _ : _
 op 30 : _ , _
 op 20 : _ or _
-op 15 : _ // _
+op 18 : if _ then _else _
+op 16 : while _ do _
+op 14 : _ // _
 op 10 : sub _ [ _ / _ ] => _
 op 10 : < _ , _ > -> _
 
@@ -120,6 +122,28 @@ sub s1 : X = n [m / y] => s2 : X = n {
     <c1, s3> -> s2
 }
 
+# conditionals
+<if b then c0 else c1, s> -> s' {
+    <b, s> -> true
+    <c0, s> -> s'
+}
+<if b then c0 else c1, s> -> s' {
+    <b, s> -> false
+    <c1, s> -> s'
+}
+
+# while loops
+<while b do c, s> -> s {
+    <b, s> -> false
+}
+
+<while b do c, s> -> s1 {
+    <b, s> -> true
+    <c, s> -> s2
+    <while b do c, s2> -> s1
+}
+
 main {
-    <q := 20 // p := 10, 0 : p = 1 : q = 2> -> v
+    <while 0 < p do (q := q + p // p := p - 1) // q, 0 : p = 10 : q = 0> -> v
+    # v = 55
 }
