@@ -5,7 +5,7 @@
 % メモ化用のキャッシュ
 :- dynamic eval_cache/2.
 
-:- initialization(run).
+:- initialization((run -> true ; (write('error'), nl, halt(1)))).
 
 run :- 
     current_prolog_flag(argv, Argv),
