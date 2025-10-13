@@ -28,6 +28,7 @@ syntax {
     c ::= skip | X := a | c // c | if b then c else c | while b do c
     n ::= <integer>
     X ::= <atom>
+    constants ::= φ   # empty status
 }
 
 # evaluation of numbers
@@ -109,7 +110,7 @@ true ∨ true is true
 }
 
 # substitution
-sub 0 [m / X] => 0
+sub φ [m / X] => φ
 sub s : X = n [m / X] => s : X = m
 sub s1 : X = n [m / y] => s2 : X = n {
     <X \= y>
@@ -144,6 +145,10 @@ sub s1 : X = n [m / y] => s2 : X = n {
 }
 
 main {
-    <while 0 < p do (q := q + p // p := p - 1), 0 : p = 10 : q = 0> -> v
-    # v = 0 : p = 0 : q = 55
+    <while 0 < p do (q := q + p // p := p - 1), φ : p = 10 : q = 0> -> v
+    # v = φ : p = 0 : q = 55
+
+    # <c, s> の s の部分は変数の状態を表していて
+    # φ なら空の状態
+    # φ : p = 0 : q = 55 なら変数 p が 0, q が 55 である状態
 }

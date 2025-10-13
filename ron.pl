@@ -420,6 +420,8 @@ token(',') --> ",".
 token(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
 token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
 token(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
+% ギリシャ文字1文字を定数として認識
+token(Atom) --> [C], {is_greek_char(C), atom_chars(Atom, [C])}.
 token(Var) --> var(Var).
 num(N) --> digits(Cs), { number_chars(N, Cs) }.
 word(Cs) --> many1(lower, Cs).
@@ -526,6 +528,12 @@ all_alpha(U) :-
     atom_chars(U, Cs), maplist(is_alpha_char, Cs).
 is_alpha_char(Char) :-
     code_type(Char, alpha).
+
+% ギリシャ文字かどうかを判定
+is_greek_char(Char) :-
+    char_code(Char, Code),
+    % Greek and Coptic block (U+0370-U+03FF)
+    Code >= 0x0370, Code =< 0x03FF.
 
 all_punct(U) :-
     not(U = '$VAR'(_)),
