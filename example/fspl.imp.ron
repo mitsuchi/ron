@@ -91,7 +91,7 @@ false ∨ true is true
 true ∨ false is true
 true ∨ true is true
 
-# status ∧ variables
+# status and variables
 <X, X = v> -> v
 <X, s : X = v> -> v
 <X, s : y = v'> -> v {
