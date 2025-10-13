@@ -564,6 +564,7 @@ normalize_term((B, Bs), (P, Ps), SimplifyVars) :-
     normalize_term(B, P, SimplifyVars),
     normalize_term(Bs, Ps, SimplifyVars).
 normalize_term(Term, Normalized, SimplifyVars) :-
+    nonvar(Term),
     functor(Term, _, _, compound),
     Term =.. [Functor | Args],
     % (a) は a にする
@@ -610,14 +611,20 @@ query_string(S) :-
     query(C).
 
 unparse_answers([X = A|Ps]) :-
-    format_term(A, F), atomics_to_string([X, =, F], ' ', UA), writeln(UA),
+    (nb_getval(debug_mode, true) ->
+        (write('Formatting: '), write(X = A), nl)
+    ; true),
+    format_term(A, F),
+    atomics_to_string([X, =, F], ' ', UA), writeln(UA),
     unparse_answers(Ps).
 unparse_answers([]).
 
 % 結果を読みやすくする
 % ex: _S(_S(Z)) を S S Z に
 format_term(A, A) :- atom(A); number(A).
+format_term(A, '_') :- var(A), !.
 format_term(E, Str) :-
+    nonvar(E),
     functor(E, _, _, compound),
     E =.. [Op | Terms],
     atom_concat('_', Op1, Op), 
@@ -635,7 +642,9 @@ format_each(Op, [A|As], Ts, [A|Rest], Paren) :-
     format_each(Op, As, Ts, Rest, Paren).
 
 format_term_with_priority(A, _, A, _) :- atom(A); number(A).
+format_term_with_priority(A, _, '_', _) :- var(A), !.
 format_term_with_priority(E, Op1, Str, Paren) :-
+    nonvar(E),
     functor(E, _, _, compound),
     E =.. [Op | _],
     atom_concat('_', Op2, Op),
