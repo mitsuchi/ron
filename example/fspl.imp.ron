@@ -25,9 +25,9 @@ op 10 : < _ , _ > -> _
 syntax {
     a ::= n | X | a + a | a - a | a * a
     b ::= true | false | a = a | a < a | ~ b | b and b | b or b
+    c ::= skip | X := a | c // c | if b then c else c | while b do c
     n ::= <integer>
     X ::= <atom>
-    constants ::= s0
 }
 
 # evaluation of numbers
@@ -93,11 +93,11 @@ true or true is true
 
 # status and variables
 <X, X = v> -> v
-<X, c : X = v> -> v
-<X, c : y = v'> -> v {
+<X, s : X = v> -> v
+<X, s : y = v'> -> v {
     <atom X>
     <X \= y>
-    <X, c> -> v
+    <X, s> -> v
 }
 
 # rules for commands
@@ -144,6 +144,6 @@ sub s1 : X = n [m / y] => s2 : X = n {
 }
 
 main {
-    <while 0 < p do (q := q + p // p := p - 1) // q, 0 : p = 10 : q = 0> -> v
-    # v = 55
+    <while 0 < p do (q := q + p // p := p - 1), 0 : p = 10 : q = 0> -> v
+    # v = 0 : p = 0 : q = 55
 }

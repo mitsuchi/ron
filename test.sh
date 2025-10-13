@@ -105,6 +105,7 @@ test_all() {
     run_test "example/tapl.booleans.ron" "v = true"
     run_test "example/tapl.booleans.utf8.ron" "v = true"
     run_test "example/type.ron" "t = int"
+    run_test "example/fspl.imp.ron" "v = 0 : p = 0 : q = 55"
     
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
