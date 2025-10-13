@@ -17,11 +17,13 @@ run :-
         nb_setval(debug_mode, false),
         Argv2 = Argv
     ),
+    % 評価深さカウンタを初期化
+    nb_setval(eval_depth, 0),
     nth1(1, Argv2, FilePath) ->
         (catch(
             file_eval(FilePath),
             Exception,
-            (write('error: '), write(Exception), nl, fail)
+            (write('error: '), write(Exception), nl, halt(1))
         ), halt) ; true.
 
 % デバッグ出力用のヘルパー述語
@@ -677,12 +679,23 @@ eval(Goal) :- predicate_property(Goal,built_in), !, call(Goal).
 eval(Goal) :-
         Goal \= true,
         Goal \= (_,_),
-        % キャッシュを確認
-        (eval_cache(Goal, Result) ->
-            Result = true
+        % 深さ制限をチェック
+        nb_getval(eval_depth, Depth),
+        (Depth >= 1000 ->
+            throw('error: evaluation depth limit exceeded (possible infinite loop)')
         ;
-            % 新規評価してキャッシュに保存
-            clause(Goal, Body),
-            eval(Body),
-            assertz(eval_cache(Goal, true))
+            % 深さをインクリメント
+            NewDepth is Depth + 1,
+            nb_setval(eval_depth, NewDepth),
+            % キャッシュを確認
+            (eval_cache(Goal, Result) ->
+                Result = true
+            ;
+                % 新規評価してキャッシュに保存
+                clause(Goal, Body),
+                eval(Body),
+                assertz(eval_cache(Goal, true))
+            ),
+            % 深さをデクリメント
+            nb_setval(eval_depth, Depth)
         ).
