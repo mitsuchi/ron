@@ -9,12 +9,29 @@
 
 run :- 
     current_prolog_flag(argv, Argv),
-    nth1(1, Argv, FilePath) ->
+    % デバッグモードをチェック
+    (member('--debug', Argv) ->
+        nb_setval(debug_mode, true),
+        delete(Argv, '--debug', Argv2)
+    ;
+        nb_setval(debug_mode, false),
+        Argv2 = Argv
+    ),
+    nth1(1, Argv2, FilePath) ->
         (catch(
             file_eval(FilePath),
             Exception,
             (write('error: '), write(Exception), nl, fail)
         ), halt) ; true.
+
+% デバッグ出力用のヘルパー述語
+debug_print(Label, List) :-
+    (nb_getval(debug_mode, true) ->
+        writeln(Label),
+        maplist(writeln, List)
+    ;
+        true
+    ).
 
 % ファイルを読み込んで評価する
 file_eval(FilePath) :-
@@ -52,12 +69,14 @@ file_eval(FilePath) :-
     query(main).
 
 chars_tokens(Chars, Tokens) :-
-    phrase(tokens(Tokens), Chars).
+    phrase(tokens(Tokens), Chars),
+    debug_print('Tokens:', Tokens).
 
 % 予約語リストをマージしてユニーク化（main も含める）
 merge_reserved_words(ReservedWords1, ReservedWords2, MergedWords) :-
     append([main | ReservedWords1], ReservedWords2, TempWords),
-    sort(TempWords, MergedWords).
+    sort(TempWords, MergedWords),
+    debug_print('AllReservedWords:', MergedWords).
 
 % トークンリストのうち変数パターンに一致し予約語でないものを $VAR() に変換
 convert_vars_in_tokens(ReservedWords, TokensIn, TokensOut) :-
@@ -86,7 +105,7 @@ take_first(N, List, First) :-
     append(First, _, List), !.
 take_first(_, List, List).
 
-tokens_ops(Ops, ReservedWords) --> tokens_ops_impl(Ops, ReservedWordsNested), {flatten(ReservedWordsNested, ReservedWords)}.
+tokens_ops(Ops, ReservedWords) --> tokens_ops_impl(Ops, ReservedWordsNested), {flatten(ReservedWordsNested, ReservedWords), debug_print('ReservedWords:', ReservedWords)}.
 
 tokens_ops_impl([R|Rs], [RWs|RWsRest]) -->
     skip(";"),
@@ -104,7 +123,8 @@ parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
     % トークンリストから文法部分をパーズ
     tokens_syntaxes(Syntaxes, RestTokens, RestTokens2),
     % 文法定義用の演算子を削除
-    maplist(retract, Ops).
+    maplist(retract, Ops),
+    debug_print('Syntaxes:', Syntaxes).
 
 % op ::= 'op' precedence ':' notation ';'
 rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
@@ -158,7 +178,8 @@ syntaxes_rules(Syntaxes, RulesForSyntax) :-
     extract_nonterminals(Syntaxes, Nonterminals),
     % 各文法定義に非終端記号リストを渡してルールを生成
     maplist(syntax_rules(Nonterminals), Syntaxes, RulesLists),
-    append(RulesLists, RulesForSyntax).
+    append(RulesLists, RulesForSyntax),
+    debug_print('RulesForSyntax:', RulesForSyntax).
 
 % 1つの文法定義からルールリストを作る
 syntax_rules(Nonterminals, '::='(VarName, RHS), Rules) :-
@@ -256,7 +277,8 @@ update_rules(Syntaxes, Rules, UpdatedRules) :-
     % 文法リストから非終端記号を抽出
     extract_nonterminals(Syntaxes, Nonterminals),
     % 各ルールを更新
-    maplist(update_rule(Nonterminals), Rules, UpdatedRules).
+    maplist(update_rule(Nonterminals), Rules, UpdatedRules),
+    debug_print('UpdatedRules:', UpdatedRules).
 
 % 文法リストから非終端記号を抽出
 extract_nonterminals(Syntaxes, Nonterminals) :-
@@ -273,7 +295,8 @@ syntaxes_reserved_words(Syntaxes, ReservedWords2) :-
     extract_left_words(Syntaxes, LeftWords),
     extract_right_words(Syntaxes, RightWords),
     % RightWords - LeftWords の差集合を計算
-    subtract(RightWords, LeftWords, ReservedWords2).
+    subtract(RightWords, LeftWords, ReservedWords2),
+    debug_print('ReservedWords2:', ReservedWords2).
 
 % 文法リストの左辺から all_alpha を満たすアトムを抽出
 extract_left_words(Syntaxes, LeftWords) :-
@@ -357,7 +380,8 @@ assert_rule(Head :- Body) :-
 assert_rule(op(_)).
 
 tokens_rules(Tokens, Rules) :-
-    phrase(rules_pred(Rules), Tokens).
+    phrase(rules_pred(Rules), Tokens),
+    debug_print('Rules:', Rules).
 
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
