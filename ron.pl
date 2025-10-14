@@ -584,6 +584,8 @@ normalize_term(Term, Normalized, SimplifyVars) :-
     % $VAR の処理
     ; Functor = '$VAR' -> 
         (SimplifyVars = true ->
+            % main の中では、メタ変数のように見える単語もただのアトムとする
+            % ただし t から z までの子文字一文字だけはメタ変数とする。それらは assert_rule で Prolog の変数になる
             ([Arg] = Args, not(member(Arg, [t,u,v,w,x,y,z])) -> Normalized = Arg; Normalized = Term)
         ;
             Normalized = Term
