@@ -167,14 +167,6 @@ assert_op(op(Prec, [N | Ns])) :-
 assert_op(_ :- _).
 
 % 文法リストから新たに登録するべきルールリストを作る
-% ex1: syntax { v ::= true | false } のとき、生成するルールは V true; V false; となる。そのとき、
-% 文法リストは [ ::=(v,(true | false)) ] となり
-% ルールリストは  [V(true) :- true, V(false) :- true] となる
-% ex2: syntax { t ::= v | if t then t else t } のとき
-% 生成するルールは T v1 { V v1 }; T(if t1 then t2 else t3) { T t1; T t2; T t3 } となる。そのとき、
-% 文法リストは　[ ::=(t, v) | ifthenelse(t,t,t))) ] となり
-% ルールリストは [T($VAR(v1):-V($VAR(v1)),T(()(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3)))):-T($VAR(t1)),T($VAR(t2)),T($VAR(t3))] となる
-% 要件: 文法リストの非終端記号は、ルールリストの述語では大文字にする( v -> V, t -> T)
 syntaxes_rules(Syntaxes, RulesForSyntax) :-
     % 全ての非終端記号を抽出
     extract_nonterminals(Syntaxes, Nonterminals),
@@ -268,13 +260,6 @@ list_to_conjunction([X|Xs], (X, Rest)) :-
     list_to_conjunction(Xs, Rest).
 
 % 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
-% ex: 文法が syntax { v ::= true | false; t ::= v | if t then t else t } で
-% ルールが if true then t1 else t2 -> t1; main { if true then true else false -> v } のとき、
-% 更新後のルールは if true then t1 else t2 -> t1 { T t1; T t2}; main { if true then true else false -> v; V v } となる
-% そのとき、文法リストは [::=($VAR(v),(true|false)),::=($VAR(t),($VAR(v)|ifthenelse($VAR(t),$VAR(t),$VAR(t))))] であり
-% 非終端記号は [v, t] となり、
-% 更新前のルールリストは [(ifthenelse(true,$VAR(t1),$VAR(t2))-> $VAR(t1):-true),(main:-ifthenelse(true,true,false)-> $VAR(v))]
-% 更新後のルールリストは [(ifthenelse(true,$VAR(t1),$VAR(t2))-> $VAR(t1):-T($VAR(t1)),T($VAR(t2))),(main:-(ifthenelse(true,true,false)-> $VAR(v)),V($VAR(v)))] となる
 update_rules(Syntaxes, Rules, UpdatedRules) :-
     % 文法リストから非終端記号を抽出
     extract_nonterminals(Syntaxes, Nonterminals),
@@ -290,9 +275,6 @@ extract_nonterminal('::='(VarName, _), VarName) :-
     atom(VarName).
 
 % 文法リストから予約語リストを得る
-% Syntaxes のそれぞれについて、::= の第一引数で all_alpha を満たすものを取得してリスト化し（LeftWords とする）、
-% ::= の第二引数である複合項に含まれる関数名や引数で all_alpha を満たすものを再帰的に取得してリスト化してユニークにし（RightWords とする）、
-% RightWords に含まれるが LeftWords に含まれないものを ReservedWords2 とする
 syntaxes_reserved_words(Syntaxes, ReservedWords2) :-
     extract_left_words(Syntaxes, LeftWords),
     extract_right_words(Syntaxes, RightWords),
