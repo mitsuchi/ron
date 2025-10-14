@@ -19,7 +19,7 @@ op 20 : _ ∨ _                    # logical OR
 op 18 : if _ then _ else _
 op 16 : while _ do _
 op 14 : _ // _                   # command sequence
-op 10 : sub _ [ _ / _ ] => _     # status substitution
+op 10 : _ [ _ / _ ] => _         # status substitution
 op 10 : < _ , _ > -> _           # evaluation
 
 syntax {
@@ -50,9 +50,9 @@ syntax {
 }
 
 # evaluation of boolean expresssions
-
 <true, s> -> true
 <false, s> -> false
+
 <a0 = a1, s> -> true {
     <a0, s> -> n0  ;  <a1, s> -> n1  ;  <n0 is n1>
 }
@@ -106,15 +106,15 @@ true ∨ true is true
 
 <X := a, s1> -> s2 {
     <a, s1> -> m
-    sub s1 [m / X] => s2
+    s1 [m / X] => s2
 }
 
-# substitution
-sub φ [m / X] => φ
-sub s : X = n [m / X] => s : X = m
-sub s1 : X = n [m / y] => s2 : X = n {
+# status substitution
+φ [m / X] => φ
+s : X = n [m / X] => s : X = m
+s1 : X = n [m / y] => s2 : X = n {
     <X \= y>
-    sub s1 [m / y] => s2
+    s1 [m / y] => s2
 }
 
 # sequence
