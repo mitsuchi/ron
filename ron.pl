@@ -101,11 +101,7 @@ is_var_pattern(Token) :-
 % 変数パターン: [a-Z][a-Z]?[0-9]*'*
 var_pattern --> alpha(_), optional(alpha, _), many(digit, _), many(quote, _).
 
-% リストの最初のN要素を取得（デバッグ用）
-take_first(N, List, First) :-
-    length(First, N),
-    append(First, _, List), !.
-take_first(_, List, List).
+
 
 tokens_ops(Ops, ReservedWords) --> tokens_ops_impl(Ops, ReservedWordsNested), {flatten(ReservedWordsNested, ReservedWords), debug_print('ReservedWords:', ReservedWords)}.
 
@@ -128,8 +124,7 @@ parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
     maplist(retract, Ops),
     debug_print('Syntaxes:', Syntaxes).
 
-% op ::= 'op' precedence ':' notation ';'
-rule_op(op(Precedence, Notation)) --> [op], [Precedence], ":", notation(Notation), ";".
+
 
 % op をパーズして予約語も抽出する
 rule_op_with_reserved(op(Precedence, Notation), ReservedWords) -->
@@ -519,11 +514,7 @@ is_greek_char(Char) :-
     % Greek and Coptic block (U+0370-U+03FF)
     Code >= 0x0370, Code =< 0x03FF.
 
-all_punct(U) :-
-    not(U = '$VAR'(_)),
-    atom_chars(U, Cs), maplist(is_punct_char, Cs).
-is_punct_char(Char) :-
-    code_type(Char, punct).
+
 
 % 句読点または数学記号かどうかを判定
 % 通常の ASCII 句読点に加えて、Unicode の数学記号（矢印など）も認識する
@@ -599,10 +590,7 @@ query(C) :-
     eval(T),
     (P \= [] -> unparse_answers(P) ; true).
 
-query_string(S) :-
-    code_pred_canonical(S, C),
-    !,
-    query(C).
+
 
 unparse_answers([X = A|Ps]) :-
     (nb_getval(debug_mode, true) ->
@@ -647,13 +635,7 @@ format_term_with_priority(E, Op1, Str, Paren) :-
     ((P1 > P2 ; Paren, Op1 = Op2) -> format_term(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
             ; format_term(E, Str)).
 
-code_pred(Code, Pred) :-
-    chars_tokens(Code, Tokens),
-    phrase(pred(Pred), Tokens).
 
-code_pred_canonical(Code, C) :-
-    code_pred(Code, Pred),
-    normalize_term(Pred, C).
     
 eval(true).
 eval((A,B)) :-
