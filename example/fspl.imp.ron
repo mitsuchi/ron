@@ -1,4 +1,4 @@
-# IMP of the book "the Formal Semantics of Programmming Languages"
+# IMP from the book "The Formal Semantics of Programming Languages"
 
 op 80 : atom _
 op 80 : integer _
@@ -7,20 +7,20 @@ op 60 : _ + _
 op 60 : _ - _
 op 60 : _ < _
 op 40 : _ = _
-op 40 : _ := _                   # substitution
+op 40 : _ := _                   # assignment
 op 40 : _ >= _
 op 40 : _ \= _                   # not equal
 op 40 : _ is _
 op 40 : ~ _
 op 30 : _ ∧ _                    # logical AND
-op 35 : _ : _                    # state delimiter
+op 35 : _ : _                    # state separator
 op 30 : _ , _
 op 20 : _ ∨ _                    # logical OR
 op 18 : if _ then _ else _
 op 16 : while _ do _
-op 14 : _ // _                   # command sequence
-op 10 : _ [ _ / _ ] => _         # state update
-op 10 : < _ , _ > -> _           # evaluation
+op 14 : _ // _                   # sequencing
+op 10 : _ [ _ / _ ] => _         # state update relation
+op 10 : < _ , _ > -> _           # evaluation relation
 
 syntax {
     a ::= n | X | a + a | a - a | a * a
@@ -31,25 +31,25 @@ syntax {
     constants ::= φ   # empty state
 }
 
-# evaluation of numbers
+# evaluation of numerals
 <n, s> -> n
 
-# evaluation of sums
+# evaluation of addition
 <a0 + a1, s> -> n {
     <a0, s> -> n0  ;  <a1, s> -> n1  ;  <n is n0 + n1>
 }
 
-# evaluation of subtractions
+# evaluation of subtraction
 <a0 - a1, s> -> n {
     <a0, s> -> n0  ;  <a1, s> -> n1  ;  <n is n0 - n1>
 }
 
-# evaluation of products
+# evaluation of multiplication
 <a0 * a1, s> -> n {
     <a0, s> -> n0  ;  <a1, s> -> n1  ;  <n is n0 * n1>
 }
 
-# evaluation of boolean expresssions
+# evaluation of boolean expressions
 <true, s> -> true
 <false, s> -> false
 
@@ -92,7 +92,7 @@ false ∨ true is true
 true ∨ false is true
 true ∨ true is true
 
-# state and variables
+# variables and state
 <X, X = v> -> v
 <X, s : X = v> -> v
 <X, s : y = v'> -> v {
@@ -101,7 +101,7 @@ true ∨ true is true
     <X, s> -> v
 }
 
-# rules for commands
+# evaluation rules for commands
 <skip, s> -> s
 
 <X := a, s1> -> s2 {
@@ -109,7 +109,7 @@ true ∨ true is true
     s1 [m / X] => s2
 }
 
-# state update
+# state update rules
 φ [m / X] => φ
 s : X = n [m / X] => s : X = m
 s1 : X = n [m / y] => s2 : X = n {
@@ -117,7 +117,7 @@ s1 : X = n [m / y] => s2 : X = n {
     s1 [m / y] => s2
 }
 
-# sequence
+# sequencing
 <c0 // c1, s1> -> s2 {
     <c0, s1> -> s3
     <c1, s3> -> s2
