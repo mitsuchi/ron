@@ -13,13 +13,13 @@ op 40 : _ \= _                   # not equal
 op 40 : _ is _
 op 40 : ~ _
 op 30 : _ ∧ _                    # logical AND
-op 35 : _ : _                    # status delimiter
+op 35 : _ : _                    # state delimiter
 op 30 : _ , _
 op 20 : _ ∨ _                    # logical OR
 op 18 : if _ then _ else _
 op 16 : while _ do _
 op 14 : _ // _                   # command sequence
-op 10 : _ [ _ / _ ] => _         # status substitution
+op 10 : _ [ _ / _ ] => _         # state update
 op 10 : < _ , _ > -> _           # evaluation
 
 syntax {
@@ -28,7 +28,7 @@ syntax {
     c ::= skip | X := a | c // c | if b then c else c | while b do c
     n ::= <integer>
     X ::= <atom>
-    constants ::= φ   # empty status
+    constants ::= φ   # empty state
 }
 
 # evaluation of numbers
@@ -92,7 +92,7 @@ false ∨ true is true
 true ∨ false is true
 true ∨ true is true
 
-# status and variables
+# state and variables
 <X, X = v> -> v
 <X, s : X = v> -> v
 <X, s : y = v'> -> v {
@@ -109,7 +109,7 @@ true ∨ true is true
     s1 [m / X] => s2
 }
 
-# status substitution
+# state update
 φ [m / X] => φ
 s : X = n [m / X] => s : X = m
 s1 : X = n [m / y] => s2 : X = n {
