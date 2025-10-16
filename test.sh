@@ -110,6 +110,7 @@ test_all() {
     run_test "example/evaluation-context.add.ron" "x = 10"
     run_test "example/evaluation-context.add.left-first.ron" "x = 3 + (3 + 4)"
     run_test "example/evaluation-context.add.right-first.ron" "x = 1 + 2 + 7"
+    run_test "example/evaluation-context.add.recursive.ron" "x = 10"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"

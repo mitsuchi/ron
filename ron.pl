@@ -257,17 +257,20 @@ expand_one_context_rule('::='(CtxName, RHS), (Head :- Body), Rules) :-
     Right =.. ['[]', CtxName, E2],
     % 右辺を選択肢に分解
     alternatives(RHS, Alts),
-    % 各選択肢についてルールを生成
-    maplist(expand_alternative(CtxName, E1, E2, Body), Alts, Rules).
+    % 各選択肢についてルールを生成（失敗する選択肢はスキップ）
+    findall(Rule, (member(Alt, Alts), expand_alternative(CtxName, E1, E2, Body, Alt, Rule)), Rules).
 
 % 1つの選択肢を具体的なルールに展開
 % Alt: _ + e のような選択肢
 % E1, E2: 穴に代入する項
 % Body: 元のルールのボディ
 % Rule: 展開されたルール
-expand_alternative(_CtxName, E1, E2, Body, Alt, (NewHead :- NewBody)) :-
+expand_alternative(CtxName, E1, E2, Body, Alt, (NewHead :- NewBody)) :-
     % 左辺と右辺で同じ非終端記号を使う（評価文脈の周囲の式は変わらない）
-    replace_nonterminals_with_vars(Alt, AltWithVars, _),
+    % 評価文脈名を渡して、再帰参照を検出
+    replace_nonterminals_with_vars(CtxName, Alt, AltWithVars, _),
+    % 穴だけの選択肢（_）はスキップ（これは簡約規則にならない）
+    AltWithVars \= '_',
     % 穴 '_' を見つけて E1/E2 で置き換える
     substitute_hole(AltWithVars, E1, LeftSide),
     substitute_hole(AltWithVars, E2, RightSide),
@@ -277,46 +280,51 @@ expand_alternative(_CtxName, E1, E2, Body, Alt, (NewHead :- NewBody)) :-
     % ボディを置き換える: E1 を E1' のような新しい変数に変換
     rename_term_in_body(Body, E1, E2, NewBody).
 
-% 評価文脈定義内の非終端記号を新しい変数に置き換える
-% 例: _ + e  →  _ + $VAR(e1)
+% 評価文脈定義内の非終末記号を新しい変数に置き換える
+% 例: _ + e  →  _ + $VAR(e10)
 % 各非終端記号は別々の変数として扱う（同じ名前でもカウンタで区別）
-replace_nonterminals_with_vars(Term, Result, VarMap) :-
-    replace_nonterminals_impl(Term, Result, [], VarMap).
+% CtxName: 評価文脈名（再帰参照を検出するため）
+replace_nonterminals_with_vars(CtxName, Term, Result, VarMap) :-
+    replace_nonterminals_impl(CtxName, Term, Result, [], VarMap).
 
-replace_nonterminals_impl('_', '_', VarMap, VarMap) :- !.
-replace_nonterminals_impl(Atom, NewVar, VarMapIn, VarMapOut) :-
+replace_nonterminals_impl(_CtxName, '_', '_', VarMap, VarMap) :- !.
+replace_nonterminals_impl(CtxName, Atom, Result, VarMapIn, VarMapOut) :-
     atom(Atom),
     Atom \= '_',
+    % 評価文脈名自身への参照は穴として扱う（再帰的定義をサポート）
+    (Atom = CtxName ->
+        Result = '_',
+        VarMapOut = VarMapIn
     % 小文字のアトムは非終端記号の可能性が高い
-    (all_alpha(Atom) ->
+    ; all_alpha(Atom) ->
         % 同じ名前でもカウントを増やして新しい変数を生成
         % カウンタは10から始める（e1, e2 などとぶつからないように）
         count_occurrences(Atom, VarMapIn, Count),
         NextCount is Count + 10,
         atom_concat(Atom, NextCount, VarName),
-        NewVar = '$VAR'(VarName),
-        VarMapOut = [(Atom, NewVar) | VarMapIn]
+        Result = '$VAR'(VarName),
+        VarMapOut = [(Atom, Result) | VarMapIn]
     ;
-        NewVar = Atom,
+        Result = Atom,
         VarMapOut = VarMapIn
     ), !.
-replace_nonterminals_impl(Term, Result, VarMapIn, VarMapOut) :-
+replace_nonterminals_impl(CtxName, Term, Result, VarMapIn, VarMapOut) :-
     compound(Term),
     Term =.. [Functor | Args],
-    maplist_with_state(replace_nonterminals_impl, Args, NewArgs, VarMapIn, VarMapOut),
+    maplist_with_state_ctx(CtxName, Args, NewArgs, VarMapIn, VarMapOut),
     Result =.. [Functor | NewArgs], !.
-replace_nonterminals_impl(Term, Term, VarMap, VarMap).
+replace_nonterminals_impl(_CtxName, Term, Term, VarMap, VarMap).
 
 % 指定されたアトムの出現回数をカウント
 count_occurrences(Atom, VarMap, Count) :-
     findall(1, member((Atom, _), VarMap), Ones),
     length(Ones, Count).
 
-% maplist with state accumulator
-maplist_with_state(_, [], [], State, State).
-maplist_with_state(Pred, [X|Xs], [Y|Ys], StateIn, StateOut) :-
-    call(Pred, X, Y, StateIn, StateMid),
-    maplist_with_state(Pred, Xs, Ys, StateMid, StateOut).
+% maplist with state accumulator (context name を保持)
+maplist_with_state_ctx(_, [], [], State, State).
+maplist_with_state_ctx(CtxName, [X|Xs], [Y|Ys], StateIn, StateOut) :-
+    replace_nonterminals_impl(CtxName, X, Y, StateIn, StateMid),
+    maplist_with_state_ctx(CtxName, Xs, Ys, StateMid, StateOut).
 
 % 穴 '_' を指定された項で置き換える
 substitute_hole('_', Replacement, Replacement) :- !.
@@ -389,12 +397,17 @@ syntax_rules(Nonterminals, '::='(VarName, RHS), Rules) :-
     maplist(alternative_rule(Nonterminals, UpperVarName), Alts, Rules).
 
 % | で区切られた選択肢をリストに分解（入れ子の | もフラット化する）
-alternatives((A | B), Alts) :-
+alternatives(Term, Alts) :-
+    alternatives_impl(Term, Alts).
+
+alternatives_impl(Term, Alts) :-
+    compound(Term),
+    Term =.. ['|', A, B],
     !,
-    alternatives(A, AltsA),
-    alternatives(B, AltsB),
+    alternatives_impl(A, AltsA),
+    alternatives_impl(B, AltsB),
     append(AltsA, AltsB, Alts).
-alternatives(A, [A]).
+alternatives_impl(A, [A]).
 
 % 選択肢からルールを作る
 % アトムの場合で、他の非終端記号でない場合: V(atom) :- true
