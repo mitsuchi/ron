@@ -81,6 +81,7 @@ test_all() {
     echo "========================================"
     
     # 各ファイルをテスト
+    run_test "example/add.ron" "x = 10"
     run_test "example/and.ron" "v = false"
     run_test "example/arrow1.ron" "x = 2"
     run_test "example/arrow2.ron" "x = 2"
@@ -106,7 +107,8 @@ test_all() {
     run_test "example/tapl.booleans.utf8.ron" "v = true"
     run_test "example/type.ron" "t = int"
     run_test "example/fspl.imp.ron" "v = φ : p = 0 : q = 55"
-    run_test "example/evaluation-context.add.ron" "x = 3 + (3 + 4)"
+    run_test "example/evaluation-context.add.ron" "x = 10"
+    run_test "example/evaluation-context.add.left-first.ron" "x = 3 + (3 + 4)"
     run_test "example/evaluation-context.add.right-first.ron" "x = 1 + 2 + 7"
 
     echo "========================================"
