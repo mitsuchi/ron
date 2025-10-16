@@ -169,10 +169,10 @@ parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
 % 評価文脈定義用の演算子を一時的に登録してパースし、その後削除する
 parse_context(Contexts, ContextRules, RestTokens, RestTokens2) :-
     % 評価文脈定義用の演算子を一時的に登録
-    % [] の優先順位を -> (10) よりも高く設定
+    % [] の優先順位を -> よりも高く設定
     Ops = [ops(a('::='), -2, following, [-2,'::=',-2]),
            ops(a('|'), -1, following, [-1,'|',-1]),
-           ops(a('[]'), 20, following, [20,'[',20,']'])],
+           ops(a('[]'), 110, following, [110,'[',110,']'])],
     setup_call_cleanup(
         maplist(assertz, Ops),
         % トークンリストから評価文脈部分をパーズ
@@ -290,9 +290,9 @@ replace_nonterminals_impl(Atom, NewVar, VarMapIn, VarMapOut) :-
     % 小文字のアトムは非終端記号の可能性が高い
     (all_alpha(Atom) ->
         % 同じ名前でもカウントを増やして新しい変数を生成
-        % カウンタは3から始める（e1, e2 はルールヘッドで使われる可能性があるため）
+        % カウンタは10から始める（e1, e2 などとぶつからないように）
         count_occurrences(Atom, VarMapIn, Count),
-        NextCount is Count + 3,
+        NextCount is Count + 10,
         atom_concat(Atom, NextCount, VarName),
         NewVar = '$VAR'(VarName),
         VarMapOut = [(Atom, NewVar) | VarMapIn]
