@@ -553,7 +553,9 @@ normalize_term(Term, Normalized, SimplifyVars) :-
     % (a) は a にする
     (Functor = '()' -> [Arg] = Args, normalize_term(Arg, Normalized, SimplifyVars)
     % <a> は a にするが、functor の先頭に _ をつけない
-    ; Functor = '<>' -> [Arg] = Args, Arg = Normalized
+    % 中身を catch で囲んで、例外が発生したら失敗させる
+    % これにより、is/2 が _+(1,2) のような複合項に対して失敗する
+    ; Functor = '<>' -> [Arg] = Args, Normalized = catch(Arg, _, fail)
     % $VAR の処理
     ; Functor = '$VAR' -> 
         (SimplifyVars = true ->
