@@ -247,25 +247,27 @@ expand_context_rules(Contexts, ContextRules, ExpandedRules) :-
 
 % 1つの評価文脈ルールを展開
 % ContextDef: c ::= _ + e | v + _ の形式
-% ContextRule: c [e1] -> c [e2] { body } の形式
+% ContextRule: c [e1] op c [e2] { body } の形式（op は任意の演算子）
 % Rules: 展開されたルールのリスト
 expand_one_context_rule('::='(CtxName, RHS), (Head :- Body), Rules) :-
-    % ルールのヘッドが c[e1] -> c[e2] の形式かチェック
-    % normalize 前なので '->' と '[]' の形式
-    Head =.. ['->', Left, Right],
+    % ルールのヘッドが c[e1] op c[e2] の形式かチェック
+    % normalize 前なので任意の演算子と '[]' の形式
+    compound(Head),
+    Head =.. [Op, Left, Right],
     Left =.. ['[]', CtxName, E1],
     Right =.. ['[]', CtxName, E2],
     % 右辺を選択肢に分解
     alternatives(RHS, Alts),
     % 各選択肢についてルールを生成（失敗する選択肢はスキップ）
-    findall(Rule, (member(Alt, Alts), expand_alternative(CtxName, E1, E2, Body, Alt, Rule)), Rules).
+    findall(Rule, (member(Alt, Alts), expand_alternative(CtxName, E1, E2, Op, Body, Alt, Rule)), Rules).
 
 % 1つの選択肢を具体的なルールに展開
 % Alt: _ + e のような選択肢
 % E1, E2: 穴に代入する項
+% Op: 簡約演算子（->, ~> など）
 % Body: 元のルールのボディ
 % Rule: 展開されたルール
-expand_alternative(CtxName, E1, E2, Body, Alt, (NewHead :- NewBody)) :-
+expand_alternative(CtxName, E1, E2, Op, Body, Alt, (NewHead :- NewBody)) :-
     % 左辺と右辺で同じ非終端記号を使う（評価文脈の周囲の式は変わらない）
     % 評価文脈名を渡して、再帰参照を検出
     replace_nonterminals_with_vars(CtxName, Alt, AltWithVars, _),
@@ -274,9 +276,9 @@ expand_alternative(CtxName, E1, E2, Body, Alt, (NewHead :- NewBody)) :-
     % 穴 '_' を見つけて E1/E2 で置き換える
     substitute_hole(AltWithVars, E1, LeftSide),
     substitute_hole(AltWithVars, E2, RightSide),
-    % 新しいヘッドを作る：LeftSide -> RightSide
+    % 新しいヘッドを作る：LeftSide Op RightSide
     % normalize_term で処理されるように、正規化前の形式で作成
-    NewHead =.. ['->', LeftSide, RightSide],
+    NewHead =.. [Op, LeftSide, RightSide],
     % ボディを置き換える: E1 を E1' のような新しい変数に変換
     rename_term_in_body(Body, E1, E2, NewBody).
 
