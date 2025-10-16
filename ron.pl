@@ -51,20 +51,33 @@ file_eval(FilePath) :-
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
     parse_syntax(Syntaxes, RestTokens, RestTokens2),
+    % トークンリストから評価文脈部分をパーズして評価文脈リストを得る
+    parse_context(Contexts, ContextRules, RestTokens2, RestTokens3),
     % 文法リストから予約語リストを得る
     syntaxes_reserved_words(Syntaxes, ReservedWords2),
-    % ReservedWords と ReservedWords2 を結合したうえでユニークにする。main も予約語とする
-    merge_reserved_words(ReservedWords, ReservedWords2, AllReservedWords),
-    % RestTokens2 のうち、[a-Z]+[0-9]*"'"* のパターンに一致するものを $VAR() に変換して RestTokens3 にする
-    convert_vars_in_tokens(AllReservedWords, RestTokens2, RestTokens3),
+    % 評価文脈リストから予約語リストを得る
+    contexts_reserved_words(Contexts, ReservedWords3),
+    % ReservedWords, ReservedWords2, ReservedWords3 を結合したうえでユニークにする。main も予約語とする
+    merge_reserved_words_list([ReservedWords, ReservedWords2, ReservedWords3], AllReservedWords),
+    % RestTokens3 のうち、[a-Z]+[0-9]*"'"* のパターンに一致するものを $VAR() に変換して RestTokens4 にする
+    convert_vars_in_tokens(AllReservedWords, RestTokens3, RestTokens4),
+    % ContextRules の変数も変換する必要がある
+    convert_vars_in_context_rules(AllReservedWords, ContextRules, ContextRulesConverted),
     % 文法リストから新たに登録するべきルールリストを作る
     syntaxes_rules(Syntaxes, RulesForSyntax),
+    % 評価文脈ルールを展開して具体的なルールリストを作る
+    expand_context_rules(Contexts, ContextRulesConverted, RulesForContext),
+    debug_print('RulesForContext:', RulesForContext),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
-    tokens_rules(RestTokens3, Rules),
+    tokens_rules(RestTokens4, Rules),
     % 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
     update_rules(Syntaxes, Rules, UpdatedRules),
+    % 評価文脈のルールも更新
+    update_rules(Syntaxes, RulesForContext, UpdatedContextRules),
     % 文法用のルールリストを Prolog の規則に登録する
     maplist(assert_rule, RulesForSyntax),
+    % 評価文脈のルールを Prolog の規則に登録する
+    maplist(assert_rule, UpdatedContextRules),
     % 更新後のルールリストを Prolog の規則に登録する
     maplist(assert_rule, UpdatedRules),
     % main を問い合わせする
@@ -80,9 +93,36 @@ merge_reserved_words(ReservedWords1, ReservedWords2, MergedWords) :-
     sort(TempWords, MergedWords),
     debug_print('AllReservedWords:', MergedWords).
 
+% 複数の予約語リストをマージしてユニーク化（main も含める）
+merge_reserved_words_list(ReservedWordsLists, MergedWords) :-
+    append([[main] | ReservedWordsLists], TempWords),
+    sort(TempWords, MergedWords),
+    debug_print('AllReservedWords:', MergedWords).
+
 % トークンリストのうち変数パターンに一致し予約語でないものを $VAR() に変換
 convert_vars_in_tokens(ReservedWords, TokensIn, TokensOut) :-
     maplist(convert_token(ReservedWords), TokensIn, TokensOut).
+
+% ContextRules の変数を変換
+convert_vars_in_context_rules(ReservedWords, RulesIn, RulesOut) :-
+    maplist(convert_vars_in_rule(ReservedWords), RulesIn, RulesOut).
+
+convert_vars_in_rule(ReservedWords, (Head :- Body), (NewHead :- NewBody)) :-
+    convert_vars_in_term(ReservedWords, Head, NewHead),
+    convert_vars_in_term(ReservedWords, Body, NewBody).
+
+convert_vars_in_term(ReservedWords, Term, '$VAR'(Term)) :-
+    atom(Term),
+    is_var_pattern(Term),
+    \+ member(Term, ReservedWords),
+    !.
+convert_vars_in_term(ReservedWords, Term, Result) :-
+    compound(Term),
+    Term =.. [Functor | Args],
+    maplist(convert_vars_in_term(ReservedWords), Args, NewArgs),
+    Result =.. [Functor | NewArgs],
+    !.
+convert_vars_in_term(_, Term, Term).
 
 % 1つのトークンを変換
 convert_token(ReservedWords, Token, '$VAR'(Token)) :-
@@ -117,12 +157,38 @@ parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
     % 文法定義用の演算子を一時的に登録（他の演算子よりも低い優先順位）
     Ops = [ops(a('::='), -2, following, [-2,'::=',-2]),
            ops(a('|'), -1, following, [-1,'|',-1])],
-    maplist(assertz, Ops),
-    % トークンリストから文法部分をパーズ
-    tokens_syntaxes(Syntaxes, RestTokens, RestTokens2),
-    % 文法定義用の演算子を削除
-    maplist(retract, Ops),
+    setup_call_cleanup(
+        maplist(assertz, Ops),
+        % トークンリストから文法部分をパーズ
+        tokens_syntaxes(Syntaxes, RestTokens, RestTokens2),
+        % 文法定義用の演算子を削除
+        maplist(retract, Ops)
+    ),
     debug_print('Syntaxes:', Syntaxes).
+
+% 評価文脈定義用の演算子を一時的に登録してパースし、その後削除する
+parse_context(Contexts, ContextRules, RestTokens, RestTokens2) :-
+    % 評価文脈定義用の演算子を一時的に登録
+    % [] の優先順位を -> (10) よりも高く設定
+    Ops = [ops(a('::='), -2, following, [-2,'::=',-2]),
+           ops(a('|'), -1, following, [-1,'|',-1]),
+           ops(a('[]'), 20, following, [20,'[',20,']'])],
+    setup_call_cleanup(
+        maplist(assertz, Ops),
+        % トークンリストから評価文脈部分をパーズ
+        (phrase(tokens_contexts(Contexts, ContextRules), RestTokens, RestTokens2) ->
+            true
+        ;
+            % context ブロックがない場合
+            Contexts = [],
+            ContextRules = [],
+            RestTokens2 = RestTokens
+        ),
+        % 評価文脈定義用の演算子を削除
+        maplist(retract, Ops)
+    ),
+    debug_print('Contexts:', Contexts),
+    debug_print('ContextRules:', ContextRules).
 
 
 
@@ -141,12 +207,154 @@ tokens_syntaxes(S) --> [syntax], skip_token(;), ['{'], skip_token(;),
     {phrase(many(pred, S), TokensNoSemi)},
     skip_token(;).
 tokens_syntaxes([]) --> skip_token(;).
+
+% context ::= 'context' '{' (定義 | ルール)* '}'
+% syntax と同じパターンでパース
+tokens_contexts(Contexts, Rules) --> [context], skip_token(;), ['{'], skip_token(;),
+    collect_until_brace(Tokens),
+    {phrase(rules_pred(AllItems), Tokens)},
+    {partition_contexts(AllItems, Contexts, Rules)},
+    skip_token(;).
+tokens_contexts([], []) --> skip_token(;).
+
+% アイテムを文法定義とルールに分類
+partition_contexts([], [], []).
+% ::=(_, _) :- true の形式
+partition_contexts([('::='(L, R) :- true)|Rest], ['::='(L, R)|Contexts], Rules) :- !,
+    partition_contexts(Rest, Contexts, Rules).
+% ::=(_, _) の形式（ボディなし）
+partition_contexts([Item|Rest], [Item|Contexts], Rules) :-
+    Item = '::='(_, _), !,
+    partition_contexts(Rest, Contexts, Rules).
+% それ以外はルール
+partition_contexts([Item|Rest], Contexts, [Item|Rules]) :-
+    partition_contexts(Rest, Contexts, Rules).
+
+% 評価文脈ルールを展開する
+% Contexts: 評価文脈定義のリスト（例：['::='(c, '|'('_'(_,+,e), '+'(v,_)))]）
+% ContextRules: 簡約規則のリスト（例：[(c[e1] -> c[e2] :- e1 -> e2)]）
+% ExpandedRules: 展開されたルールのリスト
+expand_context_rules(Contexts, ContextRules, ExpandedRules) :-
+    debug_print('Expanding contexts:', Contexts),
+    debug_print('With rules:', ContextRules),
+    findall(Rule,
+            (member(ContextRule, ContextRules),
+             member(ContextDef, Contexts),
+             expand_one_context_rule(ContextDef, ContextRule, Rule)),
+            ExpandedRulesNested),
+    debug_print('ExpandedRulesNested:', ExpandedRulesNested),
+    flatten(ExpandedRulesNested, ExpandedRules).
+
+% 1つの評価文脈ルールを展開
+% ContextDef: c ::= _ + e | v + _ の形式
+% ContextRule: c [e1] -> c [e2] { body } の形式
+% Rules: 展開されたルールのリスト
+expand_one_context_rule('::='(CtxName, RHS), (Head :- Body), Rules) :-
+    % ルールのヘッドが c[e1] -> c[e2] の形式かチェック
+    % normalize 前なので '->' と '[]' の形式
+    Head =.. ['->', Left, Right],
+    Left =.. ['[]', CtxName, E1],
+    Right =.. ['[]', CtxName, E2],
+    % 右辺を選択肢に分解
+    alternatives(RHS, Alts),
+    % 各選択肢についてルールを生成
+    maplist(expand_alternative(CtxName, E1, E2, Body), Alts, Rules).
+
+% 1つの選択肢を具体的なルールに展開
+% Alt: _ + e のような選択肢
+% E1, E2: 穴に代入する項
+% Body: 元のルールのボディ
+% Rule: 展開されたルール
+expand_alternative(_CtxName, E1, E2, Body, Alt, (NewHead :- NewBody)) :-
+    % 左辺と右辺で同じ非終端記号を使う（評価文脈の周囲の式は変わらない）
+    replace_nonterminals_with_vars(Alt, AltWithVars, _),
+    % 穴 '_' を見つけて E1/E2 で置き換える
+    substitute_hole(AltWithVars, E1, LeftSide),
+    substitute_hole(AltWithVars, E2, RightSide),
+    % 新しいヘッドを作る：LeftSide -> RightSide
+    % normalize_term で処理されるように、正規化前の形式で作成
+    NewHead =.. ['->', LeftSide, RightSide],
+    % ボディを置き換える: E1 を E1' のような新しい変数に変換
+    rename_term_in_body(Body, E1, E2, NewBody).
+
+% 評価文脈定義内の非終端記号を新しい変数に置き換える
+% 例: _ + e  →  _ + $VAR(e1)
+% 各非終端記号は別々の変数として扱う（同じ名前でもカウンタで区別）
+replace_nonterminals_with_vars(Term, Result, VarMap) :-
+    replace_nonterminals_impl(Term, Result, [], VarMap).
+
+replace_nonterminals_impl('_', '_', VarMap, VarMap) :- !.
+replace_nonterminals_impl(Atom, NewVar, VarMapIn, VarMapOut) :-
+    atom(Atom),
+    Atom \= '_',
+    % 小文字のアトムは非終端記号の可能性が高い
+    (all_alpha(Atom) ->
+        % 同じ名前でもカウントを増やして新しい変数を生成
+        % カウンタは3から始める（e1, e2 はルールヘッドで使われる可能性があるため）
+        count_occurrences(Atom, VarMapIn, Count),
+        NextCount is Count + 3,
+        atom_concat(Atom, NextCount, VarName),
+        NewVar = '$VAR'(VarName),
+        VarMapOut = [(Atom, NewVar) | VarMapIn]
+    ;
+        NewVar = Atom,
+        VarMapOut = VarMapIn
+    ), !.
+replace_nonterminals_impl(Term, Result, VarMapIn, VarMapOut) :-
+    compound(Term),
+    Term =.. [Functor | Args],
+    maplist_with_state(replace_nonterminals_impl, Args, NewArgs, VarMapIn, VarMapOut),
+    Result =.. [Functor | NewArgs], !.
+replace_nonterminals_impl(Term, Term, VarMap, VarMap).
+
+% 指定されたアトムの出現回数をカウント
+count_occurrences(Atom, VarMap, Count) :-
+    findall(1, member((Atom, _), VarMap), Ones),
+    length(Ones, Count).
+
+% maplist with state accumulator
+maplist_with_state(_, [], [], State, State).
+maplist_with_state(Pred, [X|Xs], [Y|Ys], StateIn, StateOut) :-
+    call(Pred, X, Y, StateIn, StateMid),
+    maplist_with_state(Pred, Xs, Ys, StateMid, StateOut).
+
+% 穴 '_' を指定された項で置き換える
+substitute_hole('_', Replacement, Replacement) :- !.
+substitute_hole(Term, Replacement, Result) :-
+    compound(Term),
+    Term =.. [Functor | Args],
+    maplist(substitute_hole_arg(Replacement), Args, NewArgs),
+    Result =.. [Functor | NewArgs], !.
+substitute_hole(Term, _, Term).
+
+substitute_hole_arg(Replacement, '_', Replacement) :- !.
+substitute_hole_arg(Replacement, Term, Result) :-
+    compound(Term),
+    Term =.. [Functor | Args],
+    maplist(substitute_hole_arg(Replacement), Args, NewArgs),
+    Result =.. [Functor | NewArgs], !.
+substitute_hole_arg(_, Term, Term).
+
+% ボディ内の変数名を置き換える
+rename_term_in_body(Body, _E1, _E2, Body) :-
+    % E1 と E2 は既に適切に名前が付けられているので、そのまま使う
+    true.
+
 % トークンを0回以上スキップ
 skip_token(T) --> [T], skip_token(T).
 skip_token(_) --> [].
-% '}' まで全てのトークンを収集
-collect_until_brace([]) --> ['}'].
-collect_until_brace([T|Ts]) --> [T], {T \= '}'}, collect_until_brace(Ts).
+% '}' まで全てのトークンを収集（ネストした {} も考慮）
+collect_until_brace(Tokens) --> collect_until_brace_impl(0, 0, Tokens).
+
+% Depth1: {} のネスト, Depth2: [] のネスト
+collect_until_brace_impl(0, 0, []) --> ['}'], !.
+collect_until_brace_impl(Depth1, Depth2, [T|Ts]) --> [T],
+    {(T = '{' -> NewDepth1 is Depth1 + 1, NewDepth2 = Depth2
+     ; T = '}' -> NewDepth1 is Depth1 - 1, NewDepth2 = Depth2
+     ; T = '[' -> NewDepth1 = Depth1, NewDepth2 is Depth2 + 1
+     ; T = ']' -> NewDepth1 = Depth1, NewDepth2 is Depth2 - 1
+     ; NewDepth1 = Depth1, NewDepth2 = Depth2)},
+    collect_until_brace_impl(NewDepth1, NewDepth2, Ts).
 
 assert_op(op(Prec, ['_' | Ns])) :-
     replace_underscore_list(Ns, Prec, Ns_),
@@ -276,6 +484,15 @@ syntaxes_reserved_words(Syntaxes, ReservedWords2) :-
     % RightWords - LeftWords の差集合を計算
     subtract(RightWords, LeftWords, ReservedWords2),
     debug_print('ReservedWords2:', ReservedWords2).
+
+% 評価文脈リストから予約語リストを得る
+% 評価文脈では、左辺（評価文脈名）のみを予約語とする
+% 右辺の非終端記号は syntax で定義されているので、ここでは追加しない
+contexts_reserved_words(Contexts, ReservedWords3) :-
+    extract_left_words(Contexts, LeftWords),
+    % 評価文脈名（左辺）のみを予約語とする
+    ReservedWords3 = LeftWords,
+    debug_print('ReservedWords3:', ReservedWords3).
 
 % 文法リストの左辺から all_alpha を満たすアトムを抽出
 extract_left_words(Syntaxes, LeftWords) :-
