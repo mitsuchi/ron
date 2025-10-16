@@ -106,7 +106,9 @@ test_all() {
     run_test "example/tapl.booleans.utf8.ron" "v = true"
     run_test "example/type.ron" "t = int"
     run_test "example/fspl.imp.ron" "v = φ : p = 0 : q = 55"
-    
+    run_test "example/evaluation-context.add.ron" "x = 3 + (3 + 4)"
+    run_test "example/evaluation-context.add.right-first.ron" "x = 1 + 2 + 7"
+
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
     
