@@ -262,7 +262,7 @@ expand_one_context_rule('::='(CtxName, RHS), (Head :- Body), Rules) :-
     findall(Rule, (member(Alt, Alts), expand_alternative(CtxName, E1, E2, Op, Body, Alt, Rule)), Rules).
 
 % 1つの選択肢を具体的なルールに展開
-% Alt: _ + e のような選択肢
+% Alt: _ + e のような選択肢（n項演算子に対応）
 % E1, E2: 穴に代入する項
 % Op: 簡約演算子（->, ~> など）
 % Body: 元のルールのボディ
@@ -273,9 +273,8 @@ expand_alternative(CtxName, E1, E2, Op, Body, Alt, (NewHead :- NewBody)) :-
     replace_nonterminals_with_vars(CtxName, Alt, AltWithVars, _),
     % 穴だけの選択肢（_）はスキップ（これは簡約規則にならない）
     AltWithVars \= '_',
-    % 穴 '_' を見つけて E1/E2 で置き換える
-    substitute_hole(AltWithVars, E1, LeftSide),
-    substitute_hole(AltWithVars, E2, RightSide),
+    % 穴 '_' を見つけて E1/E2 で置き換える（n項演算子に対応）
+    substitute_holes(AltWithVars, E1, E2, LeftSide, RightSide),
     % 新しいヘッドを作る：LeftSide Op RightSide
     % normalize_term で処理されるように、正規化前の形式で作成
     NewHead =.. [Op, LeftSide, RightSide],
@@ -328,22 +327,28 @@ maplist_with_state_ctx(CtxName, [X|Xs], [Y|Ys], StateIn, StateOut) :-
     replace_nonterminals_impl(CtxName, X, Y, StateIn, StateMid),
     maplist_with_state_ctx(CtxName, Xs, Ys, StateMid, StateOut).
 
-% 穴 '_' を指定された項で置き換える
-substitute_hole('_', Replacement, Replacement) :- !.
-substitute_hole(Term, Replacement, Result) :-
-    compound(Term),
-    Term =.. [Functor | Args],
-    maplist(substitute_hole_arg(Replacement), Args, NewArgs),
-    Result =.. [Functor | NewArgs], !.
-substitute_hole(Term, _, Term).
+% 複数の穴 '_' を指定された項で置き換える（n項演算子に対応）
+% 左辺では E1 で、右辺では E2 で置き換える
+substitute_holes(Term, E1, E2, LeftResult, RightResult) :-
+    substitute_holes_impl(Term, E1, LeftResult),
+    substitute_holes_impl(Term, E2, RightResult).
 
-substitute_hole_arg(Replacement, '_', Replacement) :- !.
-substitute_hole_arg(Replacement, Term, Result) :-
+% 穴 '_' を指定された項で置き換える（内部実装）
+substitute_holes_impl('_', Replacement, Replacement) :- !.
+substitute_holes_impl(Term, Replacement, Result) :-
     compound(Term),
     Term =.. [Functor | Args],
-    maplist(substitute_hole_arg(Replacement), Args, NewArgs),
+    maplist(substitute_holes_arg(Replacement), Args, NewArgs),
     Result =.. [Functor | NewArgs], !.
-substitute_hole_arg(_, Term, Term).
+substitute_holes_impl(Term, _, Term).
+
+substitute_holes_arg(Replacement, '_', Replacement) :- !.
+substitute_holes_arg(Replacement, Term, Result) :-
+    compound(Term),
+    Term =.. [Functor | Args],
+    maplist(substitute_holes_arg(Replacement), Args, NewArgs),
+    Result =.. [Functor | NewArgs], !.
+substitute_holes_arg(_, Term, Term).
 
 % ボディ内の変数名を置き換える
 rename_term_in_body(Body, _E1, _E2, Body) :-
