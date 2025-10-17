@@ -231,8 +231,8 @@ partition_contexts([Item|Rest], Contexts, [Item|Rules]) :-
     partition_contexts(Rest, Contexts, Rules).
 
 % 評価文脈ルールを展開する
-% Contexts: 評価文脈定義のリスト（例：['::='(c, '|'('_'(_,+,e), '+'(v,_)))]）
-% ContextRules: 簡約規則のリスト（例：[(c[e1] -> c[e2] :- e1 -> e2)]）
+% Contexts: 評価文脈定義のリスト（例：['::='(E, '|'('_'(_,+,e), '+'(v,_)))]）
+% ContextRules: 簡約規則のリスト（例：[(E[e1] -> E[e2] :- e1 -> e2)]）
 % ExpandedRules: 展開されたルールのリスト
 expand_context_rules(Contexts, ContextRules, ExpandedRules) :-
     debug_print('Expanding contexts:', Contexts),
@@ -246,11 +246,11 @@ expand_context_rules(Contexts, ContextRules, ExpandedRules) :-
     flatten(ExpandedRulesNested, ExpandedRules).
 
 % 1つの評価文脈ルールを展開
-% ContextDef: c ::= _ + e | v + _ の形式
-% ContextRule: c [e1] op c [e2] { body } の形式（op は任意の演算子）
+% ContextDef: E ::= _ + e | v + _ の形式
+% ContextRule: E [e1] op E [e2] { body } の形式（op は任意の演算子）
 % Rules: 展開されたルールのリスト
 expand_one_context_rule('::='(CtxName, RHS), (Head :- Body), Rules) :-
-    % ルールのヘッドが c[e1] op c[e2] の形式かチェック
+    % ルールのヘッドが E[e1] op E[e2] の形式かチェック
     % normalize 前なので任意の演算子と '[]' の形式
     compound(Head),
     Head =.. [Op, Left, Right],
@@ -263,8 +263,8 @@ expand_one_context_rule('::='(CtxName, RHS), (Head :- Body), Rules) :-
 
 % 1つの選択肢を具体的なルールに展開
 % Alt: _ + e のような選択肢（n項演算子に対応）
-% E1, E2: 穴に代入する項
-% Op: 簡約演算子（->, ~> など）
+% E1, E2: 穴に代入する項 : E [e1] -> E [e2] の e1 と e2
+% Op: 簡約演算子（-> など）
 % Body: 元のルールのボディ
 % Rule: 展開されたルール
 expand_alternative(CtxName, E1, E2, Op, Body, Alt, (NewHead :- NewBody)) :-
