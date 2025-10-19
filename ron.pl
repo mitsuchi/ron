@@ -623,11 +623,13 @@ collect_vars_in_term(_, []).
 
 assert_rule(main :- Body) :-
     normalize_term(Body, BodyN, true),
+    debug_print('Asserting main rule:', [main :- BodyN]),
     assertz(main :- BodyN).
 assert_rule(Head :- Body) :-
     normalize_term(Head, HeadN),
     normalize_term(Body, BodyN),
     varnumbers_names(HeadN :- BodyN, Term, _),
+    debug_print('Asserting rule:', [Term]),
     assertz(Term).
 assert_rule(op(_)).
 
@@ -826,9 +828,11 @@ normalize_term(Term, Normalized, SimplifyVars) :-
     % (a) は a にする
     (Functor = '()' -> [Arg] = Args, normalize_term(Arg, Normalized, SimplifyVars)
     % <a> は a にするが、functor の先頭に _ をつけない
-    % 中身を catch で囲んで、例外が発生したら失敗させる
-    % これにより、is/2 が _+(1,2) のような複合項に対して失敗する
-    ; Functor = '<>' -> [Arg] = Args, Normalized = catch(Arg, _, fail)
+    % 中身を再帰的に正規化してから catch で囲む
+    ; Functor = '<>' ->
+        [Arg] = Args,
+        normalize_term_in_catch(Arg, ArgN, SimplifyVars),
+        Normalized = catch(ArgN, _, fail)
     % $VAR の処理
     ; Functor = '$VAR' -> 
         (SimplifyVars = true ->
@@ -848,6 +852,38 @@ normalize_list([], [], _).
 normalize_list([A|As], [C|Cs], SimplifyVars) :-
     normalize_term(A, C, SimplifyVars),
     normalize_list(As, Cs, SimplifyVars).
+
+% <>内の項を正規化する際の特別処理
+% ()内のfreeinだけに_をつける
+normalize_term_in_catch(Term, Normalized, SimplifyVars) :-
+    nonvar(Term),
+    functor(Term, _, _, compound),
+    Term =.. [Functor | Args],
+    % ()内の項を特別処理
+    (Functor = '()' ->
+        [Arg] = Args,
+        normalize_term(Arg, ArgN, SimplifyVars),
+        Normalized = ArgN
+    % タプルの場合、各要素を個別に処理
+    ; Functor = ',' ->
+        [A, B] = Args,
+        normalize_term_in_catch(A, AN, SimplifyVars),
+        normalize_term_in_catch(B, BN, SimplifyVars),
+        Normalized = (AN, BN)
+    % 空のファンクター（タプル）の場合
+    ; Functor = '' ->
+        [A, B] = Args,
+        normalize_term_in_catch(A, AN, SimplifyVars),
+        normalize_term_in_catch(B, BN, SimplifyVars),
+        Normalized = (AN, BN)
+    % その他の複合項の場合、引数を再帰的に処理
+    ; maplist(normalize_term_in_catch_wrapper(SimplifyVars), Args, ArgsN),
+      Normalized =.. [Functor | ArgsN]).
+normalize_term_in_catch(Term, Term, _).
+
+% maplist用のラッパー
+normalize_term_in_catch_wrapper(SimplifyVars, Arg, ArgN) :-
+    normalize_term_in_catch(Arg, ArgN, SimplifyVars).
 
 replace_underscore_list(List, R, Result) :-
     maplist(replace_underscore(R), List, Result).
