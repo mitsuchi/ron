@@ -83,8 +83,13 @@ free x in & y . t {
 }
 
 main {
-    # [a -> b] (&a. c) => v
-    # [a -> b] (& b . a) => v
-    # (& a . a a) b -> w
     (&a.a) ((&a.a) (&b. (&a.a) b)) --> w
+    # w = & b . (& a . a) b
+
+    # [a -> b] (& a. c) => w
+    # w = & a . c
+    # [a -> b] (& b . a) => w
+    # w = & c . b
+    # (& a . a a) b -> w
+    # w = b b
 }
