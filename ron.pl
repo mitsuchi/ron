@@ -83,7 +83,7 @@ file_eval(FilePath) :-
     % これより前にバックトラックしない
     !,
     % main を問い合わせする
-    query(main).
+    query(main) -> true ; (write('fail'), nl, halt(1)).
 
 chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars),
@@ -900,8 +900,6 @@ query(C) :-
     varnumbers_names(B, T, P), !,
     eval(T),
     (P \= [] -> unparse_answers(P) ; true).
-
-
 
 unparse_answers([X = A|Ps]) :-
     (nb_getval(debug_mode, true) ->
