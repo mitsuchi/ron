@@ -204,9 +204,43 @@ notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
 tokens_syntaxes(S) --> [syntax], skip_token(;), ['{'], skip_token(;),
     collect_until_brace(Tokens),
     {exclude(=(;), Tokens, TokensNoSemi)},
-    {phrase(many(pred, S), TokensNoSemi)},
+    {parse_syntax_list(TokensNoSemi, S)},
     skip_token(;).
 tokens_syntaxes([]) --> skip_token(;).
+
+% 文法リストをパーズする（::=の項のリストとして認識）
+% トークンを ::= で分割してから、各部分をパーズする
+parse_syntax_list(Tokens, Syntaxes) :-
+    split_by_syntax_def(Tokens, Defs),
+    maplist(parse_one_syntax, Defs, Syntaxes).
+
+% トークンを ::= で分割する
+split_by_syntax_def([], []).
+split_by_syntax_def(Tokens, [Def|Defs]) :-
+    append(Before, ['::='|After], Tokens),
+    Before \= [],
+    !,
+    split_at_next_lhs(After, RHS, Rest),
+    append(Before, ['::='|RHS], Def),
+    split_by_syntax_def(Rest, Defs).
+split_by_syntax_def(Tokens, [Tokens]) :-
+    Tokens \= [].
+
+% 次の左辺（非終端記号）まで分割
+split_at_next_lhs([], [], []).
+split_at_next_lhs([Token, '::='|Rest], [], [Token, '::='|Rest]) :-
+    atom(Token),
+    all_alpha(Token),
+    !.
+split_at_next_lhs([Token|Rest], [Token|RHS], Remaining) :-
+    split_at_next_lhs(Rest, RHS, Remaining).
+
+% 1つの文法定義をパーズする
+parse_one_syntax(Tokens, '::='(LHS, RHS)) :-
+    Tokens = [LHS, '::='|RHSTokens],
+    atom(LHS),
+    all_alpha(LHS),
+    phrase(pred(RHS), RHSTokens).
 
 % context ::= 'context' '{' (定義 | ルール)* '}'
 % syntax と同じパターンでパース
