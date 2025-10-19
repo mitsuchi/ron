@@ -80,6 +80,8 @@ file_eval(FilePath) :-
     maplist(assert_rule, UpdatedContextRules),
     % 更新後のルールリストを Prolog の規則に登録する
     maplist(assert_rule, UpdatedRules),
+    % これより前にバックトラックしない
+    !,
     % main を問い合わせする
     query(main).
 
