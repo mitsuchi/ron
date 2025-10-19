@@ -6,6 +6,7 @@ op 50 : [ _ -> _ ] _
 op 30 : _ \= _
 op 10 : _ => _
 op 10 : _ -> _
+op 10 : _ --> _
 op 10 : no free _ in _
 op 10 : free _ in _
 
@@ -14,10 +15,33 @@ syntax {
           x           # variables
         | & x . t     # abstraction
         | t t         # application
+    v ::=             # values
+          & x . t     # abstraction value
+
     s ::= t           # term
     x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
     y ::= x           # variable
     z ::= x           # variable
+}
+
+t s -> t' s {
+    t -> t'
+}
+
+v t -> v t' {
+    t -> t'
+}
+
+(& x . t) s -> s' {
+    [x -> s] t => s'
+}
+
+t1 --> t2 {
+    t1 -> t3
+    t3 --> t2
+}
+t1 --> t2 {
+    t1 -> t2
 }
 
 [x -> s] x => s
@@ -37,13 +61,13 @@ syntax {
 [x -> s] (& y . t1) => & z . t2 {
     <x \= y>
     free y in s
-    X z
-    <x \= z>
+    X z                  # 新しい変数 z を、以下を満たすように
+    <x \= z>             # バックトラックを繰り返して探す
     <y \= z>
     <not (free z in s)>
-    <not (free z in t1)>
-    [y -> z] t1 => t4
-    [x -> s] t4 => t2
+    <not (free z in t1)> # z の条件ここまで
+    [y -> z] t1 => t3
+    [x -> s] t3 => t2
 }
 
 free x in x
@@ -60,5 +84,7 @@ free x in & y . t {
 
 main {
     # [a -> b] (&a. c) => v
-    [a -> b] (& b . a) => v
+    # [a -> b] (& b . a) => v
+    # (& a . a a) b -> w
+    (&a.a) ((&a.a) (&b. (&a.a) b)) --> w
 }
