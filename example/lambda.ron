@@ -1,0 +1,63 @@
+op 99 : _ _
+op 90 : not _ 
+op 90 : X _
+op 50 : & _ . _
+op 50 : [ _ -> _ ] _
+op 30 : _ \= _
+op 10 : _ => _
+op 10 : _ -> _
+op 10 : no free _ in _
+op 10 : free _ in _
+
+syntax {
+    t ::=             # terms
+          x           # variables
+        | & x . t     # abstraction
+        | t t         # application
+    x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
+    s ::= t    
+    y ::= x
+}
+
+[x -> s] x => s
+[x -> s] y => y {
+    <x \= y>
+}
+[x -> s] (t1 t2) => t1' t2' {
+     [x -> s] t1 => t1'
+     [x -> s] t2 => t2'
+}
+[x -> s] (& x . t1) => & x . t1
+[x -> s] (& y . t1) => & y . t2 {
+    <x \= y>
+    <not (free y in s)>
+    [x -> s] t1 => t2
+}
+[x -> t1] (& x1 . t2) => & x2 . t3 {
+    <x \= x1>
+    free x1 in t1
+    X x2
+    <x \= x2>
+    <x1 \= x2>
+    no free x2 in t1
+    no free x2 in t2
+    [x1 -> x2] t2 => t4
+    [x -> t1] t4 => t3
+}
+
+free x in x
+free x in t1 t2 {
+    free x in t1
+}
+free x in t1 t2 {
+    free x in t2
+}
+free x in & y . t {
+    <x \= y>
+    free x in t
+}
+
+main {
+    [a -> b] (&a. c) => v
+    # [a -> b] (& b . a) => v
+}
