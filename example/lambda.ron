@@ -3,7 +3,7 @@
 op 99 : _ _
 op 90 : not _ 
 op 90 : X _
-op 50 : & _ . _
+op 50 : λ _ . _
 op 50 : [ _ -> _ ] _
 op 30 : _ \= _
 op 10 : _ => _
@@ -14,29 +14,36 @@ op 10 : free _ in _
 syntax {
     t ::=             # terms
           x           # variables
-        | & x . t     # abstraction
+        | λ x . t     # abstraction
         | t t         # application
     v ::=             # values
-          & x . t     # abstraction value
+          λ x . t     # abstraction value
 
     s ::= t           # term
     x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
     y ::= x           # variable
     z ::= x           # variable
+
+    # x, y, z : 変数
+    # t, s    : 項
 }
 
+# 適用 t s の形はまず左側の t を簡約する
 t s -> t' s {
     t -> t'
 }
 
+# 左側が値になったら右側を簡約する
 v t -> v t' {
     t -> t'
 }
 
-(& x . t) v -> s' {
+# 右側が値になったらベータ簡約する
+(λ x . t) v -> s' {
     [x -> v] t => s'
 }
 
+# 簡約の反射推移閉包
 t1 --> t2 {
     t1 -> t3
     t3 --> t2
@@ -45,27 +52,40 @@ t1 --> t2 {
     t1 -> t2
 }
 
+# ベータ簡約
+# [x -> s] t => u で、t の自由な x を s に置き換えると u になる、の意味
+
+# x は x の中で自由なので s に置き換える
 [x -> s] x => s
+# x と異なる変数 y の中に x はないので y のまま
 [x -> s] y => y {
     <x \= y>
 }
+# t1 t2 は、それぞれの項の中で置き換える
 [x -> s] (t1 t2) => t1' t2' {
      [x -> s] t1 => t1'
      [x -> s] t2 => t2'
 }
-[x -> s] (& x . t1) => & x . t1
-[x -> s] (& y . t1) => & y . t2 {
+# λ x . t1 の中に自由な x はないのでそのまま
+[x -> s] (λ x . t1) => λ x . t1
+# λ y . t1 は、t1 の x を s に置き換えたものとしたいが
+# s の中に自由な y があると λ y . で束縛されて意味か変わってしまうので、
+# そんな y がないという条件でそうする
+[x -> s] (λ y . t1) => λ y . t2 {
     <x \= y>
     <not (free y in s)>
     [x -> s] t1 => t2
 }
-[x -> s] (& y . t1) => & z . t2 {
+# λ y . t1 で s の中に自由な y があるときは、
+# そもそも λ y . t1 の中の y を無関係な変数 z に変える
+# その際は t1 の中の自由な y だけを z に変える
+[x -> s] (λ y . t1) => λ z . t2 {
     <x \= y>
     free y in s
     X z                  # 新しい変数 z を、以下を満たすように
     <x \= z>             # バックトラックを繰り返して探す
-    <y \= z>
-    <not (free z in s)>
+    <y \= z>             # つまり z は x, y や s, t1 の中の自由変数の
+    <not (free z in s)>  # どれとも異なる
     <not (free z in t1)> # z の条件ここまで
     [y -> z] t1 => t3
     [x -> s] t3 => t2
@@ -79,19 +99,19 @@ free x in t1 t2 {
 free x in t1 t2 {
     free x in t2
 }
-free x in & y . t {
+free x in λ y . t {
     <x \= y>
     free x in t
 }
 
 main {
-    (&a.a) ((&a.a) (&b. (&a.a) b)) --> w
-    # w = & b . (& a . a) b
+    (λ a . a) ((λ a . a) (λ b. (λ a . a) b)) --> w
+    # w = λ b . (λ a . a) b
 
-    # [a -> b] (& a. c) => w
-    # w = & a . c
-    # [a -> b] (& b . a) => w
-    # w = & c . b
-    # (& a . a a) b -> w
+    # [a -> b] (λ a. c) => w
+    # w = λ a . c
+    # [a -> b] (λ b . a) => w
+    # w = λ c . b
+    # (λ a . a a) b -> w
     # w = b b
 }
