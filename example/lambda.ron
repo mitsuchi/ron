@@ -24,8 +24,8 @@ syntax {
     y ::= x           # variable
     z ::= x           # variable
 
-    # x, y, z : 変数
-    # t, s    : 項
+    # x, y, z : 変数を表すメタ変数：実際の変数は a から n までの1文字
+    # t, s    : 項を表すメタ変数
 }
 
 # 適用 t s の形はまず左側の t を簡約する
