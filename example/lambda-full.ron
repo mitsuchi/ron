@@ -1,4 +1,4 @@
-# untyped lambda calculus : call by value
+# untyped lambda calculus : full beta reduction
 
 op 99 : _ _
 op 90 : not _ 
@@ -33,8 +33,12 @@ v t -> v t' {
     t -> t'
 }
 
-(& x . t) v -> s' {
-    [x -> v] t => s'
+& x . t -> & x . t' {
+    t -> t'
+}
+
+(& x . t) s -> s' {
+    [x -> s] t => s'
 }
 
 t1 --> t2 {
@@ -86,7 +90,7 @@ free x in & y . t {
 
 main {
     (&a.a) ((&a.a) (&b. (&a.a) b)) --> w
-    # w = & b . (& a . a) b
+    # w = & b . b
 
     # [a -> b] (& a. c) => w
     # w = & a . c
