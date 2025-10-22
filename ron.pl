@@ -67,7 +67,6 @@ file_eval(FilePath) :-
     syntaxes_rules(Syntaxes, RulesForSyntax),
     % 評価文脈ルールを展開して具体的なルールリストを作る
     expand_context_rules(Contexts, ContextRulesConverted, RulesForContext),
-    debug_print('RulesForContext:', RulesForContext),
     % 残りのトークンからルール部分をパーズしてルールリストを得る
     tokens_rules(RestTokens4, Rules),
     % 文法リストから非終端記号だけを抽出し、それをもとに既存のルールリストを更新して文法を満たすように条件を追加する
@@ -432,12 +431,11 @@ syntaxes_rules(Syntaxes, RulesForSyntax) :-
 % 1つの文法定義からルールリストを作る
 syntax_rules(Nonterminals, '::='(VarName, RHS), Rules) :-
     atom(VarName),
-    % 非終端記号を大文字に変換
-    upcase_atom(VarName, UpperVarName),
+    % 非終端記号をそのまま使用（大文字変換を削除）
     % 右辺を選択肢に分解
     alternatives(RHS, Alts),
     % 各選択肢に対してルールを作る
-    maplist(alternative_rule(Nonterminals, UpperVarName), Alts, Rules).
+    maplist(alternative_rule(Nonterminals, VarName), Alts, Rules).
 
 % | で区切られた選択肢をリストに分解（入れ子の | もフラット化する）
 alternatives(Term, Alts) :-
@@ -459,30 +457,29 @@ alternative_rule(Nonterminals, UpperVarName, Alt, (Head :- true)) :-
     \+ member(Alt, Nonterminals),
     Head =.. [UpperVarName, Alt].
 % アトムの場合で、他の非終端記号への参照の場合: T($VAR(v1)) :- V($VAR(v1))
-alternative_rule(Nonterminals, UpperVarName, OtherVarName, (Head :- Body)) :-
+alternative_rule(Nonterminals, VarName, OtherVarName, (Head :- Body)) :-
     atom(OtherVarName),
     member(OtherVarName, Nonterminals),
     % 新しい変数名を生成
     atom_concat(OtherVarName, '1', NewVarName),
-    upcase_atom(OtherVarName, UpperOtherVarName),
+    % 非終端記号をそのまま使用（大文字変換を削除）
     NewVar = '$VAR'(NewVarName),
-    Head =.. [UpperVarName, NewVar],
-    Body =.. [UpperOtherVarName, NewVar].
+    Head =.. [VarName, NewVar],
+    Body =.. [OtherVarName, NewVar].
 % <述語> の形式（引数なし）：N($VAR(n1)) :- <>(integer($VAR(n1)))
 % ボディに <> を保持することで、normalize_term で integer が _integer にならない
-alternative_rule(_Nonterminals, UpperVarName, '<>'(PredicateName), (Head :- Body)) :-
+alternative_rule(_Nonterminals, VarName, '<>'(PredicateName), (Head :- Body)) :-
     atom(PredicateName),
-    % 非終端記号名から変数名を生成（UpperVarName を小文字化して使用）
-    downcase_atom(UpperVarName, LowerVarName),
-    atom_concat(LowerVarName, '1', NewVarName),
+    % 非終端記号名から変数名を生成（VarName をそのまま使用）
+    atom_concat(VarName, '1', NewVarName),
     NewVar = '$VAR'(NewVarName),
     % ヘッドを作る
-    Head =.. [UpperVarName, NewVar],
+    Head =.. [VarName, NewVar],
     % ボディはPrologの述語呼び出し（<> で囲む）
     Call =.. [PredicateName, NewVar],
     Body = '<>'(Call).
 % 複合項の場合: T(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3))) :- T($VAR(t1)), T($VAR(t2)), T($VAR(t3))
-alternative_rule(Nonterminals, UpperVarName, Alt, (Head :- Body)) :-
+alternative_rule(Nonterminals, VarName, Alt, (Head :- Body)) :-
     compound(Alt),
     Alt =.. [Functor | Args],
     % 引数ごとに新しい$VAR変数を作る
@@ -491,14 +488,14 @@ alternative_rule(Nonterminals, UpperVarName, Alt, (Head :- Body)) :-
     maplist(make_var_from_arg, Args, Nums, NewVars),
     % ヘッドを作る
     NewAlt =.. [Functor | NewVars],
-    Head =.. [UpperVarName, NewAlt],
+    Head =.. [VarName, NewAlt],
     % ボディを作る（各引数に対して型チェック）
     maplist(make_body_for_arg(Nonterminals), Args, NewVars, BodyList),
     list_to_conjunction(BodyList, Body).
 % 数値の場合: V(0) :- true
-alternative_rule(_, UpperVarName, Alt, (Head :- true)) :-
+alternative_rule(_, VarName, Alt, (Head :- true)) :-
     number(Alt),
-    Head =.. [UpperVarName, Alt].
+    Head =.. [VarName, Alt].
 
 % 引数から新しい$VAR変数を生成
 % 引数が単なるアトム（非終端記号への参照）の場合、$VAR(name + 番号)を生成
@@ -510,8 +507,8 @@ make_var_from_arg(ArgName, Num, '$VAR'(NewName)) :-
 make_body_for_arg(Nonterminals, ArgName, NewVar, Body) :-
     atom(ArgName),
     member(ArgName, Nonterminals),
-    upcase_atom(ArgName, UpperArgName),
-    Body =.. [UpperArgName, NewVar].
+    % 非終端記号をそのまま使用（大文字変換を削除）
+    Body =.. [ArgName, NewVar].
 
 % リストを , で結合した項に変換
 list_to_conjunction([X], X) :- !.
@@ -597,8 +594,8 @@ update_rule(Nonterminals, (Head :- Body), (Head :- NewBody)) :-
             (member('$VAR'(VarName), AllVars),
              member(NTName, Nonterminals),
              atom_concat(NTName, _, VarName),  % 変数名が非終端記号で始まる
-             upcase_atom(NTName, UpperNTName),
-             TypeCheck =.. [UpperNTName, '$VAR'(VarName)]),
+             % 非終端記号をそのまま使用（大文字変換を削除）
+             TypeCheck =.. [NTName, '$VAR'(VarName)]),
             TypeChecks),
     % ボディに型チェックを追加
     (TypeChecks = [] ->
@@ -673,7 +670,7 @@ token(')') --> ")".
 token(',') --> ",".
 token(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
 token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
-token(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
+%token(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
 % ギリシャ文字1文字を定数として認識
 token(Atom) --> [C], {is_greek_char(C), atom_chars(Atom, [C])}.
 token(Var) --> var(Var).
