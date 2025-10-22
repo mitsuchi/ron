@@ -669,10 +669,9 @@ token('(') --> "(".
 token(')') --> ")".
 token(',') --> ",".
 token(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
-token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
-%token(Atom) --> [C], {code_type(C, upper), atom_chars(Atom, [C])}.
 % ギリシャ文字1文字を定数として認識
 token(Atom) --> [C], {is_greek_char(C), atom_chars(Atom, [C])}.
+token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
 token(Var) --> var(Var).
 num(N) --> digits(Cs), { number_chars(N, Cs) }.
 word(Cs) --> many1(lower, Cs).

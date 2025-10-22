@@ -107,6 +107,6 @@ free x in λ y . t {
 }
 
 main {
-    (λ a . a) ((λ a . a) (λ b. (λ a . a) b)) --> w
+    (λa. a) ((λa. a) (λb. (λa. a) b)) --> w
     # w = λ b . (λ a . a) b
 }
