@@ -833,8 +833,8 @@ normalize_term(Term, Normalized, SimplifyVars) :-
     ; Functor = '$VAR' -> 
         (SimplifyVars = true ->
             % main の中では、メタ変数のように見える単語もただのアトムとする
-            % ただし t から z までの子文字一文字だけはメタ変数とする。それらは assert_rule で Prolog の変数になる
-            ([Arg] = Args, not(member(Arg, [t,u,v,w,x,y,z])) -> Normalized = Arg; Normalized = Term)
+            % ただし [t-z] か [T-Z] までの一文字だけはメタ変数とする。それらは assert_rule で Prolog の変数になる
+            ([Arg] = Args, not(member(Arg, [t,u,v,w,x,y,z,'T','U','V','W','X','Y','Z'])) -> Normalized = Arg; Normalized = Term)
         ;
             Normalized = Term
         )
@@ -963,8 +963,10 @@ eval(Goal) :-
                 Result = true
             ;
                 % 新規評価してキャッシュに保存
+                debug_print('Evaluating: ', [Goal]),
                 clause(Goal, Body),
                 eval(Body),
+                debug_print('Evaluated: ', [Goal]),
                 assertz(eval_cache(Goal, true))
             ),
             % 深さをデクリメント
