@@ -502,6 +502,16 @@ alternative_rule(_, VarName, Alt, (Head :- true)) :-
 make_var_from_arg(ArgName, Num, '$VAR'(NewName)) :-
     atom(ArgName),
     atom_concat(ArgName, Num, NewName).
+% 複合項の引数の場合：再帰的に処理
+make_var_from_arg(ArgTerm, _Num, NewVar) :-
+    compound(ArgTerm),
+    ArgTerm =.. [Functor | Args],
+    % 引数ごとに新しい$VAR変数を作る
+    length(Args, Len),
+    numlist(1, Len, Nums),
+    maplist(make_var_from_arg, Args, Nums, NewArgs),
+    % 新しい複合項を作る
+    NewVar =.. [Functor | NewArgs].
 
 % ボディの各項を作る（元の引数と新しい変数から）
 make_body_for_arg(Nonterminals, ArgName, NewVar, Body) :-
@@ -509,6 +519,17 @@ make_body_for_arg(Nonterminals, ArgName, NewVar, Body) :-
     member(ArgName, Nonterminals),
     % 非終端記号をそのまま使用（大文字変換を削除）
     Body =.. [ArgName, NewVar].
+% 複合項の引数の場合：再帰的に処理
+make_body_for_arg(Nonterminals, ArgTerm, _NewVar, Body) :-
+    compound(ArgTerm),
+    ArgTerm =.. [_Functor | Args],
+    % 引数ごとに新しい$VAR変数を作る
+    length(Args, Len),
+    numlist(1, Len, Nums),
+    maplist(make_var_from_arg, Args, Nums, NewArgs),
+    % ボディを作る（各引数に対して型チェック）
+    maplist(make_body_for_arg(Nonterminals), Args, NewArgs, BodyList),
+    list_to_conjunction(BodyList, Body).
 
 % リストを , で結合した項に変換
 list_to_conjunction([X], X) :- !.
