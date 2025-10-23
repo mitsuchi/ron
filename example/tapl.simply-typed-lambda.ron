@@ -1,4 +1,4 @@
-# untyped lambda calculus : call by value
+# simply typed lambda calculus over booleans
 
 op 99 : _ _
 op 90 : not _ 
