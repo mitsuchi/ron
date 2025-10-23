@@ -8,7 +8,7 @@ op 30 : _ : _
 op 30 : _ \= _
 op 20 : _ , _
 op 15 : _ : _ ∈ _
-op 10 : _ |- _ : _
+op 10 : _ ⊢ _ : _
 
 syntax {
     t ::=                     # terms
@@ -34,19 +34,19 @@ syntax {
         | Γ, x : T       # term variable binding
 }
 
-Γ |- (λ x : T1 . t) : T1 -> T2 {
-    Γ, x : T1 |- t : T2
+Γ ⊢ (λ x : T1 . t) : T1 -> T2 {
+    Γ, x : T1 ⊢ t : T2
 }
 
-Γ |- t1 t2 : T2 {
-    Γ |- t1 : T1 -> T2
-    Γ |- t2 : T1
+Γ ⊢ t1 t2 : T2 {
+    Γ ⊢ t1 : T1 -> T2
+    Γ ⊢ t2 : T1
 }
 
-Γ |- true : Bool
-Γ |- false : Bool
+Γ ⊢ true : Bool
+Γ ⊢ false : Bool
 
-Γ |- x : T {
+Γ ⊢ x : T {
     x : T ∈ Γ
 }
 
@@ -56,13 +56,13 @@ x : T1 ∈ (Γ, y : T2) {
     x : T1 ∈ Γ
 }
 
-Γ |- if t1 then t2 else t3 : T {
-    Γ |- t1 : Bool
-    Γ |- t2 : T
-    Γ |- t3 : T
+Γ ⊢ if t1 then t2 else t3 : T {
+    Γ ⊢ t1 : Bool
+    Γ ⊢ t2 : T
+    Γ ⊢ t3 : T
 }
 
 main {
-    φ, f : (Bool -> Bool) |- λa : Bool. f (if a then false else a) : T
+    φ, f : (Bool -> Bool) ⊢ λa : Bool. f (if a then false else a) : T
     # T = Bool -> Bool
 }
