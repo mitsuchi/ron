@@ -115,7 +115,7 @@ test_all() {
     run_test "example/lambda.ron" "w = λ b . (λ a . a) b"
     run_test "example/tapl.typed-booleans.ron" "T = Bool"
     run_test "example/tapl.typed-arithmetic.ron" "T = Nat"
-    run_test "example/simply-typed-lambda-over-booleans.ron" "T = Bool -> Bool"
+    run_test "example/tapl.simply-typed-lambda.ron" "T = Bool -> Bool"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
