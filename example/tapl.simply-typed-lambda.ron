@@ -29,37 +29,37 @@ syntax {
           Bool           # type of booleans
         | T -> T         # type of functions
 
-    C ::=                # contexts
+    Γ ::=                # contexts
           φ              # empty context
-        | C, x : T       # term variable binding
+        | Γ, x : T       # term variable binding
 }
 
-C |- (λ x : T1 . t) : T1 -> T2 {
-    C, x : T1 |- t : T2
+Γ |- (λ x : T1 . t) : T1 -> T2 {
+    Γ, x : T1 |- t : T2
 }
 
-C |- t1 t2 : T2 {
-    C |- t1 : T1 -> T2
-    C |- t2 : T1
+Γ |- t1 t2 : T2 {
+    Γ |- t1 : T1 -> T2
+    Γ |- t2 : T1
 }
 
-C |- true : Bool
-C |- false : Bool
+Γ |- true : Bool
+Γ |- false : Bool
 
-C |- x : T {
-    x : T ∈ C
+Γ |- x : T {
+    x : T ∈ Γ
 }
 
-x : T ∈ (C, x : T)
-x : T1 ∈ (C, y : T2) {
+x : T ∈ (Γ, x : T)
+x : T1 ∈ (Γ, y : T2) {
     <x \= y>
-    x : T1 ∈ C
+    x : T1 ∈ Γ
 }
 
-C |- if t1 then t2 else t3 : T {
-    C |- t1 : Bool
-    C |- t2 : T
-    C |- t3 : T
+Γ |- if t1 then t2 else t3 : T {
+    Γ |- t1 : Bool
+    Γ |- t2 : T
+    Γ |- t3 : T
 }
 
 main {
