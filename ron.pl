@@ -30,10 +30,14 @@ run :-
 debug_print(Label, List) :-
     (nb_getval(debug_mode, true) ->
         writeln(Label),
-        maplist(writeln, List)
+        maplist(write_canonical_item, List)
     ;
         true
     ).
+
+% デバッグ用：項目を正規形式で表示
+write_canonical_item(Item) :-
+    write_canonical(Item), nl.
 
 % ファイルを読み込んで評価する
 file_eval(FilePath) :-
@@ -130,6 +134,7 @@ convert_token(ReservedWords, Token, '$VAR'(Token)) :-
     atom(Token),
     is_var_pattern(Token),
     \+ member(Token, ReservedWords),
+    (nb_getval(debug_mode, true) -> (write('Converting token: '), write(Token), write(' -> $VAR('), write(Token), write(')'), nl) ; true),
     !.
 convert_token(_, Token, Token).
 
