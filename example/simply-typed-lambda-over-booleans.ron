@@ -1,0 +1,72 @@
+# untyped lambda calculus : call by value
+
+op 99 : _ _
+op 90 : not _ 
+op 90 : X _
+op 50 : λ _ : _ . _
+op 50 : [ _ -> _ ] _
+op 50 : if _ then _ else _
+op 40 : _ -> _
+op 30 : _ : _
+op 30 : _ \= _
+op 20 : _ , _
+op 15 : _ : _ ∈ _
+op 10 : _ => _
+op 10 : _ --> _
+op 10 : _ |- _ : _
+
+syntax {
+    t ::=                     # terms
+          true                # constant true
+        | false               # constant false
+        | x                   # variables
+        | λ x : T . t         # abstraction value
+        | t t                 # application
+        | if t then t else t  # conditional
+
+    v ::=                # values
+          λ x : T . t    # abstraction value
+    
+    # variables
+    x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
+
+    T ::=                # types
+          Bool           # type of booleans
+        | T -> T         # type of functions
+
+    C ::=                # contexts
+          φ              # empty context
+        | C, x : T       # term variable binding
+}
+
+C |- (λ x : T1 . t) : T1 -> T2 {
+    C, x : T1 |- t : T2
+}
+
+C |- t1 t2 : T2 {
+    C |- t1 : T1 -> T2
+    C |- t2 : T1
+}
+
+C |- true : Bool
+C |- false : Bool
+
+C |- x : T {
+    x : T ∈ C
+}
+
+x : T ∈ (C, x : T)
+x : T1 ∈ (C, y : T2) {
+    <x \= y>
+    x : T1 ∈ C
+}
+
+C |- if t1 then t2 else t3 : T {
+    C |- t1 : Bool
+    C |- t2 : T
+    C |- t3 : T
+}
+
+main {
+    φ, f : (Bool -> Bool) |- λa : Bool. f (if a then false else a) : T
+}
