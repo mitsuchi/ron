@@ -34,28 +34,34 @@ syntax {
         | Γ, x : T       # term variable binding
 }
 
+# T-Abs
 Γ ⊢ (λ x : T1 . t) : T1 -> T2 {
     Γ, x : T1 ⊢ t : T2
 }
 
+# T-App
 Γ ⊢ t1 t2 : T2 {
     Γ ⊢ t1 : T1 -> T2
     Γ ⊢ t2 : T1
 }
 
-Γ ⊢ true : Bool
-Γ ⊢ false : Bool
-
+# T-Var
 Γ ⊢ x : T {
     x : T ∈ Γ
 }
 
+# type for x in Γ is T <=> x : T ∈ Γ
 x : T ∈ (Γ, x : T)
 x : T1 ∈ (Γ, y : T2) {
     <x \= y>
     x : T1 ∈ Γ
 }
 
+# T-True, T-False
+Γ ⊢ true : Bool
+Γ ⊢ false : Bool
+
+# T-If
 Γ ⊢ if t1 then t2 else t3 : T {
     Γ ⊢ t1 : Bool
     Γ ⊢ t2 : T
