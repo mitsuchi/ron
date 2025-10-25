@@ -1,0 +1,149 @@
+# simply typed lambda calculus over booleans
+
+op 99 : _ _
+op 90 : not _
+op 90 : X _
+op 60 : _ -> _
+op 50 : λ _ : _ . _
+op 50 : [ _ -> _ ] _
+op 30 : _ : _
+op 30 : _ \= _
+op 20 : _ , _
+op 15 : _ : _ ∈ _
+op 10 : _ ⊢ _ : _
+op 10 : _ => _
+op 10 : _ --> _
+op 10 : free _ in _
+
+syntax {
+    t ::=                     # terms
+          x                   # variables
+        | λ x : T . t         # abstraction value
+        | t t                 # application
+
+    v ::=                # values
+          λ x : T . t    # abstraction value
+    
+    # variables
+    x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
+
+    T ::=                # types
+          A              # base type
+        | T -> T         # type of functions
+
+    Γ ::=                # contexts
+          φ              # empty context
+        | Γ, x : T       # term variable binding
+
+    s ::= t           # term
+    y ::= x           # variable
+    z ::= x           # variable
+
+    # x, y, z : 変数を表すメタ変数：実際の変数は a から n までの1文字
+    # t, s    : 項を表すメタ変数
+}
+
+# T-Abs
+Γ ⊢ (λ x : T1 . t) : T1 -> T2 {
+    Γ, x : T1 ⊢ t : T2
+}
+
+# T-App
+Γ ⊢ t1 t2 : T2 {
+    Γ ⊢ t1 : T1 -> T2
+    Γ ⊢ t2 : T1
+}
+
+# T-Var
+Γ ⊢ x : T {
+    x : T ∈ Γ
+}
+
+# type for x in Γ is T <=> x : T ∈ Γ
+x : T ∈ (Γ, x : T)
+x : T1 ∈ (Γ, y : T2) {
+    <x \= y>
+    x : T1 ∈ Γ
+}
+
+# 適用 t s の形はまず左側の t を簡約する
+t s -> t' s {
+    t -> t'
+}
+# 左側が値になったら右側を簡約する
+v t -> v t' {
+    t -> t'
+}
+
+# 右側が値になったらベータ簡約する
+(λ x : T . t) v -> s' {
+    [x -> v] t => s'
+}
+
+# 簡約の反射推移閉包
+t1 --> t2 {
+    t1 -> t3
+    t3 --> t2
+}
+t1 --> t2 {
+    t1 -> t2
+}
+
+# ベータ簡約
+# [x -> s] t => u で、t の自由な x を s に置き換えると u になる、の意味
+
+# x は x の中で自由なので s に置き換える
+[x -> s] x => s
+# x と異なる変数 y の中に x はないので y のまま
+[x -> s] y => y {
+    <x \= y>
+}
+# t1 t2 は、それぞれの項の中で置き換える
+[x -> s] (t1 t2) => t1' t2' {
+     [x -> s] t1 => t1'
+     [x -> s] t2 => t2'
+}
+# λx. t1 の中に自由な x はないのでそのまま
+[x -> s] (λx : T. t1) => λx : T. t1
+
+# λy. t1 は、t1 の x を s に置き換えたものとしたいが
+# s の中に自由な y があると λy. で束縛されて意味か変わってしまうので、
+# そんな y がないという条件でそうする
+[x -> s] (λy : T. t1) => λy : T. t2 {
+    <x \= y>
+    <not (free y in s)>
+    [x -> s] t1 => t2
+}
+
+# λy. t1 で s の中に自由な y があるときは、
+# そもそも λy. t1 の中の y を無関係な変数 z に変える
+# その際は仮引数の y と t1 の中の自由な y を z に変える
+[x -> s] (λy : T. t1) => λz : T. t2 {
+    <x \= y>
+    free y in s
+    X z                  # 新しい変数 z を、以下を満たすように
+    <x \= z>             # バックトラックを繰り返して探す
+    <y \= z>             # つまり z は x, y や s, t1 の中の自由変数の
+    <not (free z in s)>  # どれとも異なる
+    <not (free z in t1)> # z の条件ここまで
+    [y -> z] t1 => t3
+    [x -> s] t3 => t2
+}
+
+# free x in t : 項 t に x が自由変数として出現する
+free x in x
+free x in t1 t2 {
+    free x in t1
+}
+free x in t1 t2 {
+    free x in t2
+}
+free x in λy : T. t {
+    <x \= y>
+    free x in t
+}
+
+main {
+    φ ⊢ λf:A->A. λa:A. f (f a) : T
+    # T = A -> A -> (A -> A)
+}
