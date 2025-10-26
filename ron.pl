@@ -844,23 +844,39 @@ find_failing_rule_impl(Tokens, Acc, FailingTokens) :-
         % 成功した場合、残りを処理
         find_failing_rule_impl(RestTokens, Acc, FailingTokens)
     ;
-        % 失敗した場合、現在の行（;まで）を取得
+        % 失敗した場合、現在の行（改行まで）を取得
         take_until_newline(Tokens, LineTokens),
+        (LineTokens = [] ->
+            % 行が空の場合は最初の数個のトークンを表示
+            take_first_tokens(Tokens, 10, LineTokens)
+        ;
+            true
+        ),
         append(Acc, LineTokens, FailingTokens)
     ).
 
-% セミコロン（改行）までのトークンを取得
+% 改行までのトークンを取得（newline は含まない）
 take_until_newline([], []).
-take_until_newline([newline|_], [newline]).
+take_until_newline([newline|_], []).
 take_until_newline([Token|Rest], [Token|Result]) :-
     take_until_newline(Rest, Result).
 
+% 最初の N 個のトークンを取得（newline はスキップ）
+take_first_tokens([], _, []).
+take_first_tokens([newline|Rest], N, Result) :-
+    take_first_tokens(Rest, N, Result).
+take_first_tokens([Token|Rest], N, [Token|Result]) :-
+    N > 0,
+    N1 is N - 1,
+    take_first_tokens(Rest, N1, Result).
+take_first_tokens(_, 0, []).
+
 % トークンリストを読みやすい形式に変換
 format_tokens_for_display(Tokens, DisplayString) :-
-    % セミコロンを除去
-    exclude(==([newline]), Tokens, TokensWithoutSemi),
+    % newline を除去
+    exclude(==(newline), Tokens, TokensWithoutNewline),
     % 各トークンを文字列に変換
-    maplist(format_single_token, TokensWithoutSemi, StringTokens),
+    maplist(format_single_token, TokensWithoutNewline, StringTokens),
     % 空白で結合
     atomic_list_concat(StringTokens, ' ', DisplayString).
 
