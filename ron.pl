@@ -686,8 +686,12 @@ assert_rule(Head :- Body) :-
 assert_rule(op(_)).
 
 tokens_rules(Tokens, Rules) :-
-    phrase(rules_pred(Rules), Tokens),
-    debug_print('Rules:', Rules).
+    (phrase(rules_pred(Rules), Tokens) ->
+        debug_print('Rules:', Rules)
+    ;
+        write('error: parse failed (undefined operator or syntax error)'), nl,
+        halt(1)
+    ).
 
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
