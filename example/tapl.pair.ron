@@ -7,9 +7,11 @@ op 90 : X _
 op 80 : succ _                   # successor
 op 80 : pred _                   # predecessor
 op 80 : iszero _                 # zero test
+op 70 : { _ , _ }                # pair
 op 50 : λ _ : _ . _
 op 50 : if _ then _ else _
 op 50 : [ _ -> _ ] _
+op 40 : _ . _                    # projection
 op 40 r : _ -> _
 op 30 : _ : _
 op 30 : _ \= _
@@ -32,6 +34,8 @@ syntax do
         | succ t              # successor
         | pred t              # predecessor
         | iszero t            # zero test
+        | { t , t }           # pair
+        | t . 1               # 1st projection
 
     v ::=                     # values
           true

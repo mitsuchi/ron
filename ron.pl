@@ -144,6 +144,7 @@ file_eval(FilePath) :-
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
     parse_syntax(Syntaxes, RestTokens, RestTokens2),
+    !,  % バックトラックを防ぐ
     % トークンリストから評価文脈部分をパーズして評価文脈リストを得る
     parse_context(Contexts, ContextRules, RestTokens2, RestTokens3),
     % 文法リストから予約語リストを得る
@@ -337,7 +338,7 @@ parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
     setup_call_cleanup(
         maplist(assertz, Ops),
         % トークンリストから文法部分をパーズ
-        tokens_syntaxes(Syntaxes, RestTokens, RestTokens2),
+        phrase(tokens_syntaxes(Syntaxes), RestTokens, RestTokens2),
         % 文法定義用の演算子を削除
         maplist(retract, Ops)
     ),
@@ -383,7 +384,7 @@ notation([R]) --> [R], {not(R = newline)}.
 notation([R|Rs]) --> [R], {not(R = newline)}, notation(Rs).
 
 % syntax ::= 'syntax' '{' (pred ';'?)* '}'
-tokens_syntaxes(S) --> [syntax], skip_token([newline]), [open], skip_token([newline]),
+tokens_syntaxes(S) --> skip([newline]), [syntax], skip([newline]), [open], skip([newline]),
     collect_until_brace(Tokens),
     {exclude(=(newline), Tokens, TokensNoSemi)},
     {(parse_syntax_list(TokensNoSemi, S) ->
@@ -395,8 +396,8 @@ tokens_syntaxes(S) --> [syntax], skip_token([newline]), [open], skip_token([newl
         write('Failing at: '), write(FailingInfo), nl,
         halt(1)
     )},
-    skip_token([newline]).
-tokens_syntaxes([]) --> skip_token([newline]).
+    skip([newline]).
+tokens_syntaxes([]) --> [].
 
 % 文法リストをパーズする（::=の項のリストとして認識）
 % トークンを ::= で分割してから、各部分をパーズする
@@ -494,12 +495,12 @@ parse_one_syntax(Tokens, '::='(LHS, RHS)) :-
 % syntax と同じパターンでパース
 tokens_contexts(Contexts, Rules) --> 
     skip([newline]),
-    [context], skip_token([newline]), [open], skip_token([newline]),
+    [context], skip([newline]), [open], skip([newline]),
     collect_until_brace(Tokens),
     {phrase(rules_pred(AllItems), Tokens)},
     {partition_contexts(AllItems, Contexts, Rules)},
-    skip_token([newline]).
-tokens_contexts([], []) --> skip_token([newline]).
+    skip([newline]).
+tokens_contexts([], []) --> skip([newline]).
 
 % アイテムを文法定義とルールに分類
 partition_contexts([], [], []).
@@ -755,13 +756,14 @@ alternative_rule(_Nonterminals, VarName, '<>'(PredicateName), (Head :- Body)) :-
 % 複合項の場合: T(ifthenelse($VAR(t1),$VAR(t2),$VAR(t3))) :- T($VAR(t1)), T($VAR(t2)), T($VAR(t3))
 alternative_rule(Nonterminals, VarName, Alt, (Head :- Body)) :-
     compound(Alt),
-    Alt =.. [Functor | Args],
+    \+ is_dict(Alt),  % 辞書でないことを確認
+    compound_name_arguments(Alt, Functor, Args),
     % 引数ごとに新しい$VAR変数を作る
     length(Args, Len),
     numlist(1, Len, Nums),
     maplist(make_var_from_arg, Args, Nums, NewVars),
     % ヘッドを作る
-    NewAlt =.. [Functor | NewVars],
+    compound_name_arguments(NewAlt, Functor, NewVars),
     Head =.. [VarName, NewAlt],
     % ボディを作る（各引数に対して型チェック）
     maplist(make_body_for_arg(Nonterminals), Args, NewVars, BodyList),
@@ -776,16 +778,20 @@ alternative_rule(_, VarName, Alt, (Head :- true)) :-
 make_var_from_arg(ArgName, Num, '$VAR'(NewName)) :-
     atom(ArgName),
     atom_concat(ArgName, Num, NewName).
+% 数値の引数の場合：そのまま返す
+make_var_from_arg(ArgNum, _Num, ArgNum) :-
+    number(ArgNum).
 % 複合項の引数の場合：再帰的に処理
 make_var_from_arg(ArgTerm, _Num, NewVar) :-
     compound(ArgTerm),
-    ArgTerm =.. [Functor | Args],
+    \+ is_dict(ArgTerm),  % 辞書でないことを確認
+    compound_name_arguments(ArgTerm, Functor, Args),
     % 引数ごとに新しい$VAR変数を作る
     length(Args, Len),
     numlist(1, Len, Nums),
     maplist(make_var_from_arg, Args, Nums, NewArgs),
     % 新しい複合項を作る
-    NewVar =.. [Functor | NewArgs].
+    compound_name_arguments(NewVar, Functor, NewArgs).
 
 % ボディの各項を作る（元の引数と新しい変数から）
 make_body_for_arg(Nonterminals, ArgName, NewVar, Body) :-
@@ -793,10 +799,14 @@ make_body_for_arg(Nonterminals, ArgName, NewVar, Body) :-
     member(ArgName, Nonterminals),
     % 非終端記号をそのまま使用（大文字変換を削除）
     Body =.. [ArgName, NewVar].
+% 数値の引数の場合：ボディは true
+make_body_for_arg(_Nonterminals, ArgNum, _NewVar, true) :-
+    number(ArgNum).
 % 複合項の引数の場合：再帰的に処理
 make_body_for_arg(Nonterminals, ArgTerm, _NewVar, Body) :-
     compound(ArgTerm),
-    ArgTerm =.. [_Functor | Args],
+    \+ is_dict(ArgTerm),  % 辞書でないことを確認
+    compound_name_arguments(ArgTerm, _Functor, Args),
     % 引数ごとに新しい$VAR変数を作る
     length(Args, Len),
     numlist(1, Len, Nums),
@@ -828,7 +838,10 @@ extract_nonterminal('::='(VarName, _), VarName) :-
 % 文法リストから予約語リストを得る
 syntaxes_reserved_words(Syntaxes, ReservedWords2) :-
     extract_left_words(Syntaxes, LeftWords),
-    extract_right_words(Syntaxes, RightWords),
+    (catch(extract_right_words(Syntaxes, RightWords), Error, (
+        write('Error in extract_right_words: '), write(Error), nl,
+        RightWords = []
+    )) -> true ; RightWords = []),
     % RightWords - LeftWords の差集合を計算
     subtract(RightWords, LeftWords, ReservedWords2),
     debug_print('ReservedWords2:', ReservedWords2).
@@ -867,7 +880,8 @@ collect_all_alpha_terms(Term, Words) :-
     Words = [Term].
 collect_all_alpha_terms(Term, Words) :-
     compound(Term),
-    Term =.. [Functor | Args],
+    \+ is_dict(Term),  % 辞書でないことを確認
+    compound_name_arguments(Term, Functor, Args),
     % ファンクターをチェック
     (all_alpha(Functor) -> FunctorWords = [Functor] ; FunctorWords = []),
     % 引数を再帰的に処理
