@@ -690,8 +690,25 @@ tokens_rules(Tokens, Rules) :-
         debug_print('Rules:', Rules)
     ;
         write('error: parse failed (undefined operator or syntax error)'), nl,
-        write('Remaining tokens: '), write(Tokens), nl,
+        % 個別のルールを試行して、どのルールで失敗したかを特定
+        find_failing_rule(Tokens, FailingTokens),
+        write('Failing at: '), write(FailingTokens), nl,
         halt(1)
+    ).
+
+% 失敗したルールを特定する
+find_failing_rule(Tokens, FailingTokens) :-
+    find_failing_rule_impl(Tokens, [], FailingTokens).
+
+find_failing_rule_impl([], Acc, Acc).
+find_failing_rule_impl(Tokens, Acc, FailingTokens) :-
+    % 次のルールを試行
+    (phrase(rule_pred(_), Tokens, RestTokens) ->
+        % 成功した場合、残りを処理
+        find_failing_rule_impl(RestTokens, Acc, FailingTokens)
+    ;
+        % 失敗した場合、現在のトークンが失敗箇所
+        append(Acc, Tokens, FailingTokens)
     ).
 
 % rule ::= pred ';' | pred '{' body '}'
