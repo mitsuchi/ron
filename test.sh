@@ -118,6 +118,7 @@ test_all() {
     run_test "example/tapl.simply-typed-lambda.ron" "T = Bool -> Bool"
     run_test "example/tapl.base-type.ron" "T = (A -> A) -> A -> A"
     run_test "example/tapl.unit.ron" "w = λ d : Unit . d"
+    run_test "example/use-percent-for-newline.ron" "x = 2"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"

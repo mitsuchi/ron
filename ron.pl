@@ -181,13 +181,13 @@ chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars),
     debug_print('Tokens:', Tokens).
 
-% replace ディレクティブをパースして文字を置き換える
-parse_replace([replace, OldChar, as, NewChar, newline | RestTokens], Result) :-
-    atom(OldChar), atom(NewChar),
+% use directive をパースして文字を置き換える
+parse_replace([use, NewChar, for, newline, newline | RestTokens], Result) :-
+    atom(NewChar),
     replace_char_with_newline(RestTokens, NewChar, Result),
-    debug_print('TokensWithNewline (replace directive):', Result).
+    debug_print('TokensWithNewline (use directive):', Result).
 parse_replace(Tokens, Result) :-
-    % replace ディレクティブがない場合は ; を newline に置き換え
+    % use directive がない場合は ; を newline に置き換え
     replace_char_with_newline(Tokens, ';', Result),
     debug_print('TokensWithNewline (default semicolon):', Result).
 
