@@ -819,16 +819,15 @@ find_failing_rule_impl(Tokens, Acc, FailingTokens) :-
         find_failing_rule_impl(RestTokens, Acc, FailingTokens)
     ;
         % 失敗した場合、現在の行（;まで）を取得
-        %take_until_semicolon(Tokens, LineTokens),
-        LineTokens = Tokens,
+        take_until_newline(Tokens, LineTokens),
         append(Acc, LineTokens, FailingTokens)
     ).
 
 % セミコロン（改行）までのトークンを取得
-take_until_semicolon([], []).
-take_until_semicolon([newline|_], [newline]).
-take_until_semicolon([Token|Rest], [Token|Result]) :-
-    take_until_semicolon(Rest, Result).
+take_until_newline([], []).
+take_until_newline([newline|_], [newline]).
+take_until_newline([Token|Rest], [Token|Result]) :-
+    take_until_newline(Rest, Result).
 
 % トークンリストを読みやすい形式に変換
 format_tokens_for_display(Tokens, DisplayString) :-
