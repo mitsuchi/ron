@@ -165,6 +165,6 @@ free x in λy : T. t {
 }
 
 main {
-    (λa: Unit. a) unit // (λc: Unit. c) unit --> w
-    # w = unit
+    (λa: Unit. a) unit // (λc: Unit. c) (λd: Unit. d) --> w
+    # w = λ d : Unit . d
 }

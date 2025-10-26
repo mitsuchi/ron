@@ -117,7 +117,7 @@ test_all() {
     run_test "example/tapl.typed-arithmetic.ron" "T = Nat"
     run_test "example/tapl.simply-typed-lambda.ron" "T = Bool -> Bool"
     run_test "example/tapl.base-type.ron" "T = (A -> A) -> A -> A"
-    run_test "example/tapl.unit.ron" "w = unit"
+    run_test "example/tapl.unit.ron" "w = λ d : Unit . d"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
