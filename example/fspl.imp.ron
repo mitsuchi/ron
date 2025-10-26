@@ -160,7 +160,7 @@ s1 : X = n [m / y] => s2 : X = n {
 }
 
 main {
-    <while 0 < p do (q := q + p ; p := p - 1), φ : p = 10 : q = 0> -> v
+    <while 0 < p do (q := q + p; p := p - 1), φ : p = 10 : q = 0> -> v
     # v = φ : p = 0 : q = 55
 
     # <c, s> の s の部分は変数の状態を表していて
