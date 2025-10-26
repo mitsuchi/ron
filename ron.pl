@@ -692,7 +692,9 @@ tokens_rules(Tokens, Rules) :-
         write('error: parse failed (undefined operator or syntax error)'), nl,
         % 個別のルールを試行して、どのルールで失敗したかを特定
         find_failing_rule(Tokens, FailingTokens),
-        write('Failing at: '), write(FailingTokens), nl,
+        % トークンリストを読みやすい形式に変換
+        format_tokens_for_display(FailingTokens, DisplayString),
+        write('Failing at: '), write(DisplayString), nl,
         halt(1)
     ).
 
@@ -707,9 +709,38 @@ find_failing_rule_impl(Tokens, Acc, FailingTokens) :-
         % 成功した場合、残りを処理
         find_failing_rule_impl(RestTokens, Acc, FailingTokens)
     ;
-        % 失敗した場合、現在のトークンが失敗箇所
-        append(Acc, Tokens, FailingTokens)
+        % 失敗した場合、現在の行（;まで）を取得
+        take_until_semicolon(Tokens, LineTokens),
+        append(Acc, LineTokens, FailingTokens)
     ).
+
+% セミコロン（改行）までのトークンを取得
+take_until_semicolon([], []).
+take_until_semicolon([;|_], [;]).
+take_until_semicolon([Token|Rest], [Token|Result]) :-
+    take_until_semicolon(Rest, Result).
+
+% トークンリストを読みやすい形式に変換
+format_tokens_for_display(Tokens, DisplayString) :-
+    % セミコロンを除去
+    exclude(==(;), Tokens, TokensWithoutSemi),
+    % 各トークンを文字列に変換
+    maplist(format_single_token, TokensWithoutSemi, StringTokens),
+    % 空白で結合
+    atomic_list_concat(StringTokens, ' ', DisplayString).
+
+% 単一トークンを文字列に変換
+format_single_token('$VAR'(VarName), VarName) :- !.
+format_single_token(Token, String) :-
+    atom(Token),
+    !,
+    atom_string(Token, String).
+format_single_token(Token, String) :-
+    number(Token),
+    !,
+    number_string(Token, String).
+format_single_token(Token, String) :-
+    atom_string(Token, String).
 
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
