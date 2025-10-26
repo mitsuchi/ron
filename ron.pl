@@ -239,10 +239,10 @@ var_pattern --> alpha(_), optional(alpha, _), many(digit, _), many(quote, _).
 tokens_ops(Ops, ReservedWords) --> tokens_ops_impl(Ops, ReservedWordsNested), {flatten(ReservedWordsNested, ReservedWords), debug_print('ReservedWords:', ReservedWords)}.
 
 tokens_ops_impl([R|Rs], [RWs|RWsRest]) -->
-    skip(";"),
+    skip([newline]),
     rule_op_with_reserved(R, RWs),
     tokens_ops_impl(Rs, RWsRest).
-tokens_ops_impl([], []) --> skip(";").
+tokens_ops_impl([], []) --> skip([newline]).
 
 % 文法定義用の演算子を一時的に登録してパースし、その後削除する
 parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
@@ -286,24 +286,24 @@ parse_context(Contexts, ContextRules, RestTokens, RestTokens2) :-
 
 % op をパーズして予約語も抽出する
 rule_op_with_reserved(op(Precedence, right, Notation), ReservedWords) -->
-    [op], [Precedence], [r], !, [:], notation(Notation), [;],
+    [op], [Precedence], [r], !, [:], notation(Notation), [newline],
     {findall(Word, (member(Word, Notation), atom(Word), all_alpha(Word)), ReservedWords1),
      append([op, r], ReservedWords1, ReservedWords)}.
 rule_op_with_reserved(op(Precedence, left, Notation), ReservedWords) -->
-    [op], [Precedence], [:], notation(Notation), [;],
+    [op], [Precedence], [:], notation(Notation), [newline],
     {findall(Word, (member(Word, Notation), atom(Word), all_alpha(Word)), ReservedWords1),
      append([op], ReservedWords1, ReservedWords)}.
 
-notation([R]) --> [R], {not(R = ';')}.
-notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
+notation([R]) --> [R], {not(R = newline)}.
+notation([R|Rs]) --> [R], {not(R = newline)}, notation(Rs).
 
 % syntax ::= 'syntax' '{' (pred ';'?)* '}'
-tokens_syntaxes(S) --> [syntax], skip_token(;), ['{'], skip_token(;),
+tokens_syntaxes(S) --> [syntax], skip_token([newline]), ['{'], skip_token([newline]),
     collect_until_brace(Tokens),
-    {exclude(=(;), Tokens, TokensNoSemi)},
+    {exclude(=(newline), Tokens, TokensNoSemi)},
     {parse_syntax_list(TokensNoSemi, S)},
-    skip_token(;).
-tokens_syntaxes([]) --> skip_token(;).
+    skip_token([newline]).
+tokens_syntaxes([]) --> skip_token([newline]).
 
 % 文法リストをパーズする（::=の項のリストとして認識）
 % トークンを ::= で分割してから、各部分をパーズする
@@ -341,12 +341,12 @@ parse_one_syntax(Tokens, '::='(LHS, RHS)) :-
 
 % context ::= 'context' '{' (定義 | ルール)* '}'
 % syntax と同じパターンでパース
-tokens_contexts(Contexts, Rules) --> [context], skip_token(;), ['{'], skip_token(;),
+tokens_contexts(Contexts, Rules) --> [context], skip_token([newline]), ['{'], skip_token([newline]),
     collect_until_brace(Tokens),
     {phrase(rules_pred(AllItems), Tokens)},
     {partition_contexts(AllItems, Contexts, Rules)},
-    skip_token(;).
-tokens_contexts([], []) --> skip_token(;).
+    skip_token([newline]).
+tokens_contexts([], []) --> skip_token([newline]).
 
 % アイテムを文法定義とルールに分類
 partition_contexts([], [], []).
@@ -797,20 +797,21 @@ find_failing_rule_impl(Tokens, Acc, FailingTokens) :-
         find_failing_rule_impl(RestTokens, Acc, FailingTokens)
     ;
         % 失敗した場合、現在の行（;まで）を取得
-        take_until_semicolon(Tokens, LineTokens),
+        %take_until_semicolon(Tokens, LineTokens),
+        LineTokens = Tokens,
         append(Acc, LineTokens, FailingTokens)
     ).
 
 % セミコロン（改行）までのトークンを取得
 take_until_semicolon([], []).
-take_until_semicolon([;|_], [;]).
+take_until_semicolon([newline|_], [newline]).
 take_until_semicolon([Token|Rest], [Token|Result]) :-
     take_until_semicolon(Rest, Result).
 
 % トークンリストを読みやすい形式に変換
 format_tokens_for_display(Tokens, DisplayString) :-
     % セミコロンを除去
-    exclude(==(;), Tokens, TokensWithoutSemi),
+    exclude(==([newline]), Tokens, TokensWithoutSemi),
     % 各トークンを文字列に変換
     maplist(format_single_token, TokensWithoutSemi, StringTokens),
     % 空白で結合
@@ -831,14 +832,14 @@ format_single_token(Token, String) :-
 
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
-rules_pred([R | Rs]) --> skip(";"), rule_pred(R), rules_pred(Rs).
-rules_pred([]) --> skip(";").
+rules_pred([R | Rs]) --> skip([newline]), rule_pred(R), rules_pred(Rs).
+rules_pred([]) --> skip([newline]).
 
-rule_pred(P :- true) --> pred(P), ";".
-rule_pred(P :- B) --> pred(P), "{", skip(";"), body(B), "}".
+rule_pred(P :- true) --> pred(P), [newline].
+rule_pred(P :- B) --> pred(P), "{", skip([newline]), body(B), "}".
 
-body(P) --> pred(P), skip(";").
-body((P,Bs)) --> pred(P), ";", body(Bs).
+body(P) --> pred(P), skip([newline]).
+body((P,Bs)) --> pred(P), [newline], body(Bs).
 
 % 述語をパーズして結果の項を O に入れる
 % 現在の優先順位を考えられる最低にして式をパーズする。::= が -2 だったりするので。
@@ -846,7 +847,7 @@ pred(O) --> e(-100, O).
 
 % tokenize
 tokens(Ts) --> " ", tokens(Ts).
-tokens([;|Ts]) --> comment, !, tokens(Ts).
+tokens([newline|Ts]) --> comment, !, tokens(Ts).
 tokens([T|Ts]) --> token(T), !, tokens(Ts).
 tokens([]) --> "".
 
@@ -858,7 +859,7 @@ skip_until_newline --> [C], {C \= '\n'}, skip_until_newline.
 token(N) --> num(N).
 % 区切り文字っぽい記号は一つずつ別のトークンとする
 % たとえば (pred (succ 0)) の最後の )) が一つのトークンと見なされるのを避ける
-token(;) --> ['\n'].
+token(newline) --> ['\n'].
 token(;) --> ";".
 token('(') --> "(".
 token(')') --> ")".
@@ -954,7 +955,7 @@ a(P,T,R) :- R=..[P|T].
 
 % 式を構成するトークンかどうか
 is_expression_token(Token) :-
-    not(Token = ';'),
+    not(Token = newline),
     not(Token = '{'),
     not(Token = '}').
 
