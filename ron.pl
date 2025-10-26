@@ -386,7 +386,15 @@ notation([R|Rs]) --> [R], {not(R = newline)}, notation(Rs).
 tokens_syntaxes(S) --> [syntax], skip_token([newline]), [open], skip_token([newline]),
     collect_until_brace(Tokens),
     {exclude(=(newline), Tokens, TokensNoSemi)},
-    {parse_syntax_list(TokensNoSemi, S)},
+    {(parse_syntax_list(TokensNoSemi, S) ->
+        true
+    ;
+        write('error: parse failed in syntax block (undefined operator or syntax error)'), nl,
+        % syntaxブロック内のエラーを詳細に表示
+        find_syntax_failing_point(TokensNoSemi, FailingInfo),
+        write('Failing at: '), write(FailingInfo), nl,
+        halt(1)
+    )},
     skip_token([newline]).
 tokens_syntaxes([]) --> skip_token([newline]).
 
@@ -416,6 +424,64 @@ split_at_next_lhs([Token, '::='|Rest], [], [Token, '::='|Rest]) :-
     !.
 split_at_next_lhs([Token|Rest], [Token|RHS], Remaining) :-
     split_at_next_lhs(Rest, RHS, Remaining).
+
+% syntaxブロック内の失敗箇所を特定する
+find_syntax_failing_point(Tokens, FailingInfo) :-
+    find_syntax_failing_point_impl(Tokens, [], FailingInfo).
+
+find_syntax_failing_point_impl([], Acc, Acc).
+find_syntax_failing_point_impl(Tokens, Acc, FailingInfo) :-
+    % 文法定義を分割してチェック
+    split_by_syntax_def(Tokens, Defs),
+    find_first_failing_def(Defs, FailingDef),
+    format_tokens_for_display(FailingDef, DisplayString),
+    append(Acc, [DisplayString], FailingInfo).
+
+% 最初に失敗する文法定義を見つける
+find_first_failing_def([], []).
+find_first_failing_def([Def|Rest], FailingDef) :-
+    % 文法定義をパーズしてみる
+    (parse_one_syntax(Def, _) ->
+        % 成功した場合は次の定義をチェック
+        find_first_failing_def(Rest, FailingDef)
+    ;
+        % 失敗した場合は、右辺の各部分をチェック
+        find_failing_rhs_part(Def, FailingDef)
+    ).
+
+% 文法定義の右辺で失敗する部分を見つける
+find_failing_rhs_part(Def, FailingPart) :-
+    Def = [LHS, '::='|RHSTokens],
+    % 右辺を | で分割
+    split_rhs_by_pipe(RHSTokens, RHSLines),
+    find_first_failing_rhs_line(RHSLines, FailingLine),
+    % LHS ::= を前に付ける
+    append([LHS, '::='], FailingLine, FailingPart).
+
+% 右辺を | で分割する
+split_rhs_by_pipe(Tokens, Lines) :-
+    split_rhs_by_pipe_impl(Tokens, [], Lines).
+
+split_rhs_by_pipe_impl([], Acc, Acc).
+split_rhs_by_pipe_impl(Tokens, Acc, Lines) :-
+    append(Line, ['|'|Rest], Tokens),
+    !,
+    append(Acc, [Line], NewAcc),
+    split_rhs_by_pipe_impl(Rest, NewAcc, Lines).
+split_rhs_by_pipe_impl(Tokens, Acc, Lines) :-
+    append(Acc, [Tokens], Lines).
+
+% 最初に失敗する右辺の行を見つける
+find_first_failing_rhs_line([], []).
+find_first_failing_rhs_line([Line|Rest], FailingLine) :-
+    % 行をパーズしてみる
+    (phrase(pred(_), Line) ->
+        % 成功した場合は次の行をチェック
+        find_first_failing_rhs_line(Rest, FailingLine)
+    ;
+        % 失敗した場合はこの行を返す
+        FailingLine = Line
+    ).
 
 % 1つの文法定義をパーズする
 parse_one_syntax(Tokens, '::='(LHS, RHS)) :-
@@ -864,12 +930,34 @@ tokens_rules(Tokens, Rules) :-
         debug_print_rules('Rules:', Rules)
     ;
         write('error: parse failed (undefined operator or syntax error)'), nl,
-        % 個別のルールを試行して、どのルールで失敗したかを特定
-        find_failing_rule(Tokens, FailingTokens),
-        % トークンリストを読みやすい形式に変換
-        format_tokens_for_display(FailingTokens, DisplayString),
-        write('Failing at: '), write(DisplayString), nl,
+        % より詳細なエラー情報を取得
+        find_detailed_failing_point(Tokens, FailingInfo),
+        write('Failing at: '), write(FailingInfo), nl,
         halt(1)
+    ).
+
+% より詳細な失敗箇所を特定する
+find_detailed_failing_point(Tokens, FailingInfo) :-
+    find_detailed_failing_point_impl(Tokens, [], FailingInfo).
+
+find_detailed_failing_point_impl([], Acc, Acc).
+find_detailed_failing_point_impl(Tokens, Acc, FailingInfo) :-
+    % 次のルールを試行
+    (phrase(rule_pred(_), Tokens, RestTokens) ->
+        % 成功した場合、残りを処理
+        find_detailed_failing_point_impl(RestTokens, Acc, FailingInfo)
+    ;
+        % 失敗した場合、現在の行（改行まで）を取得
+        take_until_newline(Tokens, LineTokens),
+        (LineTokens = [] ->
+            % 行が空の場合は最初の数個のトークンを表示
+            take_first_tokens(Tokens, 10, LineTokens)
+        ;
+            true
+        ),
+        % トークンリストを読みやすい形式に変換
+        format_tokens_for_display(LineTokens, DisplayString),
+        append(Acc, [DisplayString], FailingInfo)
     ).
 
 % 失敗したルールを特定する
