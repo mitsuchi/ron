@@ -12,7 +12,7 @@ run :-
     % デバッグモードをチェック
     (member('--debug', Argv) ->
         nb_setval(debug_mode, true),
-        delete(Argv, '--debug', Argv2)
+        select('--debug', Argv, Argv2)
     ;
         nb_setval(debug_mode, false),
         Argv2 = Argv
@@ -136,8 +136,10 @@ file_eval(FilePath) :-
     string_chars(String, Chars),
     % 文字リストをトークンリストにする
     chars_tokens(Chars, Tokens),
+    % トークンリストから replace ディレクティブをパースして置き換え
+    parse_replace(Tokens, TokensWithNewline),
     % トークンリストから演算子リストをパーズして残りトークンリストと予約語リストを得る
-    tokens_ops(Ops, ReservedWords, Tokens, RestTokens),
+    tokens_ops(Ops, ReservedWords, TokensWithNewline, RestTokens),
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
@@ -178,6 +180,24 @@ file_eval(FilePath) :-
 chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars),
     debug_print('Tokens:', Tokens).
+
+% replace ディレクティブをパースして文字を置き換える
+parse_replace([replace, OldChar, as, NewChar, newline | RestTokens], Result) :-
+    atom(OldChar), atom(NewChar),
+    replace_char_with_newline(RestTokens, NewChar, Result),
+    debug_print('TokensWithNewline (replace directive):', Result).
+parse_replace(Tokens, Result) :-
+    % replace ディレクティブがない場合は ; を newline に置き換え
+    replace_char_with_newline(Tokens, ';', Result),
+    debug_print('TokensWithNewline (default semicolon):', Result).
+
+% 指定された文字を newline に置き換える
+replace_char_with_newline([], _, []).
+replace_char_with_newline([Char|Rest], Char, [newline|Result]) :-
+    replace_char_with_newline(Rest, Char, Result).
+replace_char_with_newline([Token|Rest], Char, [Token|Result]) :-
+    Token \= Char,
+    replace_char_with_newline(Rest, Char, Result).
 
 % 予約語リストをマージしてユニーク化（main も含める）
 merge_reserved_words(ReservedWords1, ReservedWords2, MergedWords) :-
