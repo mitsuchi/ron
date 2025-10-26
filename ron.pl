@@ -921,6 +921,8 @@ format_tokens_for_display(Tokens, DisplayString) :-
 
 % 単一トークンを文字列に変換
 format_single_token('$VAR'(VarName), VarName) :- !.
+format_single_token(open, '{') :- !.
+format_single_token(close, '}') :- !.
 format_single_token(Token, String) :-
     atom(Token),
     !,
