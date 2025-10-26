@@ -189,8 +189,8 @@ parse_use_directive(Tokens, Result) :-
     replace_tokens(RestTokens, Replacements, Result),
     debug_print('TokensWithReplacements:', Result).
 parse_use_directive(Tokens, Result) :-
-    % use directive がない場合は ; を newline に置き換え
-    replace_tokens(Tokens, [(';', newline)], Result),
+    % use directive がない場合は ; を newline に、{ } を open/close に置き換え
+    replace_tokens(Tokens, [(';', newline), ('{', open), ('}', close)], Result),
     debug_print('TokensWithNewline (default semicolon):', Result).
 
 % 先頭行から連続するコメント行の直後にある use directive を探す
@@ -212,7 +212,7 @@ find_use_directives_impl([use, OldChar, for, NewChar, newline | Rest], Acc, Repl
 % パターン2: use <token1> <token2> for block
 find_use_directives_impl([use, OpenChar, CloseChar, for, block, newline | Rest], Acc, Replacements, RestTokens) :-
     atom(OpenChar), atom(CloseChar),
-    find_use_directives_impl(Rest, [(CloseChar, '}'), (OpenChar, '{')|Acc], Replacements, RestTokens).
+    find_use_directives_impl(Rest, [(CloseChar, close), (OpenChar, open)|Acc], Replacements, RestTokens).
 
 % コメント行をスキップ
 find_use_directives_impl(['#' | Rest], Acc, Replacements, RestTokens) :-
@@ -224,7 +224,26 @@ find_use_directives_impl(Tokens, Acc, Replacements, Tokens) :-
     Tokens \= [newline|_],
     Tokens \= [use|_],
     Tokens \= ['#'|_],
-    reverse(Acc, Replacements).
+    % use % for newline が指定されているかチェック
+    (member(('%', newline), Acc) ->
+        % use % for newline が指定されている場合は ; を newline に置き換えない
+        (member((open, _), Acc) ; member((_, open), Acc) ->
+            % 既に open が置き換えリストにある場合はそのまま
+            reverse(Acc, Replacements)
+        ;
+            % open がない場合は { } を open/close に追加
+            reverse([('}', close), ('{', open)|Acc], Replacements)
+        )
+    ;
+        % use % for newline が指定されていない場合は ; を newline に置き換え
+        (member((open, _), Acc) ; member((_, open), Acc) ->
+            % 既に open が置き換えリストにある場合は ; を newline に追加
+            reverse([(';', newline)|Acc], Replacements)
+        ;
+            % open がない場合は { } を open/close に追加、; を newline に追加
+            reverse([('}', close), ('{', open), (';', newline)|Acc], Replacements)
+        )
+    ).
 
 % コメント行をスキップ（# から newline まで）
 skip_comment_line([newline | Rest], Rest).
@@ -364,7 +383,7 @@ notation([R]) --> [R], {not(R = newline)}.
 notation([R|Rs]) --> [R], {not(R = newline)}, notation(Rs).
 
 % syntax ::= 'syntax' '{' (pred ';'?)* '}'
-tokens_syntaxes(S) --> [syntax], skip_token([newline]), ['{'], skip_token([newline]),
+tokens_syntaxes(S) --> [syntax], skip_token([newline]), [open], skip_token([newline]),
     collect_until_brace(Tokens),
     {exclude(=(newline), Tokens, TokensNoSemi)},
     {parse_syntax_list(TokensNoSemi, S)},
@@ -409,7 +428,7 @@ parse_one_syntax(Tokens, '::='(LHS, RHS)) :-
 % syntax と同じパターンでパース
 tokens_contexts(Contexts, Rules) --> 
     skip([newline]),
-    [context], skip_token([newline]), ['{'], skip_token([newline]),
+    [context], skip_token([newline]), [open], skip_token([newline]),
     collect_until_brace(Tokens),
     {phrase(rules_pred(AllItems), Tokens)},
     {partition_contexts(AllItems, Contexts, Rules)},
@@ -561,10 +580,10 @@ skip_token(_) --> [].
 collect_until_brace(Tokens) --> collect_until_brace_impl(0, 0, Tokens).
 
 % Depth1: {} のネスト, Depth2: [] のネスト
-collect_until_brace_impl(0, 0, []) --> ['}'], !.
+collect_until_brace_impl(0, 0, []) --> [close], !.
 collect_until_brace_impl(Depth1, Depth2, [T|Ts]) --> [T],
-    {(T = '{' -> NewDepth1 is Depth1 + 1, NewDepth2 = Depth2
-     ; T = '}' -> NewDepth1 is Depth1 - 1, NewDepth2 = Depth2
+    {(T = open -> NewDepth1 is Depth1 + 1, NewDepth2 = Depth2
+     ; T = close -> NewDepth1 is Depth1 - 1, NewDepth2 = Depth2
      ; T = '[' -> NewDepth1 = Depth1, NewDepth2 is Depth2 + 1
      ; T = ']' -> NewDepth1 = Depth1, NewDepth2 is Depth2 - 1
      ; NewDepth1 = Depth1, NewDepth2 = Depth2)},
@@ -919,7 +938,7 @@ rules_pred([R | Rs]) --> skip([newline]), rule_pred(R), rules_pred(Rs).
 rules_pred([]) --> skip([newline]).
 
 rule_pred(P :- true) --> pred(P), [newline].
-rule_pred(P :- B) --> pred(P), "{", skip([newline]), body(B), "}".
+rule_pred(P :- B) --> pred(P), [open], skip([newline]), body(B), [close].
 
 body(P) --> pred(P), skip([newline]).
 body((P,Bs)) --> pred(P), [newline], body(Bs).
@@ -1039,8 +1058,8 @@ a(P,T,R) :- R=..[P|T].
 % 式を構成するトークンかどうか
 is_expression_token(Token) :-
     not(Token = newline),
-    not(Token = '{'),
-    not(Token = '}').
+    not(Token = open),
+    not(Token = close).
 
 % 関数適用の左辺の最初の項として有効なトークンかどうか
 is_function_left_side(Token) :-
@@ -1048,7 +1067,7 @@ is_function_left_side(Token) :-
      variable(Token) ; 
      all_alpha(Token) ; 
      Token = '(' ; 
-     Token = '{').
+     Token = open).
 
 variable(U) :- U = '$VAR'(_).
 
