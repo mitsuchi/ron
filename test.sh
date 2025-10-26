@@ -120,6 +120,7 @@ test_all() {
     run_test "example/tapl.unit.ron" "w = λ d : Unit . d"
     run_test "example/use-percent-for-newline.ron" "x = 2"
     run_test "example/tapl.ascription.ron" "w = unit"
+    run_test "example/tapl.let.ron" "w = true"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
