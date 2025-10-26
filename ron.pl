@@ -136,8 +136,8 @@ file_eval(FilePath) :-
     string_chars(String, Chars),
     % 文字リストをトークンリストにする
     chars_tokens(Chars, Tokens),
-    % トークンリストから replace ディレクティブをパースして置き換え
-    parse_replace(Tokens, TokensWithNewline),
+    % トークンリストから use ディレクティブをパースして置き換え
+    parse_use_directive(Tokens, TokensWithNewline),
     % トークンリストから演算子リストをパーズして残りトークンリストと予約語リストを得る
     tokens_ops(Ops, ReservedWords, TokensWithNewline, RestTokens),
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
@@ -182,11 +182,11 @@ chars_tokens(Chars, Tokens) :-
     debug_print('Tokens:', Tokens).
 
 % use directive をパースして文字を置き換える
-parse_replace([use, NewChar, for, newline, newline | RestTokens], Result) :-
+parse_use_directive([use, NewChar, for, newline, newline | RestTokens], Result) :-
     atom(NewChar),
     replace_char_with_newline(RestTokens, NewChar, Result),
     debug_print('TokensWithNewline (use directive):', Result).
-parse_replace(Tokens, Result) :-
+parse_use_directive(Tokens, Result) :-
     % use directive がない場合は ; を newline に置き換え
     replace_char_with_newline(Tokens, ';', Result),
     debug_print('TokensWithNewline (default semicolon):', Result).
