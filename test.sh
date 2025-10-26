@@ -121,6 +121,8 @@ test_all() {
     run_test "example/use-percent-for-newline.ron" "x = 2"
     run_test "example/tapl.ascription.ron" "w = unit"
     run_test "example/tapl.let.ron" "w = true"
+    run_test "example/use-do-end-for-block.ron" "x = 2"
+    run_test "example/multiple_use.ron" "x = 2"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"

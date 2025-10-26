@@ -1,0 +1,11 @@
+# Test multiple use directives
+use % for newline
+use do end for block
+
+op 50 : _ -> _
+
+1 -> 2  %  2 -> 3
+
+main do
+    1 -> x
+end

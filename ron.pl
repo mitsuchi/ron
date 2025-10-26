@@ -183,47 +183,67 @@ chars_tokens(Chars, Tokens) :-
 
 % use directive をパースして文字を置き換える
 parse_use_directive(Tokens, Result) :-
-    find_use_directive(Tokens, NewChar, RestTokens),
+    find_use_directives(Tokens, Replacements, RestTokens),
+    Replacements \= [],
     !,
-    replace_char_with_newline(RestTokens, NewChar, Result),
-    debug_print('TokensWithNewline (use directive):', Result).
+    replace_tokens(RestTokens, Replacements, Result),
+    debug_print('TokensWithReplacements:', Result).
 parse_use_directive(Tokens, Result) :-
     % use directive がない場合は ; を newline に置き換え
-    replace_char_with_newline(Tokens, ';', Result),
+    replace_tokens(Tokens, [(';', newline)], Result),
     debug_print('TokensWithNewline (default semicolon):', Result).
 
 % 先頭行から連続するコメント行の直後にある use directive を探す
-find_use_directive(Tokens, NewChar, RestTokens) :-
-    find_use_directive_impl(Tokens, NewChar, RestTokens).
+find_use_directives(Tokens, Replacements, RestTokens) :-
+    find_use_directives_impl(Tokens, Replacements, RestTokens).
 
-% コメント行をスキップして use directive を探す
-find_use_directive_impl([newline | Rest], NewChar, RestTokens) :-
-    find_use_directive_impl(Rest, NewChar, RestTokens).
-find_use_directive_impl([use, NewChar, for, newline, newline | RestTokens], NewChar, RestTokens) :-
-    atom(NewChar).
-% コメント行をスキップ（# から newline まで）
-find_use_directive_impl(['#' | Rest], NewChar, RestTokens) :-
+% 複数の use directive を探す
+find_use_directives_impl(Tokens, Replacements, RestTokens) :-
+    find_use_directives_impl(Tokens, [], Replacements, RestTokens).
+
+find_use_directives_impl([newline | Rest], Acc, Replacements, RestTokens) :-
+    find_use_directives_impl(Rest, Acc, Replacements, RestTokens).
+
+% パターン1: use <token> for <target>
+find_use_directives_impl([use, OldChar, for, NewChar, newline | Rest], Acc, Replacements, RestTokens) :-
+    atom(OldChar), atom(NewChar),
+    find_use_directives_impl(Rest, [(OldChar, NewChar)|Acc], Replacements, RestTokens).
+
+% パターン2: use <token1> <token2> for block
+find_use_directives_impl([use, OpenChar, CloseChar, for, block, newline | Rest], Acc, Replacements, RestTokens) :-
+    atom(OpenChar), atom(CloseChar),
+    find_use_directives_impl(Rest, [(CloseChar, '}'), (OpenChar, '{')|Acc], Replacements, RestTokens).
+
+% コメント行をスキップ
+find_use_directives_impl(['#' | Rest], Acc, Replacements, RestTokens) :-
     skip_comment_line(Rest, AfterComment),
-    find_use_directive_impl(AfterComment, NewChar, RestTokens).
-find_use_directive_impl([Token | _Rest], _NewChar, _RestTokens) :-
-    % コメント以外のトークンが見つかった場合は失敗
-    Token \= newline,
-    Token \= use,
-    Token \= '#',
-    fail.
+    find_use_directives_impl(AfterComment, Acc, Replacements, RestTokens).
+
+% use ディレクティブの終了
+find_use_directives_impl(Tokens, Acc, Replacements, Tokens) :-
+    Tokens \= [newline|_],
+    Tokens \= [use|_],
+    Tokens \= ['#'|_],
+    reverse(Acc, Replacements).
 
 % コメント行をスキップ（# から newline まで）
 skip_comment_line([newline | Rest], Rest).
 skip_comment_line([_ | Rest], AfterComment) :-
     skip_comment_line(Rest, AfterComment).
 
-% 指定された文字を newline に置き換える
-replace_char_with_newline([], _, []).
-replace_char_with_newline([Char|Rest], Char, [newline|Result]) :-
-    replace_char_with_newline(Rest, Char, Result).
-replace_char_with_newline([Token|Rest], Char, [Token|Result]) :-
-    Token \= Char,
-    replace_char_with_newline(Rest, Char, Result).
+% 複数のトークン置き換えを処理する
+replace_tokens([], _, []).
+replace_tokens([Token|Rest], Replacements, [NewToken|Result]) :-
+    (member((Token, NewToken), Replacements) ->
+        true
+    ;
+        NewToken = Token
+    ),
+    replace_tokens(Rest, Replacements, Result).
+
+% 指定された文字を newline に置き換える（後方互換性のため）
+replace_char_with_newline(Tokens, Char, Result) :-
+    replace_tokens(Tokens, [(Char, newline)], Result).
 
 % 予約語リストをマージしてユニーク化（main も含める）
 merge_reserved_words(ReservedWords1, ReservedWords2, MergedWords) :-

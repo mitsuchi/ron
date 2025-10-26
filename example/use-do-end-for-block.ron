@@ -1,0 +1,11 @@
+# test1
+# test2
+use do end for block
+
+op 50 : _ -> _
+
+1 -> 2
+
+main do
+    1 -> x
+end
