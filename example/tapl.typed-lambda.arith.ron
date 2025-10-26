@@ -124,6 +124,10 @@ t1 --> t2 {
      [x -> s] t2 => t2'
 }
 
+# true と false はそのまま
+[x -> s] true => true
+[x -> s] false => false
+
 # succ t は、t の中で置き換える
 [x -> s] (succ t1) => succ t1' {
      [x -> s] t1 => t1'
@@ -171,9 +175,6 @@ t1 --> t2 {
     [y -> z] t1 => t3
     [x -> s] t3 => t2
 }
-
-# それ以外はそのまま: true と false など
-[x -> s] t => t
 
 # free x in t : 項 t に x が自由変数として出現する
 free x in x
