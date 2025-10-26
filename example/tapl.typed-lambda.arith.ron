@@ -1,4 +1,4 @@
-# simply typed lambda calculus : pair
+# simply typed lambda calculus : arithmetic expression
 
 op 99 : _ _
 op 90 : not _
