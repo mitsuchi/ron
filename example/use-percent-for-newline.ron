@@ -1,0 +1,10 @@
+# test1
+# test2
+use % for newline
+op 50 : _ -> _
+
+1 -> 2 % 2 -> 3
+
+main {
+    1 -> x
+}

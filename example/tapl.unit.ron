@@ -1,4 +1,5 @@
 # simply typed lambda calculus : the unit type
+use % for newline
 
 op 99 : _ _
 op 90 : not _
@@ -8,7 +9,7 @@ op 50 : λ _ : _ . _
 op 50 : [ _ -> _ ] _
 op 30 : _ : _
 op 30 : _ \= _
-op 25 : _ // _
+op 25 : _ ; _
 op 20 : _ , _
 op 15 : _ : _ ∈ _
 op 10 : _ ⊢ _ : _
@@ -49,9 +50,9 @@ syntax {
 }
 
 # derived form 
-# t1 // t2 は (λ x : Unit. t2) t1 の糖衣構文
+# t1 ; t2 は (λ x : Unit. t2) t1 の糖衣構文
 # ただし x は t2 の中に自由変数として現れない
-(t1 // t2) --> t3 {
+(t1 ; t2) --> t3 {
     <not (free x in t2)>    
     (λ x : Unit. t2) t1 --> t3
 }
@@ -165,6 +166,6 @@ free x in λy : T. t {
 }
 
 main {
-    (λa: Unit. a) unit // (λc: Unit. c) (λd: Unit. d) --> w
+    (λa: Unit. a) unit ; (λc: Unit. c) (λd: Unit. d) --> w
     # w = λ d : Unit . d
 }

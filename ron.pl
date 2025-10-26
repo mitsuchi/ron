@@ -182,14 +182,40 @@ chars_tokens(Chars, Tokens) :-
     debug_print('Tokens:', Tokens).
 
 % use directive をパースして文字を置き換える
-parse_use_directive([use, NewChar, for, newline, newline | RestTokens], Result) :-
-    atom(NewChar),
+parse_use_directive(Tokens, Result) :-
+    find_use_directive(Tokens, NewChar, RestTokens),
+    !,
     replace_char_with_newline(RestTokens, NewChar, Result),
     debug_print('TokensWithNewline (use directive):', Result).
 parse_use_directive(Tokens, Result) :-
     % use directive がない場合は ; を newline に置き換え
     replace_char_with_newline(Tokens, ';', Result),
     debug_print('TokensWithNewline (default semicolon):', Result).
+
+% 先頭行から連続するコメント行の直後にある use directive を探す
+find_use_directive(Tokens, NewChar, RestTokens) :-
+    find_use_directive_impl(Tokens, NewChar, RestTokens).
+
+% コメント行をスキップして use directive を探す
+find_use_directive_impl([newline | Rest], NewChar, RestTokens) :-
+    find_use_directive_impl(Rest, NewChar, RestTokens).
+find_use_directive_impl([use, NewChar, for, newline, newline | RestTokens], NewChar, RestTokens) :-
+    atom(NewChar).
+% コメント行をスキップ（# から newline まで）
+find_use_directive_impl(['#' | Rest], NewChar, RestTokens) :-
+    skip_comment_line(Rest, AfterComment),
+    find_use_directive_impl(AfterComment, NewChar, RestTokens).
+find_use_directive_impl([Token | _Rest], _NewChar, _RestTokens) :-
+    % コメント以外のトークンが見つかった場合は失敗
+    Token \= newline,
+    Token \= use,
+    Token \= '#',
+    fail.
+
+% コメント行をスキップ（# から newline まで）
+skip_comment_line([newline | Rest], Rest).
+skip_comment_line([_ | Rest], AfterComment) :-
+    skip_comment_line(Rest, AfterComment).
 
 % 指定された文字を newline に置き換える
 replace_char_with_newline([], _, []).
