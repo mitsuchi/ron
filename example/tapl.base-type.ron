@@ -145,7 +145,6 @@ free x in λy : T. t {
 }
 
 main {
-    #< (A -> A -> A -> A) = T >
     φ ⊢ λf:A->A. λa:A. f (f a) : T
     # T = A -> A -> (A -> A)
 }
