@@ -690,6 +690,7 @@ tokens_rules(Tokens, Rules) :-
         debug_print('Rules:', Rules)
     ;
         write('error: parse failed (undefined operator or syntax error)'), nl,
+        write('Remaining tokens: '), write(Tokens), nl,
         halt(1)
     ).
 
