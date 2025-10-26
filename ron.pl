@@ -154,7 +154,6 @@ tokens_ops(Ops, ReservedWords) --> tokens_ops_impl(Ops, ReservedWordsNested), {f
 tokens_ops_impl([R|Rs], [RWs|RWsRest]) -->
     skip(";"),
     rule_op_with_reserved(R, RWs),
-    !,
     tokens_ops_impl(Rs, RWsRest).
 tokens_ops_impl([], []) --> skip(";").
 
@@ -199,9 +198,14 @@ parse_context(Contexts, ContextRules, RestTokens, RestTokens2) :-
 
 
 % op をパーズして予約語も抽出する
-rule_op_with_reserved(op(Precedence, Notation), ReservedWords) -->
-    [op], [Precedence], ":", notation(Notation), ";",
-    {findall(Word, (member(Word, Notation), atom(Word), all_alpha(Word)), ReservedWords)}.
+rule_op_with_reserved(op(Precedence, right, Notation), ReservedWords) -->
+    [op], [Precedence], [r], !, [:], notation(Notation), [;],
+    {findall(Word, (member(Word, Notation), atom(Word), all_alpha(Word)), ReservedWords1),
+     append([op, r], ReservedWords1, ReservedWords)}.
+rule_op_with_reserved(op(Precedence, left, Notation), ReservedWords) -->
+    [op], [Precedence], [:], notation(Notation), [;],
+    {findall(Word, (member(Word, Notation), atom(Word), all_alpha(Word)), ReservedWords1),
+     append([op], ReservedWords1, ReservedWords)}.
 
 notation([R]) --> [R], {not(R = ';')}.
 notation([R|Rs]) --> [R], {not(R = ';')}, notation(Rs).
@@ -411,18 +415,43 @@ collect_until_brace_impl(Depth1, Depth2, [T|Ts]) --> [T],
      ; NewDepth1 = Depth1, NewDepth2 = Depth2)},
     collect_until_brace_impl(NewDepth1, NewDepth2, Ts).
 
-assert_op(op(Prec, ['_' | Ns])) :-
+assert_op(op(Prec, right, ['_' | Ns])) :-
+    replace_underscore_list(Ns, Prec, Ns_),
+    concat_without_underscores(Ns, Punct),
+    % 右結合の場合、前方結合力を1増やす
+    PrecRight is Prec + 1,
+    Term = ops(a(Punct), Prec, following, [PrecRight|Ns_]),
+    assertz(Term).
+assert_op(op(Prec, left, ['_' | Ns])) :-
     replace_underscore_list(Ns, Prec, Ns_),
     concat_without_underscores(Ns, Punct),
     Term = ops(a(Punct), Prec, following, [Prec|Ns_]),
     assertz(Term).
-assert_op(op(Prec, [N | Ns])) :-
+assert_op(op(Prec, right, [N | Ns])) :-
+    N \= '_',
+    replace_underscore_list(Ns, Prec, Ns_),
+    concat_without_underscores([N|Ns], Punct),
+    % 右結合の場合、前方結合力を1増やす
+    PrecRight is Prec + 1,
+    % leading の場合、Ns_ の最初の数値を更新
+    update_leading_precedence(Ns_, PrecRight, Ns_Updated),
+    Term = ops(a(Punct), Prec, leading, [N|Ns_Updated]),
+    assertz(Term).
+assert_op(op(Prec, left, [N | Ns])) :-
     N \= '_',
     replace_underscore_list(Ns, Prec, Ns_),
     concat_without_underscores([N|Ns], Punct),
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     assertz(Term).
 assert_op(_ :- _).
+
+% leading の場合の最初の数値を更新するヘルパー関数
+update_leading_precedence([], _, []).
+update_leading_precedence([H|T], NewPrec, [NewPrec|T]) :-
+    number(H).
+update_leading_precedence([H|T], NewPrec, [H|UpdatedT]) :-
+    \+ number(H),
+    update_leading_precedence(T, NewPrec, UpdatedT).
 
 % 文法リストから新たに登録するべきルールリストを作る
 syntaxes_rules(Syntaxes, RulesForSyntax) :-

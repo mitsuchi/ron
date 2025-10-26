@@ -1,9 +1,9 @@
-# simply typed lambda calculus over booleans
+# simply typed lambda calculus over base types
 
 op 99 : _ _
 op 90 : not _
 op 90 : X _
-op 60 : _ -> _
+op 60 r : _ -> _
 op 50 : λ _ : _ . _
 op 50 : [ _ -> _ ] _
 op 30 : _ : _
@@ -11,6 +11,7 @@ op 30 : _ \= _
 op 20 : _ , _
 op 15 : _ : _ ∈ _
 op 10 : _ ⊢ _ : _
+op 10 : _ = _
 op 10 : _ => _
 op 10 : _ --> _
 op 10 : free _ in _
@@ -144,6 +145,7 @@ free x in λy : T. t {
 }
 
 main {
+    #< (A -> A -> A -> A) = T >
     φ ⊢ λf:A->A. λa:A. f (f a) : T
     # T = A -> A -> (A -> A)
 }
