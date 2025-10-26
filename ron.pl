@@ -361,7 +361,9 @@ parse_one_syntax(Tokens, '::='(LHS, RHS)) :-
 
 % context ::= 'context' '{' (定義 | ルール)* '}'
 % syntax と同じパターンでパース
-tokens_contexts(Contexts, Rules) --> [context], skip_token([newline]), ['{'], skip_token([newline]),
+tokens_contexts(Contexts, Rules) --> 
+    skip([newline]),
+    [context], skip_token([newline]), ['{'], skip_token([newline]),
     collect_until_brace(Tokens),
     {phrase(rules_pred(AllItems), Tokens)},
     {partition_contexts(AllItems, Contexts, Rules)},
