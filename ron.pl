@@ -992,8 +992,33 @@ format_term_with_priority(E, Op1, Str, Paren) :-
     atom_concat('_', Op2, Op),
     ops(a(Op2), P2, _, _),
     ops(a(Op1), P1, _, _),
-    ((P1 > P2 ; Paren, Op1 = Op2) -> format_term(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
-            ; format_term(E, Str)).
+    % 結合性を考慮した括弧付け
+    (should_add_parens(Op1, P1, Op2, P2, Paren) ->
+        format_term(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
+    ; format_term(E, Str)).
+
+% 括弧を付けるべきかどうかを判定
+should_add_parens(Op1, P1, Op2, P2, Paren) :-
+    % 優先度が異なる場合は高い方に括弧を付ける
+    P1 \= P2,
+    (P1 > P2 ; Paren, Op1 = Op2).
+should_add_parens(Op1, P1, Op2, P2, Paren) :-
+    % 優先度が同じ場合は結合性を考慮
+    P1 = P2,
+    Op1 = Op2,
+    % 右結合の場合は左側（Paren = false）に括弧を付ける
+    % 左結合の場合は右側（Paren = true）に括弧を付ける
+    ((is_right_associative(Op1), \+ Paren) ; (\+ is_right_associative(Op1), Paren)).
+
+% 演算子が右結合かどうかを判定
+is_right_associative(Op) :-
+    ops(a(Op), Prec, following, [PrecRight|_]),
+    PrecRight > Prec.
+is_right_associative(Op) :-
+    ops(a(Op), Prec, leading, [Op|Ns]),
+    Ns = [PrecRight|_],
+    number(PrecRight),
+    PrecRight =:= Prec + 1.
 
 
     
