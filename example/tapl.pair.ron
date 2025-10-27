@@ -9,10 +9,10 @@ op 80 : pred _                   # predecessor
 op 80 : iszero _                 # zero test
 op 75 : _ * _
 op 70 : { _ , _ }                # pair
+op 60 : _ . _                    # projection
 op 50 : λ _ : _ . _
 op 50 : if _ then _ else _
 op 50 : [ _ -> _ ] _
-op 45 : _ . _                    # projection
 op 40 r : _ -> _
 op 30 : _ : _
 op 30 : _ \= _
@@ -120,19 +120,6 @@ end
 # ベータ簡約
 # [x -> s] t => u で、t の自由な x を s に置き換えると u になる、の意味
 
-# x は x の中で自由なので s に置き換える
-[x -> s] x => s
-# x と異なる変数 y の中に x はないので y のまま
-[x -> s] y => y do
-    <x \= y>
-end
-
-# t1 t2 は、それぞれの項の中で置き換える
-[x -> s] (t1 t2) => t1' t2' do
-     [x -> s] t1 => t1'
-     [x -> s] t2 => t2'
-end
-
 # true と false はそのまま
 [x -> s] true => true
 [x -> s] false => false
@@ -157,6 +144,19 @@ end
      [x -> s] t1 => t1'
      [x -> s] t2 => t2'
      [x -> s] t3 => t3'
+end
+
+# x は x の中で自由なので s に置き換える
+[x -> s] x => s
+# x と異なる変数 y の中に x はないので y のまま
+[x -> s] y => y do
+    <x \= y>
+end
+
+# t1 t2 は、それぞれの項の中で置き換える
+[x -> s] (t1 t2) => t1' t2' do
+     [x -> s] t1 => t1'
+     [x -> s] t2 => t2'
 end
 
 # λx. t1 の中に自由な x はないのでそのまま
@@ -251,6 +251,14 @@ end
      [x -> s] t2 => t2'
 end
 
+# t . 1 は t の中で置き換える
+[x -> s] t . 1 => t' . 1 do
+     [x -> s] t => t'
+end
+[x -> s] t . 2 => t' . 2 do
+     [x -> s] t => t'
+end
+
 # E-PairBeta
 {v1, v2} . 1 -> v1
 {v1, v2} . 2 -> v2
@@ -285,6 +293,5 @@ end
 end
 
 main do
-    {pred succ succ succ 0, if true then false else false} . 1 --> v
-    # w = succ succ 0
+    (λa : (Nat * Nat) . (a . 2)) {pred succ 0, pred succ succ 0} --> v
 end

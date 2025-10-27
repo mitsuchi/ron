@@ -1172,6 +1172,7 @@ is_function_left_side(Token) :-
      variable(Token) ; 
      all_alpha(Token) ; 
      Token = '(' ; 
+     Token = '{' ;
      Token = open).
 
 variable(U) :- U = '$VAR'(_).

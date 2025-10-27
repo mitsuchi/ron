@@ -124,7 +124,7 @@ test_all() {
     run_test "example/use-do-end-for-block.ron" "x = 2"
     run_test "example/multiple_use.ron" "x = 2"
     run_test "example/tapl.typed-lambda.arith.ron" "w = succ succ succ 0"
-    run_test "example/tapl.pair.ron" "v = succ succ 0"
+    run_test "example/tapl.pair.ron" "v = succ 0"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
