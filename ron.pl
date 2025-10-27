@@ -1038,7 +1038,8 @@ format_single_token(Token, String) :-
 
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
-rules_pred([R | Rs]) --> skip([newline]), rule_pred(R), rules_pred(Rs).
+% 述語を一つパーズしたらカットして後戻りしない
+rules_pred([R | Rs]) --> skip([newline]), rule_pred(R), {debug_print('rules_pred: ', [R])}, !, rules_pred(Rs).
 rules_pred([]) --> skip([newline]).
 
 rule_pred(P :- true) --> pred(P), [newline].
