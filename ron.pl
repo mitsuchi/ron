@@ -151,12 +151,13 @@ file_eval(FilePath) :-
     syntaxes_reserved_words(Syntaxes, ReservedWords2),
     % 評価文脈リストから予約語リストを得る
     contexts_reserved_words(Contexts, ReservedWords3),
-    % 非終端記号に対して op 0 : t _ 形式の演算子を自動登録（変数変換前）
+    % 非終端記号に対して op 0 : t? _ 形式の演算子を自動登録（変数変換前）
     register_syntax_operators(Syntaxes),
-    % 非終端記号を抽出して予約語リストに追加（演算子として使うため、変数変換で誤って変換されないように）
+    % 非終端記号から t? 形式の予約語を生成して追加（t? は予約語として扱うため）
     extract_nonterminals(Syntaxes, Nonterminals),
-    % ReservedWords, ReservedWords2, ReservedWords3, Nonterminals を結合したうえでユニークにする。main も予約語とする
-    merge_reserved_words_list([ReservedWords, ReservedWords2, ReservedWords3, Nonterminals], AllReservedWords),
+    maplist(add_question_mark, Nonterminals, QuestionMarkNonterminals),
+    % ReservedWords, ReservedWords2, ReservedWords3, QuestionMarkNonterminals を結合したうえでユニークにする。main も予約語とする
+    merge_reserved_words_list([ReservedWords, ReservedWords2, ReservedWords3, QuestionMarkNonterminals], AllReservedWords),
     % RestTokens3 のうち、[a-Z]+[0-9]*"'"* のパターンに一致するものを $VAR() に変換して RestTokens4 にする
     convert_vars_in_tokens(AllReservedWords, RestTokens3, RestTokens4),
     % ContextRules の変数も変換する必要がある
@@ -704,8 +705,22 @@ syntaxes_rules(Syntaxes, RulesForSyntax) :-
     extract_nonterminals(Syntaxes, Nonterminals),
     % 各文法定義に非終端記号リストを渡してルールを生成
     maplist(syntax_rules(Nonterminals), Syntaxes, RulesLists),
-    append(RulesLists, RulesForSyntax),
+    append(RulesLists, RulesFromSyntax),
+    % 各非終端記号に対して t? t 形式のルールを生成
+    maplist(create_question_mark_rule, Nonterminals, QuestionMarkRules),
+    append(RulesFromSyntax, QuestionMarkRules, RulesForSyntax),
     debug_print_rules('RulesForSyntax:', RulesForSyntax).
+
+% 非終端記号に対して t? t 形式のルールを作成
+% 例: t?(Term) :- t(Term)
+create_question_mark_rule(NT, (Head :- Body)) :-
+    atom(NT),
+    atom_concat(NT, '?', NTQuestion),
+    % NTQuestion($VAR(TermName)) :- NT($VAR(TermName)) の形式
+    atom_concat(NT, '1', TermName),
+    TermVar = '$VAR'(TermName),
+    Head =.. [NTQuestion, TermVar],
+    Body =.. [NT, TermVar].
 
 % 1つの文法定義からルールリストを作る
 syntax_rules(Nonterminals, '::='(VarName, RHS), Rules) :-
@@ -839,17 +854,24 @@ extract_nonterminals(Syntaxes, Nonterminals) :-
 extract_nonterminal('::='(VarName, _), VarName) :-
     atom(VarName).
 
-% 文法定義から非終端記号を抽出して op 0 : t _ 形式の演算子を登録
+% 文法定義から非終端記号を抽出して op 0 : t? _ 形式の演算子を登録
 register_syntax_operators(Syntaxes) :-
     extract_nonterminals(Syntaxes, Nonterminals),
     maplist(register_nonterminal_operator, Nonterminals),
     debug_print('Registered syntax operators for nonterminals:', Nonterminals).
 
-% 非終端記号に対して op 0 : t _ 形式の演算子を登録
+% 非終端記号に対して op 0 : t? _ 形式の演算子を登録
 register_nonterminal_operator(NT) :-
     atom(NT),
-    % op(0, left, [NT, '_']) 形式の演算子を登録
-    assert_op(op(0, left, [NT, '_'])).
+    % t? 形式のアトム名を作成
+    atom_concat(NT, '?', NTQuestion),
+    % op(0, left, [NTQuestion, '_']) 形式の演算子を登録
+    assert_op(op(0, left, [NTQuestion, '_'])).
+
+% 非終端記号に ? を追加して予約語リスト用のアトムを作成
+add_question_mark(NT, NTQuestion) :-
+    atom(NT),
+    atom_concat(NT, '?', NTQuestion).
 
 % 文法リストから予約語リストを得る
 syntaxes_reserved_words(Syntaxes, ReservedWords2) :-
