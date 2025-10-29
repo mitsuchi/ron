@@ -1070,6 +1070,8 @@ token(newline) --> ['\n'].
 token(;) --> ";".
 token('(') --> "(".
 token(')') --> ")".
+token('{') --> "{".
+token('}') --> "}".
 token(',') --> ",".
 token(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
 % ギリシャ文字1文字を定数として認識
@@ -1079,11 +1081,12 @@ token(Var) --> var(Var).
 num(N) --> digits(Cs), { number_chars(N, Cs) }.
 word(Cs) --> many1(lower, Cs).
 lower(C) --> [C], { code_type(C, lower) }.
-% [a-Z]+[0-9]*"'"* のパターンを変数名候補として扱う
-var(Name) --> many1(alpha, A), many(digit, N), many(quote, D),
-   {append(A, N, AN), append(AN, D, AND), atom_chars(Name, AND)}.
+% [a-Z]+[0-9]*"?"?"'"* のパターンを変数名候補として扱う
+var(Name) --> many1(alpha, A), many(digit, N), optional(question, Q), many(quote, D),
+   {append(A, N, AN), append(AN, Q, ANQ), append(ANQ, D, AND), atom_chars(Name, AND)}.
 alpha(C) --> [C], { code_type(C, alpha) }.
 quote('\'') --> "'".
+question('?') --> "?".
 puncts(Cs) --> many1(punct, Cs).
 punct(C) --> [C], { is_punct_or_symbol(C) }.
 digits(Cs) --> many1(digit, Cs).
