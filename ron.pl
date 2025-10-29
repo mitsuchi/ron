@@ -937,12 +937,20 @@ update_rule(Nonterminals, (Head :- Body), (Head :- NewBody)) :-
     % 重複を除去
     sort(AllVarsWithDup, AllVars),
     % 非終端記号に対応する変数から型チェックを生成
+    % 変数名にマッチする非終端記号の中から、最も長いものだけを選ぶ
     findall(TypeCheck,
             (member('$VAR'(VarName), AllVars),
-             member(NTName, Nonterminals),
-             atom_concat(NTName, _, VarName),  % 変数名が非終端記号で始まる
+             % 変数名が非終端記号で始まるものを全て見つける
+             findall(NTName,
+                     (member(NTName, Nonterminals),
+                      atom_concat(NTName, _, VarName)),
+                     MatchingNTs),
+             % マッチする非終端記号がない場合はスキップ
+             MatchingNTs \= [],
+             % 最も長い非終端記号を選ぶ
+             find_longest_prefix(Nonterminals, VarName, LongestNT),
              % 非終端記号をそのまま使用（大文字変換を削除）
-             TypeCheck =.. [NTName, '$VAR'(VarName)]),
+             TypeCheck =.. [LongestNT, '$VAR'(VarName)]),
             TypeChecks),
     % ボディに型チェックを追加
     (TypeChecks = [] ->
@@ -955,6 +963,23 @@ update_rule(Nonterminals, (Head :- Body), (Head :- NewBody)) :-
             NewBody = (Body, TypeCheckConj)
         )
     ).
+
+% 変数名にマッチする非終端記号の中から、最も長いものを選ぶ
+find_longest_prefix(Nonterminals, VarName, LongestNT) :-
+    % 変数名が非終端記号で始まるものを全て見つける
+    findall(NTName,
+            (member(NTName, Nonterminals),
+             atom_concat(NTName, _, VarName)),
+            MatchingNTs),
+    MatchingNTs \= [],
+    % 長さでソートして、最も長いものを選ぶ
+    maplist(nt_name_length, MatchingNTs, MatchingNTsWithLength),
+    sort(MatchingNTsWithLength, Sorted),
+    reverse(Sorted, [_-LongestNT|_]).
+
+% 非終端記号名とその長さのペアを作る
+nt_name_length(NTName, Length-NTName) :-
+    atom_length(NTName, Length).
 
 % 項内の$VAR変数を収集
 collect_vars_in_term('$VAR'(Name), ['$VAR'(Name)]) :- !.
