@@ -151,8 +151,12 @@ file_eval(FilePath) :-
     syntaxes_reserved_words(Syntaxes, ReservedWords2),
     % 評価文脈リストから予約語リストを得る
     contexts_reserved_words(Contexts, ReservedWords3),
-    % ReservedWords, ReservedWords2, ReservedWords3 を結合したうえでユニークにする。main も予約語とする
-    merge_reserved_words_list([ReservedWords, ReservedWords2, ReservedWords3], AllReservedWords),
+    % 非終端記号に対して op 0 : t _ 形式の演算子を自動登録（変数変換前）
+    register_syntax_operators(Syntaxes),
+    % 非終端記号を抽出して予約語リストに追加（演算子として使うため、変数変換で誤って変換されないように）
+    extract_nonterminals(Syntaxes, Nonterminals),
+    % ReservedWords, ReservedWords2, ReservedWords3, Nonterminals を結合したうえでユニークにする。main も予約語とする
+    merge_reserved_words_list([ReservedWords, ReservedWords2, ReservedWords3, Nonterminals], AllReservedWords),
     % RestTokens3 のうち、[a-Z]+[0-9]*"'"* のパターンに一致するものを $VAR() に変換して RestTokens4 にする
     convert_vars_in_tokens(AllReservedWords, RestTokens3, RestTokens4),
     % ContextRules の変数も変換する必要がある
@@ -834,6 +838,18 @@ extract_nonterminals(Syntaxes, Nonterminals) :-
 
 extract_nonterminal('::='(VarName, _), VarName) :-
     atom(VarName).
+
+% 文法定義から非終端記号を抽出して op 0 : t _ 形式の演算子を登録
+register_syntax_operators(Syntaxes) :-
+    extract_nonterminals(Syntaxes, Nonterminals),
+    maplist(register_nonterminal_operator, Nonterminals),
+    debug_print('Registered syntax operators for nonterminals:', Nonterminals).
+
+% 非終端記号に対して op 0 : t _ 形式の演算子を登録
+register_nonterminal_operator(NT) :-
+    atom(NT),
+    % op(0, left, [NT, '_']) 形式の演算子を登録
+    assert_op(op(0, left, [NT, '_'])).
 
 % 文法リストから予約語リストを得る
 syntaxes_reserved_words(Syntaxes, ReservedWords2) :-
