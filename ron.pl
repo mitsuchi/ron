@@ -1136,11 +1136,14 @@ token(')') --> ")".
 token('{') --> "{".
 token('}') --> "}".
 token(',') --> ",".
-token(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
-% ギリシャ文字1文字を定数として認識
+% ギリシャ文字1文字を定数として認識（変数トークンより先に扱う）
 token(Atom) --> [C], {is_greek_char(C), atom_chars(Atom, [C])}.
-token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
+% 英字列+数字+?+アポストロフィ列（例: ts', x10''）を1トークンとして扱う
 token(Var) --> var(Var).
+% 2文字以上の英字列は単語として扱う（変数トークンより後）
+token(Atom) --> word(Cs), {length(Cs, N), N > 1, atom_chars(Atom, Cs)}.
+% 連続する句読点は1トークン
+token(Atom) --> puncts(Cs), {atom_chars(Atom, Cs)}.
 num(N) --> digits(Cs), { number_chars(N, Cs) }.
 word(Cs) --> many1(lower, Cs).
 lower(C) --> [C], { code_type(C, lower) }.
@@ -1281,6 +1284,9 @@ ops(a('()'), 0, leading, ['(',0,')']).
 % <> は prolog の述語を参照することにする（優先順位を ::= より高くする）
 ops(a('<>'), -10, leading, ['<',-10,'>']).
 
+% {} も括弧として扱う（整形時に _{}(X) -> { X } のように表示）
+ops(a('{}'), 0, leading, ['{',0,'}']).
+
 % 述語の各項に _ をつける : if(x,+(1,2),y) を _if(x,_+(1,2),y) に
 normalize_term(Term, Normalized) :-
     normalize_term(Term, Normalized, false).
@@ -1380,6 +1386,16 @@ unparse_answers([]).
 % ex: _S(_S(Z)) を S S Z に
 format_term(A, A) :- atom(A); number(A).
 format_term(A, '_') :- var(A), !.
+% タプル (comma ツリー) をカンマ区切りに整形
+format_term(T, Str) :-
+    nonvar(T),
+    (   T = (_, _)
+    ;   functor(T, '', 2)
+    ),
+    !,
+    tuple_to_list(T, Elems),
+    maplist(format_term, Elems, Strs),
+    atomic_list_concat(Strs, ' , ', Str).
 format_term(E, Str) :-
     nonvar(E),
     functor(E, _, _, compound),
@@ -1388,6 +1404,14 @@ format_term(E, Str) :-
     ops(a(Op1), _, _, As),
     format_each(Op1, As, Terms, Strs, false),
     atomic_list_concat(Strs, ' ', Str).
+
+% (A,B,...) のカンマ連結ツリーをフラットなリストに変換
+tuple_to_list((A,B), List) :-
+    !,
+    tuple_to_list(A, L1),
+    tuple_to_list(B, L2),
+    append(L1, L2, List).
+tuple_to_list(T, [T]).
 
 format_each(_, [], _, [], _).
 format_each(Op, [A|As], [Term|Ts], [Str1|Rest], Paren) :-
@@ -1400,17 +1424,28 @@ format_each(Op, [A|As], Ts, [A|Rest], Paren) :-
 
 format_term_with_priority(A, _, A, _) :- atom(A); number(A).
 format_term_with_priority(A, _, '_', _) :- var(A), !.
+% タプルはそのまま整形（括弧付けは format_term に任せる）
+format_term_with_priority(T, _, Str, _) :-
+    nonvar(T),
+    (   T = (_, _)
+    ;   functor(T, '', 2)
+    ),
+    !,
+    format_term(T, Str).
 format_term_with_priority(E, Op1, Str, Paren) :-
     nonvar(E),
     functor(E, _, _, compound),
     E =.. [Op | _],
-    atom_concat('_', Op2, Op),
-    ops(a(Op2), P2, _, _),
-    ops(a(Op1), P1, _, _),
-    % 結合性を考慮した括弧付け
-    (should_add_parens(Op1, P1, Op2, P2, Paren) ->
-        format_term(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
-    ; format_term(E, Str)).
+    (atom_concat('_', Op2, Op) ->
+        ops(a(Op2), P2, _, _),
+        ops(a(Op1), P1, _, _),
+        % 結合性を考慮した括弧付け
+        (should_add_parens(Op1, P1, Op2, P2, Paren) ->
+            format_term(E, Str1), atomic_list_concat(['(', Str1, ')'], '', Str)
+        ;   format_term(E, Str))
+    ;   % '_' プレフィックスがない（Prolog の組込み構造など）は通常整形
+        format_term(E, Str)
+    ).
 
 % 括弧を付けるべきかどうかを判定
 should_add_parens(Op1, P1, Op2, P2, Paren) :-
