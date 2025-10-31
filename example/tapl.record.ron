@@ -1,0 +1,373 @@
+# simply typed lambda calculus : record
+use do end for block
+
+op 99 : _ _
+op 90 : not _
+op 90 : X _
+op 80 : succ _                   # successor
+op 80 : pred _                   # predecessor
+op 80 : iszero _                 # zero test
+op 74 : _ - _
+op 72 : _ = _
+op 71 r : _ , _
+op 70 : { _ }                    # tuple
+op 60 : _ . _                    # projection
+op 50 : λ _ : _ . _
+op 50 : if _ then _ else _
+op 50 : [ _ -> _ ] _
+op 40 r : _ -> _
+op 30 : _ : _
+op 30 : _ \= _
+op 20 : _ is _
+op 15 : _ : _ ∈ _
+op 10 : _ ⊢ _ : _
+op 10 : _ => _
+op 10 : _ --> _
+op 10 : free _ in _
+
+syntax do
+    t ::=                     # terms
+          true                # constant true
+        | false               # constant false
+        | x                   # variables
+        | λ x : T . t         # abstraction value
+        | t t                 # application
+        | if t then t else t  # conditional
+        | 0                   # constant zero
+        | succ t              # successor
+        | pred t              # predecessor
+        | iszero t            # zero test
+        | { ts }              # tuple
+        | t . n               # projection
+        | { lt }              # label-term pairs
+        | t . l               # label projection
+
+    ts ::= t | t, ts
+
+    lt ::= l = t | l = t , lt
+    l ::= <atom>
+
+    v ::=                     # values
+          true
+        | false
+        |  λ x : T . t        # abstraction value
+        | nv                  # numeric value
+        | { vs }              # tuple value
+        | { lv }              # label-value pairs
+
+    vs ::= v | v, vs
+
+    lv ::= l = v | l = v , lv
+
+    nv ::=                    # numeric values:
+          0                   # zero
+        | succ nv             # successor value        
+    
+    n ::= <number>
+
+    # variables
+    x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
+
+    T ::=                # types
+          Bool           # type of booleans
+        | Nat            # type of natural numbers
+        | T -> T         # type of functions
+        | { Ts }         # tuple
+        | { LT }         # record type : label-type pairs
+
+    Ts ::= T | T, Ts
+
+    LT ::= l : T | (l : T) , LT  # record
+
+    Γ ::=                # contexts
+          φ              # empty context
+        | Γ, x : T       # term variable binding
+
+    s ::= t           # term
+    y ::= x           # variable
+    z ::= x           # variable
+
+    # x, y, z : 変数を表すメタ変数：実際の変数は a から n までの1文字
+    # t, s    : 項を表すメタ変数
+end
+
+# T-Abs
+Γ ⊢ (λ x : T1 . t) : T1 -> T2 do
+    Γ, x : T1 ⊢ t : T2
+end
+
+# T-App
+Γ ⊢ t1 t2 : T2 do
+    Γ ⊢ t1 : T1 -> T2
+    Γ ⊢ t2 : T1
+end
+
+# T-Var
+Γ ⊢ x : T do
+    x : T ∈ Γ
+end
+
+# type for x in Γ is T <=> x : T ∈ Γ
+x : T ∈ (Γ, x : T)
+x : T1 ∈ (Γ, y : T2) do
+    <x \= y>
+    x : T1 ∈ Γ
+end
+
+# 適用 t s の形はまず左側の t を簡約する
+t s -> t' s do
+    t -> t'
+end
+# 左側が値になったら右側を簡約する
+v t -> v t' do
+    t -> t'
+end
+
+# 右側が値になったらベータ簡約する
+(λ x : T . t) v -> s' do
+    [x -> v] t => s'
+end
+
+# 簡約の反射推移閉包
+t1 --> t2 do
+    t1 -> t3
+    t3 --> t2
+end
+t1 --> t2 do
+    t1 -> t2
+end
+
+# ベータ簡約
+# [x -> s] t => u で、t の自由な x を s に置き換えると u になる、の意味
+
+# true と false はそのまま
+[x -> s] true => true
+[x -> s] false => false
+
+# succ t は、t の中で置き換える
+[x -> s] (succ t1) => succ t1' do
+     [x -> s] t1 => t1'
+end
+
+# pred t は、t の中で置き換える
+[x -> s] (pred t1) => pred t1' do
+     [x -> s] t1 => t1'
+end
+
+# iszero t は、t の中で置き換える
+[x -> s] (iszero t1) => iszero t1' do
+     [x -> s] t1 => t1'
+end
+
+# if t1 then t2 else t3 は、各項の中で置き換える
+[x -> s] (if t1 then t2 else t3) => if t1' then t2' else t3' do
+     [x -> s] t1 => t1'
+     [x -> s] t2 => t2'
+     [x -> s] t3 => t3'
+end
+
+# x は x の中で自由なので s に置き換える
+[x -> s] x => s
+# x と異なる変数 y の中に x はないので y のまま
+[x -> s] y => y do
+    <x \= y>
+end
+
+# t1 t2 は、それぞれの項の中で置き換える
+[x -> s] (t1 t2) => t1' t2' do
+     [x -> s] t1 => t1'
+     [x -> s] t2 => t2'
+end
+
+# λx. t1 の中に自由な x はないのでそのまま
+[x -> s] (λx : T. t1) => λx : T. t1
+
+# λy. t1 は、t1 の x を s に置き換えたものとしたいが
+# s の中に自由な y があると λy. で束縛されて意味か変わってしまうので、
+# そんな y がないという条件でそうする
+[x -> s] (λy : T. t1) => λy : T. t2 do
+    <x \= y>
+    <not (free y in s)>
+    [x -> s] t1 => t2
+end
+
+# λy. t1 で s の中に自由な y があるときは、
+# そもそも λy. t1 の中の y を無関係な変数 z に変える
+# その際は仮引数の y と t1 の中の自由な y を z に変える
+[x -> s] (λy : T. t1) => λz : T. t2 do
+    <x \= y>
+    free y in s
+    X z                  # 新しい変数 z を、以下を満たすように
+    <x \= z>             # バックトラックを繰り返して探す
+    <y \= z>             # つまり z は x, y や s, t1 の中の自由変数の
+    <not (free z in s)>  # どれとも異なる
+    <not (free z in t1)> # z の条件ここまで
+    [y -> z] t1 => t3
+    [x -> s] t3 => t2
+end
+
+# free x in t : 項 t に x が自由変数として出現する
+free x in x
+free x in t1 t2 do
+    free x in t1
+end
+free x in t1 t2 do
+    free x in t2
+end
+free x in λy : T. t do
+    <x \= y>
+    free x in t
+end
+
+# Nat
+Γ ⊢ 0 : Nat
+Γ ⊢ succ t1 : Nat do
+  Γ ⊢ t1 : Nat
+end
+Γ ⊢ pred t1 : Nat do
+  Γ ⊢ t1 : Nat
+end
+Γ ⊢ iszero t1 : Bool do
+  Γ ⊢ t1 : Nat
+end
+
+succ t1 -> succ t2 do             # E-Succ
+  t1 -> t2
+end
+pred 0 -> 0                      # E-PredZero
+pred (succ nv) -> nv             # E-PredSucc
+pred t1 -> pred t1' do            # E-Pred
+  t1 -> t1'
+end
+iszero 0 -> true                 # E-IsZeroZero
+iszero (succ nv) -> false        # E-IsZeroSucc
+iszero t1 -> iszero t1' do        # E-IsZero
+  t1 -> t1'
+end
+
+# Bool
+
+# T-True, T-False
+Γ ⊢ true : Bool
+Γ ⊢ false : Bool
+
+# T-If
+Γ ⊢ if t1 then t2 else t3 : T do
+    Γ ⊢ t1 : Bool
+    Γ ⊢ t2 : T
+    Γ ⊢ t3 : T
+end
+
+if true then t2 else t3 -> t2   # E-IfTrue
+if false then t2 else t3 -> t3  # E-ifFalse
+# E-If
+if t1 then t2 else t3 -> if t1' then t2 else t3 do
+  t1 -> t1'
+end
+
+{v, vs} . 1 -> v
+{v1, vs} . n1 -> v2 do
+    <n2 is n1 - 1>
+    {vs} . n2 -> v2
+end
+{v} . 1 -> v
+
+t . n -> t' . n do
+    t -> t'
+end
+
+{v, ts} -> {v, ts'} do
+    {ts} -> {ts'}
+end
+{t, ts} -> {t', ts} do
+    t -> t'
+end
+{t} -> {t'} do
+    t -> t'
+end
+
+# T-Tuple
+Γ ⊢ {t1, ts} : {T1, Ts} do
+    Γ ⊢ t1 : T1
+    Γ ⊢ {ts} : {Ts}
+end
+Γ ⊢ {t} : {T} do
+    Γ ⊢ t : T
+end
+
+# T-Proj
+Γ ⊢ {t} . 1 : T do
+    Γ ⊢ t : T
+end
+Γ ⊢ {t, ts} . 1 : T do
+    Γ ⊢ t : T
+end
+Γ ⊢ {t1, ts} . n1 : T2 do
+    <n2 is n1 - 1>
+    Γ ⊢ {ts} . n2 : T2
+end
+
+# E-ProjRcd
+{l = v, lv} . l -> v
+{l1 = v1, lv} . l2 -> v2 do
+    <l1 \= l2>
+    {lv} . l2 -> v2
+end
+{l = v} . l -> v
+
+# E-Proj
+t . l -> t' . l do
+    t -> t'
+end
+
+# E-Rcd
+{l = v, lt} -> {l = v, lt'} do
+    {lt} -> {lt'}
+end
+{l = t, lt} -> {l = t', lt} do
+    t -> t'
+end
+{l = t} -> {l = t'} do
+    t -> t'
+end
+
+# T-Rcd
+Γ ⊢ {l1 = t1, lt} : {(l1 : T1), LT} do
+    Γ ⊢ t1 : T1
+    Γ ⊢ {lt} : {LT}
+end
+
+Γ ⊢ {l = t} : {(l : T)} do
+    Γ ⊢ t : T
+end
+
+# T-ProjRcd
+Γ ⊢ {l = t} . l : T do
+    Γ ⊢ t : T
+end
+Γ ⊢ {l = t, lt} . l : T do
+    Γ ⊢ t : T
+end
+Γ ⊢ {l1 = t1, lt} . l2 : T2 do
+    <l1 \= l2>
+    Γ ⊢ {lt} . l2 : T2
+end
+
+main do
+    φ ⊢ {man = true, age = pred succ succ 0} . age : T
+    # T = Nat
+
+    # φ ⊢ {man = true, age = pred succ succ 0} : T
+    # T = { man : Bool , age : Nat }
+
+    # {man = true, age = pred succ succ 0, woman = false} . age --> v
+    # v = succ 0
+
+    # {age = 0, man = true, woman = false} . woman -> v
+    # v = false
+
+    # LT? age : Nat
+    # T? {(age : Nat), (man : Bool)}
+    # v? {age = succ 0, man = true}
+    # t? {age = 0, man = true} . man
+end
