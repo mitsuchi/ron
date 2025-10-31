@@ -1284,9 +1284,6 @@ ops(a('()'), 0, leading, ['(',0,')']).
 % <> は prolog の述語を参照することにする（優先順位を ::= より高くする）
 ops(a('<>'), -10, leading, ['<',-10,'>']).
 
-% {} も括弧として扱う（整形時に _{}(X) -> { X } のように表示）
-ops(a('{}'), 0, leading, ['{',0,'}']).
-
 % 述語の各項に _ をつける : if(x,+(1,2),y) を _if(x,_+(1,2),y) に
 normalize_term(Term, Normalized) :-
     normalize_term(Term, Normalized, false).

@@ -126,7 +126,7 @@ test_all() {
     run_test "example/tapl.typed-lambda.arith.ron" "w = succ succ succ 0"
     run_test "example/tapl.pair.ron" "v = succ 0"
     run_test "example/tapl.tuple.ron" "v = succ 0"
-    
+
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
     
