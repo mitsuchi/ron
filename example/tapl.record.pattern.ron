@@ -368,6 +368,7 @@ end
 let {l = p} = {l = v} in t2 -> t3 do
     [p -> v] t2 => t3
 end
+let {l1 = p} = {l2 = v} in t2 -> t2
 let {l = p} = {l = v, lt} in t2 -> t3 do
     [p -> v] t2 => t3
 end
@@ -396,8 +397,12 @@ end
 
 
 main do
-    let {age = a, man = b} = {age = 0} in a -> w
+    let {age = a, man = b} = {age = 0} in a --> v
 
+    # let {age = a} = {man = true} in 0 -> w
+    # w = 0
+    # let {age = a, man = b} = {age = 0} in a -> w
+    # w = 0
     # let {age = a} = {man = true, age = 0} in a --> v
     # let {man = a} = {man = true, age = 0} in a --> v
     # let {age = a} = {age = 0} in a --> v
