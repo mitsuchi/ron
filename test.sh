@@ -127,6 +127,7 @@ test_all() {
     run_test "example/tapl.pair.ron" "v = succ 0"
     run_test "example/tapl.tuple.ron" "v = succ 0"
     run_test "example/tapl.record.ron" "T = Nat"
+    run_test "example/tapl.record.pattern.ron" "v = { succ 0 , true }"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"

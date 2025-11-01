@@ -395,9 +395,11 @@ end
      [x -> s] t => t'
 end
 
+v --> v
 
 main do
-    let {age = a, man = b} = {age = 0} in a --> v
+    let {age = a, man = b} = {age = 0, man = true} in {succ a, b} --> v
+    # v = {succ 0, true}
 
     # let {age = a} = {man = true} in 0 -> w
     # w = 0
