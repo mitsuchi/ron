@@ -31,17 +31,20 @@ if t1 then t2 else t3 -> if t4 then t2 else t3 {
   T t4
 }
 
-t --> t' {
-  t -> t'
-  T t
-  T t'
-}
 t1 --> t2 {
   t1 -> t3
   t3 --> t2
   T t1
   T t2
   T t3
+}
+t --> t' {
+  t -> t'
+  T t
+  T t'
+}
+t --> t {
+  T t
 }
 
 main {

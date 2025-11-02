@@ -17,8 +17,9 @@ x y → x' y { x → x' }
 x y → x y' { y → y' }
 
 # 規則3
-x ⇒ y { x → y }
 x ⇒ y { x → z; z ⇒ y }
+x ⇒ y { x → y }
+x ⇒ x
 
 # 問い合わせ
 main {

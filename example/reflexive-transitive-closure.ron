@@ -1,0 +1,23 @@
+op 50 : _ -> _
+op 50 : _ --> _
+
+# 1-step reduction
+1 -> 2
+2 -> 3
+2 -> 5
+3 -> 4
+
+# reflexive transitive closure of ->
+x --> y {
+    x -> z
+    z --> y
+}
+x --> y {
+    x -> y
+}
+x --> x
+
+main {
+    1 --> x
+    5 --> y
+}

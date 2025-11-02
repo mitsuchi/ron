@@ -10,6 +10,8 @@ x or y -> x or y' { y -> y' }
 x => true { x -> true }
 x => false { x -> false }
 x => y { x -> z; z => y }
+x => y { x -> y }
+x => x
 
 main {
     (false or false) or (false or false) => x

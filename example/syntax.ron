@@ -13,13 +13,14 @@ if t1 then t2 else t3 -> if t4 then t2 else t3 {
   t1 -> t4
 }
 
-t --> t' {
-  t -> t'
-}
 t1 --> t2 {
   t1 -> t3
   t3 --> t2
 }
+t --> t' {
+  t -> t'
+}
+t --> t
 
 main {
    if (if true then false else true) then false else true --> v

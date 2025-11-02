@@ -45,13 +45,14 @@ iszero t1 -> iszero t1' {        # E-IsZero
   t1 -> t1'
 }
 
-t --> t' {
-  t -> t'
-}
 t1 --> t2 {
   t1 -> t3
   t3 --> t2
 }
+t --> t' {
+  t -> t'
+}
+t --> t
 
 main {
    if iszero (pred (succ 0)) then (succ 0) else 0 --> v

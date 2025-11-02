@@ -70,13 +70,14 @@ iszero t1 -> iszero t1' {        # E-IsZero
   t1 -> t1'
 }
 
-t --> t' {
-  t -> t'
-}
 t1 --> t2 {
   t1 -> t3
   t3 --> t2
 }
+t --> t' {
+  t -> t'
+}
+t --> t
 
 main {
    if iszero 0 then 0 else pred 0 : T
