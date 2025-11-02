@@ -113,6 +113,8 @@ test_all() {
     run_test "example/evaluation-context.add.recursive.ron" "x = 10"
     run_test "example/lambda-full.ron" "w = & b . b"
     run_test "example/lambda-full-context.ron" "w = & b . b"
+    run_test "example/lambda-call-by-value.ron" "v = & b . (& a . a) b"
+    run_test "example/lambda-call-by-name.ron" "v = & b . (& a . a) b"
     run_test "example/lambda.ron" "w = λ b . (λ a . a) b"
     run_test "example/tapl.typed-booleans.ron" "T = Bool"
     run_test "example/tapl.typed-arithmetic.ron" "T = Nat"

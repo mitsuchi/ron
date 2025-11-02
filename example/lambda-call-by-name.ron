@@ -26,15 +26,15 @@ syntax {
 }
 
 context {
-    T ::= _ t | v _
+    T ::= _ t
 
     T [t1] -> T [t2] {
         t1 -> t2
     }
 }
 
-(& x . t) v -> v' {
-    [x -> v] t => v'
+(& x . t) s -> s' {
+    [x -> s] t => s'
 }
 
 t1 --> t2 {
