@@ -1,0 +1,98 @@
+# untyped lambda calculus : full beta reduction using evaluation context
+
+op 99 : _ _
+op 90 : not _ 
+op 90 : X _
+op 50 : & _ . _
+op 50 : [ _ -> _ ] _
+op 30 : _ \= _
+op 10 : _ => _
+op 10 : _ -> _
+op 10 : _ --> _
+op 10 : free _ in _
+
+syntax {
+    t ::=             # terms
+          x           # variables
+        | & x . t     # abstraction
+        | t t         # application
+    v ::=             # values
+          & x . t     # abstraction value
+
+    s ::= t           # term
+    x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
+    y ::= x           # variable
+    z ::= x           # variable
+}
+
+context {
+    T ::= _ t | t _ | & x . _
+
+    T [t1] -> T [t2] {
+        t1 -> t2
+    }
+}
+
+(& x . t) s -> s' {
+    [x -> s] t => s'
+}
+
+t1 --> t2 {
+    t1 -> t3
+    t3 --> t2
+}
+t1 --> t2 {
+    t1 -> t2
+}
+t1 --> t1
+
+[x -> s] x => s
+[x -> s] y => y {
+    <x \= y>
+}
+[x -> s] (t1 t2) => t1' t2' {
+     [x -> s] t1 => t1'
+     [x -> s] t2 => t2'
+}
+[x -> s] (& x . t1) => & x . t1
+[x -> s] (& y . t1) => & y . t2 {
+    <x \= y>
+    <not (free y in s)>
+    [x -> s] t1 => t2
+}
+[x -> s] (& y . t1) => & z . t2 {
+    <x \= y>
+    free y in s
+    X z                  # 新しい変数 z を、以下を満たすように
+    <x \= z>             # バックトラックを繰り返して探す
+    <y \= z>
+    <not (free z in s)>
+    <not (free z in t1)> # z の条件ここまで
+    [y -> z] t1 => t3
+    [x -> s] t3 => t2
+}
+
+# free x in t : 項 t に x が自由変数として出現する
+free x in x
+free x in t1 t2 {
+    free x in t1
+}
+free x in t1 t2 {
+    free x in t2
+}
+free x in & y . t {
+    <x \= y>
+    free x in t
+}
+
+main {
+    (&a.a) ((&a.a) (&b. (&a.a) b)) --> w
+    # w = & b . b
+
+    # [a -> b] (& a. c) => w
+    # w = & a . c
+    # [a -> b] (& b . a) => w
+    # w = & c . b
+    # (& a . a a) b -> w
+    # w = b b
+}

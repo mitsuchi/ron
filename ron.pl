@@ -225,8 +225,6 @@ is_var_pattern(Token) :-
 % 変数パターン: [a-Z][a-Z]?[0-9]*'*
 var_pattern --> alpha(_), optional(alpha, _), many(digit, _), many(quote, _).
 
-
-
 tokens_ops(Ops, ReservedWords) --> tokens_ops_impl(Ops, ReservedWordsNested), {flatten(ReservedWordsNested, ReservedWords), debug_print('ReservedWords:', ReservedWords)}.
 
 tokens_ops_impl([R|Rs], [RWs|RWsRest]) -->
@@ -272,8 +270,6 @@ parse_context(Contexts, ContextRules, RestTokens, RestTokens2) :-
     ),
     debug_print('Contexts:', Contexts),
     debug_print_rules('ContextRules:', ContextRules).
-
-
 
 % op をパーズして予約語も抽出する
 rule_op_with_reserved(op(Precedence, right, Notation), ReservedWords) -->
@@ -400,9 +396,13 @@ parse_one_syntax(Tokens, '::='(LHS, RHS)) :-
 % syntax と同じパターンでパース
 tokens_contexts(Contexts, Rules) --> 
     skip([newline]),
+    {debug_print('Parsing context block', [] )},
     [context], skip([newline]), [open], skip([newline]),
+    {debug_print('Collecting context block items', [])},
     collect_until_brace(Tokens),
+    {debug_print('Parsing context block items', [Tokens])},
     {phrase(rules_pred(AllItems), Tokens)},
+    {debug_print('Partitioning context block items', [AllItems])},
     {partition_contexts(AllItems, Contexts, Rules)},
     skip([newline]).
 tokens_contexts([], []) --> skip([newline]).
@@ -1138,6 +1138,7 @@ is_function_left_side(Token) :-
      all_alpha(Token) ; 
      Token = '(' ; 
      Token = '{' ;
+     Token = '_' ;
      Token = open).
 
 variable(U) :- U = '$VAR'(_).
