@@ -512,10 +512,6 @@ partition_contexts([], [], []).
 % ::=(_, _) :- true の形式
 partition_contexts([('::='(L, R) :- true)|Rest], ['::='(L, R)|Contexts], Rules) :- !,
     partition_contexts(Rest, Contexts, Rules).
-% ::=(_, _) の形式（ボディなし）
-partition_contexts([Item|Rest], [Item|Contexts], Rules) :-
-    Item = '::='(_, _), !,
-    partition_contexts(Rest, Contexts, Rules).
 % それ以外はルール
 partition_contexts([Item|Rest], Contexts, [Item|Rules]) :-
     partition_contexts(Rest, Contexts, Rules).
