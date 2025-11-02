@@ -26,106 +26,6 @@ run :-
             (write('error: '), write(Exception), nl, halt(1))
         ), halt) ; true.
 
-% デバッグ出力用のヘルパー述語
-debug_print(Label, List) :-
-    (nb_getval(debug_mode, true) ->
-        % 評価の深さを取得
-        nb_getval(eval_depth, Depth),
-        % インデントを生成
-        generate_indent(Depth, Indent),
-        % ラベルとインデントを結合して表示
-        atomic_list_concat([Indent, Label], '', IndentedLabel),
-        writeln(IndentedLabel),
-        % 各項目にもインデントを適用
-        maplist(format_debug_item_with_indent(Depth), List)
-    ;
-        true
-    ).
-
-% Rules表示専用のデバッグ出力述語
-debug_print_rules(Label, Rules) :-
-    (nb_getval(debug_mode, true) ->
-        writeln(Label),
-        maplist(display_tree, Rules)
-    ;
-        true
-    ).
-
-% インデントを生成する述語
-generate_indent(Depth, Indent) :-
-    Depth > 0,
-    IndentSize is Depth * 2,  % 深さ1につき2スペース
-    generate_spaces(IndentSize, Indent).
-generate_indent(0, '').
-
-% 指定された数のスペースを生成
-generate_spaces(0, '').
-generate_spaces(N, Spaces) :-
-    N > 0,
-    N1 is N - 1,
-    generate_spaces(N1, RestSpaces),
-    atomic_list_concat([' ', RestSpaces], '', Spaces).
-
-% インデント付きで項目をformat_termで表示
-format_debug_item_with_indent(Depth, Item) :-
-    generate_indent(Depth, Indent),
-    (catch(format_term(Item, Formatted), _, fail) ->
-        atomic_list_concat([Indent, Formatted], '', IndentedFormatted),
-        write(IndentedFormatted), nl
-    ;
-        % format_termが失敗した場合は正規形式で表示
-        atomic_list_concat([Indent], '', IndentedPrefix),
-        write(IndentedPrefix), write_canonical(Item), nl
-    ).
-
-% デバッグ用：項目をformat_termで表示（後方互換性のため残す）
-format_debug_item(Item) :-
-    (catch(format_term(Item, Formatted), _, fail) ->
-        write(Formatted), nl
-    ;
-        % format_termが失敗した場合は正規形式で表示
-        write_canonical(Item), nl
-    ).
-
-% デバッグ用：項目を正規形式で表示（後方互換性のため残す）
-write_canonical_item(Item) :-
-    write_canonical(Item), nl.
-
-% 項を横方向の木で表示する述語
-display_tree(Term) :-
-    display_tree(Term, 0).
-
-display_tree(Term, Indent) :-
-    % インデントを出力
-    print_indent(Indent),
-    % 項の種類を判定
-    (compound(Term) ->
-        % 複合項の場合
-        Term =.. [Functor|Args],
-        write(Functor),
-        nl,
-        % 引数を再帰的に表示
-        display_args(Args, Indent + 4)
-    ;
-        % アトムの場合
-        write(Term),
-        nl
-    ).
-
-% 引数リストを表示
-display_args([], _).
-display_args([Arg|Rest], Indent) :-
-    display_tree(Arg, Indent),
-    display_args(Rest, Indent).
-
-% インデントを出力
-print_indent(0).
-print_indent(N) :-
-    N > 0,
-    write(' '),
-    N1 is N - 1,
-    print_indent(N1).
-
 % ファイルを読み込んで評価する
 file_eval(FilePath) :-
     % キャッシュをクリア
@@ -1495,3 +1395,103 @@ eval(Goal) :-
             % 深さをデクリメント
             nb_setval(eval_depth, Depth)
         ).
+
+% デバッグ出力用のヘルパー述語
+debug_print(Label, List) :-
+    (nb_getval(debug_mode, true) ->
+        % 評価の深さを取得
+        nb_getval(eval_depth, Depth),
+        % インデントを生成
+        generate_indent(Depth, Indent),
+        % ラベルとインデントを結合して表示
+        atomic_list_concat([Indent, Label], '', IndentedLabel),
+        writeln(IndentedLabel),
+        % 各項目にもインデントを適用
+        maplist(format_debug_item_with_indent(Depth), List)
+    ;
+        true
+    ).
+
+% Rules表示専用のデバッグ出力述語
+debug_print_rules(Label, Rules) :-
+    (nb_getval(debug_mode, true) ->
+        writeln(Label),
+        maplist(display_tree, Rules)
+    ;
+        true
+    ).
+
+% インデントを生成する述語
+generate_indent(Depth, Indent) :-
+    Depth > 0,
+    IndentSize is Depth * 2,  % 深さ1につき2スペース
+    generate_spaces(IndentSize, Indent).
+generate_indent(0, '').
+
+% 指定された数のスペースを生成
+generate_spaces(0, '').
+generate_spaces(N, Spaces) :-
+    N > 0,
+    N1 is N - 1,
+    generate_spaces(N1, RestSpaces),
+    atomic_list_concat([' ', RestSpaces], '', Spaces).
+
+% インデント付きで項目をformat_termで表示
+format_debug_item_with_indent(Depth, Item) :-
+    generate_indent(Depth, Indent),
+    (catch(format_term(Item, Formatted), _, fail) ->
+        atomic_list_concat([Indent, Formatted], '', IndentedFormatted),
+        write(IndentedFormatted), nl
+    ;
+        % format_termが失敗した場合は正規形式で表示
+        atomic_list_concat([Indent], '', IndentedPrefix),
+        write(IndentedPrefix), write_canonical(Item), nl
+    ).
+
+% デバッグ用：項目をformat_termで表示（後方互換性のため残す）
+format_debug_item(Item) :-
+    (catch(format_term(Item, Formatted), _, fail) ->
+        write(Formatted), nl
+    ;
+        % format_termが失敗した場合は正規形式で表示
+        write_canonical(Item), nl
+    ).
+
+% デバッグ用：項目を正規形式で表示（後方互換性のため残す）
+write_canonical_item(Item) :-
+    write_canonical(Item), nl.
+
+% 項を横方向の木で表示する述語
+display_tree(Term) :-
+    display_tree(Term, 0).
+
+display_tree(Term, Indent) :-
+    % インデントを出力
+    print_indent(Indent),
+    % 項の種類を判定
+    (compound(Term) ->
+        % 複合項の場合
+        Term =.. [Functor|Args],
+        write(Functor),
+        nl,
+        % 引数を再帰的に表示
+        display_args(Args, Indent + 4)
+    ;
+        % アトムの場合
+        write(Term),
+        nl
+    ).
+
+% 引数リストを表示
+display_args([], _).
+display_args([Arg|Rest], Indent) :-
+    display_tree(Arg, Indent),
+    display_args(Rest, Indent).
+
+% インデントを出力
+print_indent(0).
+print_indent(N) :-
+    N > 0,
+    write(' '),
+    N1 is N - 1,
+    print_indent(N1).    
