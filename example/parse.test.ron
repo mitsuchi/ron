@@ -1,0 +1,24 @@
+# simply typed lambda calculus : simple extension : full
+use % for newline
+
+op 99 : _ _
+op 80 : succ _                   # successor
+op 80 : pred _                   # predecessor
+op 80 : iszero _                 # zero test
+op 50 : if _ then _ else _
+op 40 r : _ -> _
+
+syntax {
+    t ::=                     # terms
+          true                # constant true
+        | false               # constant false
+        | if t then t else t  # conditional
+        | 0                   # constant zero
+        | succ t              # successor
+        | pred t              # predecessor
+        | iszero t            # zero test
+}
+
+main {
+    t? if iszero 0 then true else (if iszero 0 then true else (if iszero (pred pred pred 0) then true else true))
+}
