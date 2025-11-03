@@ -1,4 +1,5 @@
 # simply typed lambda calculus : arithmetic expression
+use % for newline
 
 op 99 : _ _
 op 90 : not _
@@ -13,6 +14,7 @@ op 50 : [ _ -> _ ] _
 op 40 r : _ -> _
 op 30 : _ : _
 op 30 : _ \= _
+op 25 : _ ; _
 op 20 : _ , _
 op 15 : _ : _ ∈ _
 op 10 : _ ⊢ _ : _
@@ -33,12 +35,14 @@ syntax {
         | pred t              # predecessor
         | iszero t            # zero test
         | t as T              # ascription
+        | unit
 
     v ::=                     # values
           true
         | false
         |  λ x : T . t        # abstraction value
         | nv                  # numeric value
+        | unit
 
     nv ::=                    # numeric values:
           0                   # zero
@@ -51,6 +55,7 @@ syntax {
           Bool           # type of booleans
         | Nat            # type of natural numbers
         | T -> T         # type of functions
+        | Unit           # unit type
 
     Γ ::=                # contexts
           φ              # empty context
@@ -243,9 +248,26 @@ v as T -> v
     Γ ⊢ t : T
 }
 
+# derived form
+# t1 ; t2 は (λ x : Unit. t2) t1 の糖衣構文
+# ただし x は t2 の中に自由変数として現れない
+(t1 ; t2) --> t3 {
+    <not (free x in t2)>
+    (λ x : Unit. t2) t1 --> t3
+}
+
+# T-Unit
+Γ ⊢ unit : Unit
+
+# unit は変数を含まないのでそのまま
+[x -> s] unit => unit
+
 main {
+    (λa: Unit. a) unit ; (λc: Unit. c) (λd: Unit. d) --> v4
+    # v4 = λ d : Unit . d
+
     (λa: Nat. a) (succ 0) as Nat --> v3
-    # v = succ 0
+    # v3 = succ 0
 
     if (iszero 0) then pred succ 0 else succ succ 0 --> v2
     # v2 = 0

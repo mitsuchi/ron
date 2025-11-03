@@ -134,7 +134,8 @@ test_all() {
     run_test_multiline "example/tapl.simple.full.ron" \
                        "v1 = succ succ succ 0" \
                        "v2 = 0" \
-                       "v3 = succ 0"
+                       "v3 = succ 0" \
+                       "v4 = λ d : Unit . d"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
