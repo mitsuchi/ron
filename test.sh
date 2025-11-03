@@ -135,7 +135,8 @@ test_all() {
                        "v1 = succ succ succ 0" \
                        "v2 = 0" \
                        "v3 = succ 0" \
-                       "v4 = λ d : Unit . d"
+                       "v4 = λ d : Unit . d" \
+                       "v5 = true"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"

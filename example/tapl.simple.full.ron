@@ -8,6 +8,7 @@ op 80 : succ _                   # successor
 op 80 : pred _                   # predecessor
 op 80 : iszero _                 # zero test
 op 55 : _ as _                   # ascription
+op 50 : let _ = _ in _
 op 50 : λ _ : _ . _
 op 50 : if _ then _ else _
 op 50 : [ _ -> _ ] _
@@ -36,6 +37,7 @@ syntax {
         | iszero t            # zero test
         | t as T              # ascription
         | unit
+        | let x = t in t      # let binding
 
     v ::=                     # values
           true
@@ -72,13 +74,14 @@ syntax {
 # 評価文脈の文法
 context syntax {
     E ::=                   
-          _ t          # 適用 s t の形はまず左側の s を簡約する
-        | v _          # 左側が値 v になったら右側を簡約する
-        | succ _       # E-Succ
-        | pred _       # E-Pred
-        | iszero _     # E-IsZero
+          _ t                  # 適用 s t の形はまず左側の s を簡約する
+        | v _                  # 左側が値 v になったら右側を簡約する
+        | succ _               # E-Succ
+        | pred _               # E-Pred
+        | iszero _             # E-IsZero
         | if _ then t else t   # E-If
-        | _ as T       # E-Ascribe1
+        | _ as T               # E-Ascribe2
+        | let x = _ in t       # E-Let
 }
 
 # 評価文脈の展開ルール
@@ -248,7 +251,7 @@ v as T -> v
     Γ ⊢ t : T
 }
 
-# derived form
+# unit -- derived form
 # t1 ; t2 は (λ x : Unit. t2) t1 の糖衣構文
 # ただし x は t2 の中に自由変数として現れない
 (t1 ; t2) --> t3 {
@@ -262,7 +265,21 @@ v as T -> v
 # unit は変数を含まないのでそのまま
 [x -> s] unit => unit
 
+# E-LetV
+let x = v in t -> s {
+    [x -> v] t => s
+}
+
+# T-Let
+Γ ⊢ let x = t1 in t2 : T2 {
+    Γ ⊢ t1 : T1
+    Γ, x : T1 ⊢ t2 : T2
+}
+
 main {
+    let f = λa : Bool. a in f true --> v5
+    # v5 = true
+
     (λa: Unit. a) unit ; (λc: Unit. c) (λd: Unit. d) --> v4
     # v4 = λ d : Unit . d
 
