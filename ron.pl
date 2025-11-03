@@ -166,15 +166,6 @@ replace_tokens([Token|Rest], Replacements, [NewToken|Result]) :-
     ),
     replace_tokens(Rest, Replacements, Result).
 
-% 指定された文字を newline に置き換える（後方互換性のため）
-replace_char_with_newline(Tokens, Char, Result) :-
-    replace_tokens(Tokens, [(Char, newline)], Result).
-
-% 予約語リストをマージしてユニーク化（main も含める）
-merge_reserved_words(ReservedWords1, ReservedWords2, MergedWords) :-
-    append([main | ReservedWords1], ReservedWords2, TempWords),
-    sort(TempWords, MergedWords),
-    debug_print('AllReservedWords:', MergedWords).
 
 % 複数の予約語リストをマージしてユニーク化（main も含める）
 merge_reserved_words_list(ReservedWordsLists, MergedWords) :-
@@ -952,28 +943,6 @@ find_detailed_failing_point_impl(Tokens, Acc, FailingInfo) :-
         append(Acc, [DisplayString], FailingInfo)
     ).
 
-% 失敗したルールを特定する
-find_failing_rule(Tokens, FailingTokens) :-
-    find_failing_rule_impl(Tokens, [], FailingTokens).
-
-find_failing_rule_impl([], Acc, Acc).
-find_failing_rule_impl(Tokens, Acc, FailingTokens) :-
-    % 次のルールを試行
-    (phrase(rule_pred(_), Tokens, RestTokens) ->
-        % 成功した場合、残りを処理
-        find_failing_rule_impl(RestTokens, Acc, FailingTokens)
-    ;
-        % 失敗した場合、現在の行（改行まで）を取得
-        take_until_newline(Tokens, LineTokens),
-        (LineTokens = [] ->
-            % 行が空の場合は最初の数個のトークンを表示
-            take_first_tokens(Tokens, 10, LineTokens)
-        ;
-            true
-        ),
-        append(Acc, LineTokens, FailingTokens)
-    ).
-
 % 改行までのトークンを取得（newline は含まない）
 take_until_newline([], []).
 take_until_newline([newline|_], []).
@@ -1468,18 +1437,6 @@ format_debug_item_with_indent(Depth, Item) :-
         write(IndentedPrefix), write_canonical(Item), nl
     ).
 
-% デバッグ用：項目をformat_termで表示（後方互換性のため残す）
-format_debug_item(Item) :-
-    (catch(format_term(Item, Formatted), _, fail) ->
-        write(Formatted), nl
-    ;
-        % format_termが失敗した場合は正規形式で表示
-        write_canonical(Item), nl
-    ).
-
-% デバッグ用：項目を正規形式で表示（後方互換性のため残す）
-write_canonical_item(Item) :-
-    write_canonical(Item), nl.
 
 % 項を横方向の木で表示する述語
 display_tree(Term) :-
