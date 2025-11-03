@@ -257,13 +257,23 @@ parse_context(Contexts, ContextRules, RestTokens, RestTokens2) :-
     setup_call_cleanup(
         maplist(assertz, Ops),
         % トークンリストから評価文脈部分をパーズ
-        (phrase(tokens_contexts(Contexts, ContextRules), RestTokens, RestTokens2) ->
-            true
-        ;
-            % context ブロックがない場合
-            Contexts = [],
-            ContextRules = [],
-            RestTokens2 = RestTokens
+        (
+            % context syntax { ... } をパーズ
+            (phrase(tokens_context_syntax(Contexts), RestTokens, RestTokens1) ->
+                true
+            ;
+                % context syntax ブロックがない場合
+                Contexts = [],
+                RestTokens1 = RestTokens
+            ),
+            % context rule { ... } をパーズ
+            (phrase(tokens_context_rule(ContextRules), RestTokens1, RestTokens2) ->
+                true
+            ;
+                % context rule ブロックがない場合
+                ContextRules = [],
+                RestTokens2 = RestTokens1
+            )
         ),
         % 評価文脈定義用の演算子を削除
         maplist(retract, Ops)
@@ -392,29 +402,38 @@ parse_one_syntax(Tokens, '::='(LHS, RHS)) :-
     all_alpha(LHS),
     phrase(pred(RHS), RHSTokens).
 
-% context ::= 'context' '{' (定義 | ルール)* '}'
-% syntax と同じパターンでパース
-tokens_contexts(Contexts, Rules) --> 
-    skip([newline]),
-    {debug_print('Parsing context block', [] )},
-    [context], skip([newline]), [open], skip([newline]),
-    {debug_print('Collecting context block items', [])},
+% context syntax ::= 'context' 'syntax' '{' (pred ';'?)* '}'
+% syntax ブロックと同じロジックを使用
+tokens_context_syntax(S) --> 
+    skip([newline]), 
+    [context], skip([newline]), [syntax], skip([newline]), [open], skip([newline]),
     collect_until_brace(Tokens),
-    {debug_print('Parsing context block items', [Tokens])},
-    {phrase(rules_pred(AllItems), Tokens)},
-    {debug_print('Partitioning context block items', [AllItems])},
-    {partition_contexts(AllItems, Contexts, Rules)},
+    {exclude(=(newline), Tokens, TokensNoSemi)},
+    {(parse_syntax_list(TokensNoSemi, S) ->
+        true
+    ;
+        write('error: parse failed in context syntax block (undefined operator or syntax error)'), nl,
+        find_syntax_failing_point(TokensNoSemi, FailingInfo),
+        write('Failing at: '), write(FailingInfo), nl,
+        halt(1)
+    )},
     skip([newline]).
-tokens_contexts([], []) --> skip([newline]).
+tokens_context_syntax([]) --> [].
 
-% アイテムを文法定義とルールに分類
-partition_contexts([], [], []).
-% ::=(_, _) :- true の形式
-partition_contexts([('::='(L, R) :- true)|Rest], ['::='(L, R)|Contexts], Rules) :- !,
-    partition_contexts(Rest, Contexts, Rules).
-% それ以外はルール
-partition_contexts([Item|Rest], Contexts, [Item|Rules]) :-
-    partition_contexts(Rest, Contexts, Rules).
+% context rule ::= 'context' 'rule' '{' ルール* '}'
+% 通常のルールパーズを使用
+tokens_context_rule(Rules) --> 
+    skip([newline]), 
+    [context], skip([newline]), [rule], skip([newline]), [open], skip([newline]),
+    collect_until_brace(Tokens),
+    {(phrase(rules_pred(Rules), Tokens) ->
+        true
+    ;
+        write('error: parse failed in context rule block (undefined operator or syntax error)'), nl,
+        halt(1)
+    )},
+    skip([newline]).
+tokens_context_rule([]) --> [].
 
 % 評価文脈ルールを展開する
 % Contexts: 評価文脈定義のリスト（例：['::='(E, '|'('_'(_,+,e), '+'(v,_)))]）

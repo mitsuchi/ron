@@ -25,9 +25,11 @@ syntax {
     z ::= x           # variable
 }
 
-context {
+context syntax {
     T ::= _ t | v _
+}
 
+context rule {
     T [t1] -> T [t2] {
         t1 -> t2
     }

@@ -13,10 +13,12 @@ syntax {
 }
 
 # 評価文脈
-context {
+context syntax {
     # 再帰的な文法：左から順に簡約
     E ::= _ | e + E | E + v
+}
 
+context rule {
     # 簡約規則
     E [e1] -> E [e2] {
         e1 -> e2
