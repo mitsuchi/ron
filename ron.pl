@@ -1094,8 +1094,8 @@ t(P,T,O)-->
 % 関数適用 _ _ の項をパーズして項をつくり O に入れる。現在の優先順位を P, 作成中の項を T とする。
 t(P,T,O)-->
     % 種類を following とする
-    {ops(A, _, following, [L,L2|M])},
-    {number(L2), P<L},
+    % once/1 で演算子検索のバックトラックを削減（パフォーマンス改善）
+    {once((ops(A, _, following, [L,L2|M]), number(L2), P<L))},
     g([L2|M],V),      
     {call(A,[T|V],W)},
     t(P,W,O)          
@@ -1136,11 +1136,16 @@ is_expression_token(Token) :-
 is_function_left_side(Token) :-
     (number(Token) ; 
      variable(Token) ; 
-     all_alpha(Token) ; 
+     (all_alpha(Token), \+ is_leading_operator(Token)) ;  % leading演算子は除外
      Token = '(' ; 
      Token = '{' ;
      Token = '_' ;
      Token = open).
+
+% トークンがleading演算子かどうかをチェック
+is_leading_operator(Token) :-
+    atom(Token),
+    ops(_, _, leading, [Token|_]).
 
 variable(U) :- U = '$VAR'(_).
 

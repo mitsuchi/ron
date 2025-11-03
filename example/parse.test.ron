@@ -20,5 +20,5 @@ syntax {
 }
 
 main {
-    t? if iszero 0 then true else (if iszero 0 then true else (if iszero (pred pred pred 0) then true else true))
+    t? if iszero 0 then (pred pred pred pred pred pred pred pred 0) else true
 }
