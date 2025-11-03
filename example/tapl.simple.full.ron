@@ -1,12 +1,15 @@
-# simply typed lambda calculus : simple extension - full
+# simply typed lambda calculus : arithmetic expression
 
 op 99 : _ _
 op 90 : not _
 op 90 : X _
-op 60 r : _ -> _
+op 80 : succ _                   # successor
+op 80 : pred _                   # predecessor
+op 80 : iszero _                 # zero test
 op 50 : λ _ : _ . _
 op 50 : if _ then _ else _
 op 50 : [ _ -> _ ] _
+op 40 r : _ -> _
 op 30 : _ : _
 op 30 : _ \= _
 op 20 : _ , _
@@ -24,17 +27,28 @@ syntax {
         | λ x : T . t         # abstraction value
         | t t                 # application
         | if t then t else t  # conditional
+        | 0                   # constant zero
+        | succ t              # successor
+        | pred t              # predecessor
+        | iszero t            # zero test
 
-    v ::=                # values
-          λ x : T . t    # abstraction value
+    v ::=                     # values
+          true
+        | false
+        |  λ x : T . t        # abstraction value
+        | nv                  # numeric value
+
+    nv ::=                    # numeric values:
+          0                   # zero
+        | succ nv             # successor value
     
     # variables
     x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
 
     T ::=                # types
           Bool           # type of booleans
+        | Nat            # type of natural numbers
         | T -> T         # type of functions
-        | A              # 
 
     Γ ::=                # contexts
           φ              # empty context
@@ -53,11 +67,16 @@ context syntax {
     E ::=                   
           _ t          # 適用 s t の形はまず左側の s を簡約する
         | v _          # 左側が値 v になったら右側を簡約する
+        | succ _       # E-Succ
+        | pred _       # E-Pred
+        | iszero _     # E-IsZero
+        | if _ then t else t   # E-If
 }
+
 # 評価文脈の展開ルール
 context rule {
-    E [e] -> E [e'] {
-        e -> e'
+    E [t] -> E [t'] {
+        t -> t'
     }
 }
 
@@ -84,17 +103,6 @@ x : T1 ∈ (Γ, y : T2) {
     x : T1 ∈ Γ
 }
 
-# T-True, T-False
-Γ ⊢ true : Bool
-Γ ⊢ false : Bool
-
-# T-If
-Γ ⊢ if t1 then t2 else t3 : T {
-    Γ ⊢ t1 : Bool
-    Γ ⊢ t2 : T
-    Γ ⊢ t3 : T
-}
-
 # 右側が値になったらベータ簡約する
 (λ x : T . t) v -> s' {
     [x -> v] t => s'
@@ -119,10 +127,37 @@ t1 --> t1
 [x -> s] y => y {
     <x \= y>
 }
+
 # t1 t2 は、それぞれの項の中で置き換える
 [x -> s] (t1 t2) => t1' t2' {
      [x -> s] t1 => t1'
      [x -> s] t2 => t2'
+}
+
+# true と false はそのまま
+[x -> s] true => true
+[x -> s] false => false
+
+# succ t は、t の中で置き換える
+[x -> s] (succ t1) => succ t1' {
+     [x -> s] t1 => t1'
+}
+
+# pred t は、t の中で置き換える
+[x -> s] (pred t1) => pred t1' {
+     [x -> s] t1 => t1'
+}
+
+# iszero t は、t の中で置き換える
+[x -> s] (iszero t1) => iszero t1' {
+     [x -> s] t1 => t1'
+}
+
+# if t1 then t2 else t3 は、各項の中で置き換える
+[x -> s] (if t1 then t2 else t3) => if t1' then t2' else t3' {
+     [x -> s] t1 => t1'
+     [x -> s] t2 => t2'
+     [x -> s] t3 => t3'
 }
 # λx. t1 の中に自由な x はないのでそのまま
 [x -> s] (λx : T. t1) => λx : T. t1
@@ -164,10 +199,43 @@ free x in λy : T. t {
     free x in t
 }
 
-main {
-    φ ⊢ λf:A->A. λa:A. f (f a) : T1
-    # T1 = (A -> A) -> A -> A
+# Nat
+Γ ⊢ 0 : Nat
+Γ ⊢ succ t1 : Nat {
+  Γ ⊢ t1 : Nat
+}
+Γ ⊢ pred t1 : Nat {
+  Γ ⊢ t1 : Nat
+}
+Γ ⊢ iszero t1 : Bool {
+  Γ ⊢ t1 : Nat
+}
 
-    φ, f : (Bool -> Bool) ⊢ λa : Bool. f (if a then false else a) : T2
-    # T2 = Bool -> Bool
+pred 0 -> 0                      # E-PredZero
+pred (succ nv) -> nv             # E-PredSucc
+iszero 0 -> true                 # E-IsZeroZero
+iszero (succ nv) -> false        # E-IsZeroSucc
+
+# Bool
+
+# T-True, T-False
+Γ ⊢ true : Bool
+Γ ⊢ false : Bool
+
+# T-If
+Γ ⊢ if t1 then t2 else t3 : T {
+    Γ ⊢ t1 : Bool
+    Γ ⊢ t2 : T
+    Γ ⊢ t3 : T
+}
+
+if true then t2 else t3 -> t2   # E-IfTrue
+if false then t2 else t3 -> t3  # E-ifFalse
+
+main {
+    (λa : Nat. succ a) (succ (succ 0)) --> v1
+    # v1 = succ succ succ 0
+
+    if (iszero 0) then pred succ 0 else succ succ 0 --> v2
+    # v2 = 0
 }

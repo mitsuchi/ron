@@ -131,7 +131,9 @@ test_all() {
     run_test "example/tapl.tuple.ron" "v = succ 0"
     run_test "example/tapl.record.ron" "T = Nat"
     run_test "example/tapl.record.pattern.ron" "v = { succ 0 , true }"
-    run_test_multiline "example/tapl.simple.full.ron" "T1 = (A -> A) -> A -> A" "T2 = Bool -> Bool"
+    run_test_multiline "example/tapl.simple.full.ron" \
+                       "v1 = succ succ succ 0" \
+                       "v2 = 0"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
