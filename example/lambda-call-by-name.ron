@@ -87,7 +87,7 @@ free x in & y . t {
 
 main {
     (&a.a) ((&a.a) (&b. (&a.a) b)) --> v
-    # w = & b . b
+    # v = & b . (& a . a) b
 
     # [a -> b] (& a. c) => w
     # w = & a . c
