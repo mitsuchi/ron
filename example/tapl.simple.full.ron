@@ -7,13 +7,17 @@ op 90 : X _
 op 80 : succ _                   # successor
 op 80 : pred _                   # predecessor
 op 80 : iszero _                 # zero test
-op 75 : _ * _                    # pair type
+op 75 : _ * _                    # product type
+op 70 : _ + _                    # sum type
 op 70 : ( _ , _ )                # pair
 op 60 : _ . _                    # projection
 op 55 : _ as _                   # ascription
 op 50 : let _ = _ in _
 op 50 : λ _ : _ . _
 op 50 : if _ then _ else _
+op 50 : left _
+op 50 : right _
+op 50 : case _ of left _ => _ / right _ => _
 op 50 : [ _ -> _ ] _
 op 40 r : _ -> _
 op 30 : _ : _
@@ -44,6 +48,9 @@ syntax {
         | ( t , t )           # pair
         | t . 1               # 1st projection
         | t . 2               # 2nd projection
+        | left t              # sum : tagging left
+        | right t             # sum : tagginf right
+        | case t of left x => t / right x => t
 
     v ::=                     # values
           true
@@ -52,6 +59,8 @@ syntax {
         | nv                  # numeric value
         | unit
         | ( v , v )           # pair value
+        | left v              # sum value : tagging left
+        | right v             # sum value : tagging right
 
     nv ::=                    # numeric values:
           0                   # zero
@@ -66,6 +75,7 @@ syntax {
         | T -> T         # type of functions
         | Unit           # unit type
         | T * T          # product type
+        | T + T          # sum type
 
     Γ ::=                # contexts
           φ              # empty context
@@ -94,6 +104,9 @@ context syntax {
         | _ . 2                # E-Proj2
         | ( _ , t )            # E-Pair1 : ペアは左側から評価する
         | ( v , _ )            # E-Pair2 : 左側が値になったら右側へ
+        | case _ of left x => t / right x => t
+        | left _
+        | right _
 }
 
 # 評価文脈の展開ルール
@@ -319,7 +332,35 @@ let x = v in t -> s {
     Γ ⊢ (t1, t2) : T1 * T2
 }
 
+# E-CaseLeft
+case (left v) of left x1 => t1 / right x2 => t2 -> t3 {
+    [x1 -> v] t1 => t3
+}
+case (right v) of left x1 => t1 / right x2 => t2 -> t3 {
+    [x2 -> v] t1 => t3
+}
+
+# T-Left
+Γ ⊢ left t1 : T1 + T2 {
+    Γ ⊢ t1 : T1
+}
+# T-Right
+Γ ⊢ right t2 : T1 + T2 {
+    Γ ⊢ t2 : T2
+}
+# T-Case
+Γ ⊢ case t0 of left x1 => t1 / right x2 => t2 : T {
+    Γ ⊢ t0 : T1 + T2
+    Γ, x1 : T1 ⊢ t1 : T
+    Γ, x2 : T2 ⊢ t2 : T
+}
+
 main {
+    φ ⊢ (left 0) : T1 + Nat
+
+    case (left 0) of left a => succ a / right b => pred b --> v7
+    # v = succ 0
+
     (λa : (Nat * Nat) . (a . 2)) (pred succ 0, pred succ succ 0) --> v6
     # v6 = succ 0
 
