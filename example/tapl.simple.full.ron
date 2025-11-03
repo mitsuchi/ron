@@ -1,4 +1,4 @@
-# simply typed lambda calculus : arithmetic expression
+# simply typed lambda calculus : simple extension : full
 use % for newline
 
 op 99 : _ _
