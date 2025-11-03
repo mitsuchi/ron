@@ -133,7 +133,8 @@ test_all() {
     run_test "example/tapl.record.pattern.ron" "v = { succ 0 , true }"
     run_test_multiline "example/tapl.simple.full.ron" \
                        "v1 = succ succ succ 0" \
-                       "v2 = 0"
+                       "v2 = 0" \
+                       "v3 = succ 0"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"

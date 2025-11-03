@@ -6,6 +6,7 @@ op 90 : X _
 op 80 : succ _                   # successor
 op 80 : pred _                   # predecessor
 op 80 : iszero _                 # zero test
+op 55 : _ as _                   # ascription
 op 50 : λ _ : _ . _
 op 50 : if _ then _ else _
 op 50 : [ _ -> _ ] _
@@ -31,6 +32,7 @@ syntax {
         | succ t              # successor
         | pred t              # predecessor
         | iszero t            # zero test
+        | t as T              # ascription
 
     v ::=                     # values
           true
@@ -71,6 +73,7 @@ context syntax {
         | pred _       # E-Pred
         | iszero _     # E-IsZero
         | if _ then t else t   # E-If
+        | _ as T       # E-Ascribe1
 }
 
 # 評価文脈の展開ルール
@@ -232,10 +235,21 @@ iszero (succ nv) -> false        # E-IsZeroSucc
 if true then t2 else t3 -> t2   # E-IfTrue
 if false then t2 else t3 -> t3  # E-ifFalse
 
+# E-Ascribe
+v as T -> v
+
+# T-Ascribe
+Γ ⊢ t as T : T {
+    Γ ⊢ t : T
+}
+
 main {
-    (λa : Nat. succ a) (succ (succ 0)) --> v1
-    # v1 = succ succ succ 0
+    (λa: Nat. a) (succ 0) as Nat --> v3
+    # v = succ 0
 
     if (iszero 0) then pred succ 0 else succ succ 0 --> v2
     # v2 = 0
+
+    (λa : Nat. succ a) (succ (succ 0)) --> v1
+    # v1 = succ succ succ 0
 }
