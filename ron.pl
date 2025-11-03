@@ -216,6 +216,19 @@ is_var_pattern(Token) :-
 % 変数パターン: [a-Z][a-Z]?[0-9]*'*
 var_pattern --> alpha(_), optional(alpha, _), many(digit, _), many(quote, _).
 
+% main ブロック内で Prolog 変数として扱うパターン [t-z][0-9]* か [T-Z][0-9]* をチェック
+is_main_var_pattern(Token) :-
+    atom(Token),
+    atom_chars(Token, [First|Rest]),
+    % 最初の文字が t-z または T-Z
+    (char_type(First, lower), First @>= t, First @=< z ;
+     char_type(First, upper), First @>= 'T', First @=< 'Z'),
+    % 残りが全て数字
+    maplist(char_type_digit, Rest).
+
+% 文字が数字かチェック
+char_type_digit(C) :- char_type(C, digit).
+
 tokens_ops(Ops, ReservedWords) --> tokens_ops_impl(Ops, ReservedWordsNested), {flatten(ReservedWordsNested, ReservedWords), debug_print('ReservedWords:', ReservedWords)}.
 
 tokens_ops_impl([R|Rs], [RWs|RWsRest]) -->
@@ -993,7 +1006,7 @@ rule_pred(P :- true) --> pred(P), [newline].
 rule_pred(P :- B) --> pred(P), [open], skip([newline]), body(B), [close].
 
 body(P) --> pred(P), skip([newline]).
-body((P,Bs)) --> pred(P), [newline], body(Bs).
+body((P,Bs)) --> pred(P), [newline], skip([newline]), body(Bs).
 
 % 述語をパーズして結果の項を O に入れる
 % 現在の優先順位を考えられる最低にして式をパーズする。::= が -2 だったりするので。
@@ -1191,8 +1204,8 @@ normalize_term(Term, Normalized, SimplifyVars) :-
     ; Functor = '$VAR' -> 
         (SimplifyVars = true ->
             % main の中では、メタ変数のように見える単語もただのアトムとする
-            % ただし [t-z] か [T-Z] までの一文字だけはメタ変数とする。それらは assert_rule で Prolog の変数になる
-            ([Arg] = Args, not(member(Arg, [t,u,v,w,x,y,z,'T','U','V','W','X','Y','Z'])) -> Normalized = Arg; Normalized = Term)
+            % ただし [t-z][0-9]* か [T-Z][0-9]* のパターンだけはメタ変数とする。それらは assert_rule で Prolog の変数になる
+            ([Arg] = Args, not(is_main_var_pattern(Arg)) -> Normalized = Arg; Normalized = Term)
         ;
             Normalized = Term
         )
