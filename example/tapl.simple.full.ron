@@ -7,6 +7,9 @@ op 90 : X _
 op 80 : succ _                   # successor
 op 80 : pred _                   # predecessor
 op 80 : iszero _                 # zero test
+op 75 : _ * _                    # pair type
+op 70 : ( _ , _ )                # pair
+op 60 : _ . _                    # projection
 op 55 : _ as _                   # ascription
 op 50 : let _ = _ in _
 op 50 : λ _ : _ . _
@@ -38,6 +41,9 @@ syntax {
         | t as T              # ascription
         | unit
         | let x = t in t      # let binding
+        | ( t , t )           # pair
+        | t . 1               # 1st projection
+        | t . 2               # 2nd projection
 
     v ::=                     # values
           true
@@ -45,6 +51,7 @@ syntax {
         |  λ x : T . t        # abstraction value
         | nv                  # numeric value
         | unit
+        | ( v , v )           # pair value
 
     nv ::=                    # numeric values:
           0                   # zero
@@ -58,6 +65,7 @@ syntax {
         | Nat            # type of natural numbers
         | T -> T         # type of functions
         | Unit           # unit type
+        | T * T          # product type
 
     Γ ::=                # contexts
           φ              # empty context
@@ -82,6 +90,10 @@ context syntax {
         | if _ then t else t   # E-If
         | _ as T               # E-Ascribe2
         | let x = _ in t       # E-Let
+        | _ . 1                # E-Proj1
+        | _ . 2                # E-Proj2
+        | ( _ , t )            # E-Pair1 : ペアは左側から評価する
+        | ( v , _ )            # E-Pair2 : 左側が値になったら右側へ
 }
 
 # 評価文脈の展開ルール
@@ -276,7 +288,41 @@ let x = v in t -> s {
     Γ, x : T1 ⊢ t2 : T2
 }
 
+# Pair : (t1, t2) は、それぞれの項の中で置き換える
+[x -> s] (t1, t2) => (t1', t2') {
+     [x -> s] t1 => t1'
+     [x -> s] t2 => t2'
+}
+
+# t . 1 は t の中で置き換える
+[x -> s] t . 1 => t' . 1 {
+     [x -> s] t => t'
+}
+[x -> s] t . 2 => t' . 2 {
+     [x -> s] t => t'
+}
+
+# E-PairBeta
+(v1, v2) . 1 -> v1
+(v1, v2) . 2 -> v2
+
+# T-Pair
+Γ ⊢ (t1, t2) : T1 * T2 {
+    Γ ⊢ t1 : T1
+    Γ ⊢ t2 : T2
+}
+# T-Proj
+Γ ⊢ t . 1 : T1 {
+    Γ ⊢ (t1, t2) : T1 * T2
+}
+Γ ⊢ t . 2 : T2 {
+    Γ ⊢ (t1, t2) : T1 * T2
+}
+
 main {
+    (λa : (Nat * Nat) . (a . 2)) (pred succ 0, pred succ succ 0) --> v6
+    # v6 = succ 0
+
     let f = λa : Bool. a in f true --> v5
     # v5 = true
 
