@@ -366,18 +366,12 @@ fix (λx : T. t) -> t' {
     [x -> fix (λx : T. t)] t => t'
 }
 
+# fix t は、t の中で置き換える
+[x -> s] (fix t1) => fix t1' {
+     [x -> s] t1 => t1'
+}
+
 main {
-    # fix (λf : (Nat -> Nat). λn : Nat. f ) 0 --> w
-    # fix (λf : (Nat -> Nat). λn : Nat. 0) --> t' とすると
-    # [x -> fix (λf : (Nat -> Nat). λn : Nat. 0)] (λn : Nat. 0) => t' となる
-    # [f -> fix (λf : (Nat -> Nat). λn : Nat. 0)] (λn : Nat. 0) => w
-    # [f -> 0] (λn : Nat. 0) => w
-
-    # fix (λf : (Nat -> Nat). λn : Nat. f n) (λa : (Nat -> Nat). succ a) 0 --> w
-
-    # (λf : (Nat -> Nat). λn : Nat. f n) (λa : (Nat -> Nat). succ a) 0 --> v8
-    # v8 = succ 0
-
     φ ⊢ (left 0) : T1 + Nat
     # T1 : Nat
 
@@ -402,18 +396,6 @@ main {
     (λa : Nat. succ a) (succ (succ 0)) --> v1
     # v1 = succ succ succ 0
 
-    # (fix (λf : (Nat -> Nat). λn : Nat. 0)) (succ 0) -> w
-    # fix (λf : (Nat -> Nat). λn : Nat. if iszero n then 0 else ) (succ succ 0) --> w
-
-    #fix (λe : (Nat -> Bool) . λn : Nat . if iszero n then true else (if iszero (pred n) then false else e (pred (pred n)))) 0 --> w
-    # t? (λe : (Nat -> Bool) . λn : Nat . if iszero n then true else (if iszero (pred n) then false else e (pred (preed n)))) 0
-    # t? (λe : (Nat -> Bool) . λn : Nat . if iszero n then true else (if iszero n then false else true)) 0
-    # t? (λe : (Nat -> Bool) . λn : Nat . if iszero n then true else true) 0
-    # t? fix (λe : (Nat -> Bool) . λn : Nat . if iszero n then true else (if true then false else true)) 0
-    # t? fix (λe : (Nat -> Bool) . λn : Nat . if iszero n then true else (if iszero (pred n) then false else true)) 0
-    # t? if true then true else true
-    # t? if true then true else (if true then true else true)
-    # t? if iszero 0 then true else (if iszero 0 then true else (if iszero (pred pred pred pred 0) then true else true))
-
-    t? if iszero 0 then true else (if iszero 0 then true else (if iszero 0 then true else true))
+    fix (λe : (Nat -> Bool) . λn : Nat . if iszero n then true else (if iszero (pred n) then false else e (pred (pred n)))) (succ succ 0) --> v8
+    # v8 = true
 }

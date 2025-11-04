@@ -140,7 +140,8 @@ test_all() {
                        "v5 = true" \
                        "v6 = succ 0" \
                        "v7 = succ 0" \
-                       "T1 = Nat"
+                       "T1 = Nat" \
+                       "v8 = true"
 
     echo "========================================"
     echo "Results: $PASS passed, $FAIL failed"
