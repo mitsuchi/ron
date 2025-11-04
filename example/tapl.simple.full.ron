@@ -16,6 +16,7 @@ op 55 : _ as _                   # ascription
 op 50 : let _ = _ in _
 op 50 : λ _ : _ . _
 op 50 : if _ then _ else _
+op 50 : letrec _ = _ in _        # recursion
 op 50 : left _
 op 50 : right _
 op 50 : case _ of left _ => _ / right _ => _
@@ -371,6 +372,11 @@ fix (λx : T. t) -> t' {
      [x -> s] t1 => t1'
 }
 
+# letrec : derived form
+letrec (x : T) = t1 in t2 --> t3 {
+    let x = fix (λx : T. t1) in t2 --> t3
+}
+
 main {
     φ ⊢ (left 0) : T1 + Nat
     # T1 : Nat
@@ -396,6 +402,6 @@ main {
     (λa : Nat. succ a) (succ (succ 0)) --> v1
     # v1 = succ succ succ 0
 
-    fix (λe : (Nat -> Bool) . λn : Nat . if iszero n then true else (if iszero (pred n) then false else e (pred (pred n)))) (succ succ 0) --> v8
+    letrec (e : (Nat -> Bool)) = λn : Nat . if iszero n then true else (if iszero (pred n) then false else e (pred (pred n))) in e (succ succ 0) --> v8
     # v8 = true
 }
