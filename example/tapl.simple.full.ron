@@ -6,6 +6,12 @@ op 99 : succ _                   # successor
 op 99 : pred _                   # predecessor
 op 99 : iszero _                 # zero test
 op 99 : fix _                    # fix
+op 99 : nil [ _ ]                # empty list
+op 99 : cons [ _ ] _ _           # list constructor
+op 99 : isnil [ _ ] _            # test for empty list
+op 99 : head [ _ ] _             # head of a list
+op 99 : tail [ _ ] _             # tail of a list
+op 99 : List _                   # type of lists
 op 90 : not _
 op 90 : X _
 op 75 : _ * _                    # product type
@@ -54,6 +60,11 @@ syntax {
         | right t             # sum : tagginf right
         | case t of left x => t / right x => t
         | fix t
+        | nil [ T ]            # empty list
+        | cons [ T ] t t       # list constructor
+        | isnil [ T ] t        # test for empty list
+        | head [ T ] t         # head of a list
+        | tail [ T ] t         # tail of a list
 
     v ::=                     # values
           true
@@ -64,6 +75,8 @@ syntax {
         | ( v , v )           # pair value
         | left v              # sum value : tagging left
         | right v             # sum value : tagging right
+        | nil [ T ]           # empty list
+        | cons [ T ] v v      # list constructor
 
     nv ::=                    # numeric values:
           0                   # zero
@@ -77,8 +90,9 @@ syntax {
         | Nat            # type of natural numbers
         | T -> T         # type of functions
         | Unit           # unit type
-        | T * T          # product type
-        | T + T          # sum type
+        | T * T          # type of products
+        | T + T          # type of sums
+        | List T         # type of lists
 
     Γ ::=                # contexts
           φ              # empty context
@@ -88,8 +102,11 @@ syntax {
     y ::= x           # variable
     z ::= x           # variable
 
+    S ::= T           # type variable
+
     # x, y, z : 変数を表すメタ変数：実際の変数は a から n までの1文字
     # t, s    : 項を表すメタ変数
+    # S, T    : 型を表すメタ変数
 }
 
 # 評価文脈の文法
@@ -111,6 +128,9 @@ context syntax {
         | left _
         | right _
         | fix _
+        | cons [ T ] _ t       # E-Cons1
+        | cons [ T ] v _       # E-Cons2
+        | isnil [ T ] _        # E-IsNil
 }
 
 # 評価文脈の展開ルール
@@ -377,7 +397,54 @@ letrec x : T = t1 in t2 --> t3 {
     let x = fix (λx : T. t1) in t2 --> t3
 }
 
+# E-IsNilNil
+isnil [S] (nil [T]) -> true
+
+# E-IsNilCons
+isnil [S] (cons [T] v1 v2) -> false
+
+# E-HeadCons
+head [S] (cons [T] v1 v2) -> v1
+
+# E-TailCons
+tail [S] (cons [T] v1 v2) -> v2
+
+# T-Nil
+Γ ⊢ nil [T] : List T
+
+# T-Cons1
+Γ ⊢ cons [T] t1 t2 : List T {
+    Γ ⊢ t1 : T
+    Γ ⊢ t2 : List T
+}
+
+# T-IsNil
+Γ ⊢ isnil [T] t : Bool {
+    Γ ⊢ t : List T
+}
+
+# T-Head
+Γ ⊢ head [T] t : T {
+    Γ ⊢ t : List T
+}
+
+# T-Tail
+Γ ⊢ tail [T] t : List T {
+    Γ ⊢ t : List T
+}
+
 main {
+    φ ⊢ tail [Nat] (cons [Nat] 0 (nil [Nat])) : List Nat
+    φ ⊢ head [Nat] (cons [Nat] 0 (nil [Nat])) : Nat
+    φ ⊢ isnil [Nat] (nil [Nat]) : Bool
+    φ ⊢ cons [Bool] true (nil [Bool]) : List Bool
+    φ ⊢ nil [Bool] : List Bool
+
+    tail [Bool] (cons [Nat] 0 (cons [Nat] 0 0)) --> cons [Nat] 0 0
+    head [Bool] (cons [Nat] (succ 0) 0) --> succ 0
+    isnil [Bool] (cons [Nat] 0 (succ 0)) --> false
+    isnil [Bool] (nil [Nat]) --> true
+
     φ ⊢ (left 0) : T1 + Nat
     # T1 : Nat
 
