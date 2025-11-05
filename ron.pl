@@ -5,7 +5,12 @@
 % メモ化用のキャッシュ
 :- dynamic eval_cache/2.
 
-:- initialization((run -> true ; (write('error'), nl, halt(1)))).
+:- initialization((run -> true ; (write(user_error, 'error'), nl(user_error), halt(1)))).
+
+% エラー出力用のヘルパー述語
+error_write(Message) :- write(user_error, Message).
+error_writeln(Message) :- write(user_error, Message), nl(user_error).
+error_nl :- nl(user_error).
 
 run :- 
     current_prolog_flag(argv, Argv),
@@ -19,11 +24,14 @@ run :-
     ),
     % 評価深さカウンタを初期化
     nb_setval(eval_depth, 0),
+    % 失敗情報を初期化
+    nb_setval(last_failed_goal, none),
+    nb_setval(last_failed_body, none),
     nth1(1, Argv2, FilePath) ->
         (catch(
             file_eval(FilePath),
             Exception,
-            (write('error: '), write(Exception), nl, halt(1))
+            (error_write('error: '), write(user_error, Exception), error_nl, halt(1))
         ), halt) ; true.
 
 % ファイルを読み込んで評価する
@@ -83,7 +91,71 @@ file_eval(FilePath) :-
     % これより前にバックトラックしない
     !,
     % main を問い合わせする
-    query(main) -> true ; (write('fail'), nl, halt(1)).
+    (query(main) -> true ; (
+        error_writeln('error: evaluation failed in main block'),
+        error_nl,
+        error_writeln('This may indicate:'),
+        error_writeln('  - A type error or constraint that cannot be satisfied'),
+        error_writeln('  - A syntax error that was not detected during parsing'),
+        error_writeln('  - Missing or incorrect rule definitions'),
+        error_nl,
+        error_writeln('Hint: Run with --debug flag for detailed trace:'),
+        error_writeln('  swipl ron.pl --debug <file>'),
+        error_nl,
+        % mainブロックの内容を表示
+        (clause(main, Body) ->
+            error_writeln('Main block attempting to evaluate:'),
+            error_write('  '),
+            catch(
+                (varnumbers_names(Body, BodyNamed, _), write(user_error, BodyNamed)),
+                _,
+                write_canonical(user_error, Body)
+            ),
+            error_nl
+        ;
+            error_writeln('Main block not found')
+        ),
+        error_nl,
+        % 失敗したゴールを表示
+        (nb_getval(last_failed_goal, FailedGoal), FailedGoal \= none ->
+            error_writeln('Last failed goal:'),
+            error_write('  '),
+            catch(
+                (varnumbers_names(FailedGoal, FailedGoalNamed, _),
+                 catch(format_term(FailedGoalNamed, Formatted), _, fail),
+                 write(user_error, Formatted)),
+                _,
+                catch(
+                    (varnumbers_names(FailedGoal, FailedGoalNamed2, _), write(user_error, FailedGoalNamed2)),
+                    _,
+                    write_canonical(user_error, FailedGoal)
+                )
+            ),
+            error_nl,
+            % 失敗したボディも表示
+            (nb_getval(last_failed_body, FailedBody), FailedBody \= none ->
+                error_writeln('Required conditions that could not be satisfied:'),
+                error_write('  '),
+                catch(
+                    (varnumbers_names(FailedBody, FailedBodyNamed, _),
+                     catch(format_term(FailedBodyNamed, FormattedBody), _, fail),
+                     write(user_error, FormattedBody)),
+                    _,
+                    catch(
+                        (varnumbers_names(FailedBody, FailedBodyNamed2, _), write(user_error, FailedBodyNamed2)),
+                        _,
+                        write_canonical(user_error, FailedBody)
+                    )
+                ),
+                error_nl
+            ;
+                error_writeln('No matching rule found for this goal')
+            )
+        ;
+            true
+        ),
+        halt(1)
+    )).
 
 chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars),
@@ -259,11 +331,11 @@ validate_op_lines([op|Rest]) :-
         validate_op_lines(RestAfterLine)
     ;
         % 失敗：エラーを報告
-        write('error: parse failed in operator definition'), nl,
+        error_writeln('error: parse failed in operator definition'),
         % エラー表示用に newline を除く
         take_until_newline([op|Rest], LineWithoutNewline),
         format_tokens_for_display(LineWithoutNewline, ErrorInfo),
-        write('Error at: '), write(ErrorInfo), nl,
+        error_write('Error at: '), write(user_error, ErrorInfo), error_nl,
         halt(1)
     ).
 validate_op_lines([_|_]) :-
@@ -350,10 +422,10 @@ tokens_syntaxes(S) --> skip([newline]), [syntax], skip([newline]), [open], skip(
     {(parse_syntax_list(TokensNoSemi, S) ->
         true
     ;
-        write('error: parse failed in syntax block (undefined operator or syntax error)'), nl,
+        error_writeln('error: parse failed in syntax block (undefined operator or syntax error)'),
         % syntaxブロック内のエラーを詳細に表示
         find_syntax_failing_point(TokensNoSemi, FailingInfo),
-        write('Failing at: '), write(FailingInfo), nl,
+        error_write('Failing at: '), write(user_error, FailingInfo), error_nl,
         halt(1)
     )},
     skip([newline]).
@@ -461,9 +533,9 @@ tokens_context_syntax(S) -->
     {(parse_syntax_list(TokensNoSemi, S) ->
         true
     ;
-        write('error: parse failed in context syntax block (undefined operator or syntax error)'), nl,
+        error_writeln('error: parse failed in context syntax block (undefined operator or syntax error)'),
         find_syntax_failing_point(TokensNoSemi, FailingInfo),
-        write('Failing at: '), write(FailingInfo), nl,
+        error_write('Failing at: '), write(user_error, FailingInfo), error_nl,
         halt(1)
     )},
     skip([newline]).
@@ -478,7 +550,7 @@ tokens_context_rule(Rules) -->
     {(phrase(rules_pred(Rules), Tokens) ->
         true
     ;
-        write('error: parse failed in context rule block (undefined operator or syntax error)'), nl,
+        error_writeln('error: parse failed in context rule block (undefined operator or syntax error)'),
         halt(1)
     )},
     skip([newline]).
@@ -841,7 +913,7 @@ add_question_mark(NT, NTQuestion) :-
 syntaxes_reserved_words(Syntaxes, ReservedWords2) :-
     extract_left_words(Syntaxes, LeftWords),
     (catch(extract_right_words(Syntaxes, RightWords), Error, (
-        write('Error in extract_right_words: '), write(Error), nl,
+        error_write('Error in extract_right_words: '), write(user_error, Error), error_nl,
         RightWords = []
     )) -> true ; RightWords = []),
     % RightWords - LeftWords の差集合を計算
@@ -967,28 +1039,144 @@ assert_rule(Head :- Body) :-
 assert_rule(op(_)).
 
 tokens_rules(Tokens, Rules) :-
+    % ルール部分を事前に検証
+    validate_rules(Tokens),
+    % パースを実行
     (phrase(rules_pred(Rules), Tokens) ->
         debug_print_rules('Rules:', Rules)
     ;
-        write('error: parse failed (undefined operator or syntax error)'), nl,
+        error_writeln('error: parse failed (undefined operator or syntax error)'),
         nl,
         % より詳細なエラー情報を取得
         find_detailed_failing_point(Tokens, FailingInfo),
         (FailingInfo = [] ->
             % エラー情報が空の場合は、残りのトークンを表示
-            write('Error location: Unable to determine'), nl,
-            write('Remaining tokens: '), nl,
+            error_write('Error location: Unable to determine'), nl,
+            error_write('Remaining tokens: '), nl,
             format_remaining_tokens(Tokens, 20)
         ;
-            write('Error location:'), nl,
+            error_write('Error location:'), nl,
             maplist(write_failing_info, FailingInfo),
-            write('Remaining tokens (from error point):'), nl,
+            error_write('Remaining tokens (from error point):'), nl,
             % エラー箇所の後のトークンを表示
             find_remaining_after_error(Tokens, FailingInfo, RemainingTokens),
             format_remaining_tokens(RemainingTokens, 20)
         ),
         halt(1)
     ).
+
+% ルール部分を事前に検証
+validate_rules(Tokens) :-
+    validate_rules_impl(Tokens, 1).
+
+% 各ルールを検証（行番号をカウント）
+validate_rules_impl([], _).
+validate_rules_impl([newline|Rest], LineNum) :-
+    !,
+    NextLine is LineNum + 1,
+    validate_rules_impl(Rest, NextLine).
+validate_rules_impl([main, open|_], _LineNum) :-
+    % mainブロックに到達したら検証終了
+    !.
+validate_rules_impl(Tokens, LineNum) :-
+    % 1つのルールをパースしてみる
+    (phrase(rule_pred(_), Tokens, RestTokens) ->
+        % 成功：次のルールへ
+        validate_rules_impl(RestTokens, LineNum)
+    ;
+        % 失敗：より詳細にエラーを特定
+        (extract_rule_head_and_body(Tokens, Head, Body) ->
+            % ヘッドとボディが区別できた場合
+            (phrase(pred(_), Head) ->
+                % ヘッドは正常、ボディにエラーがある
+                error_writeln('error: parse failed in rule body'),
+                find_body_error_line(Body, ErrorLine),
+                format_tokens_for_display(ErrorLine, ErrorContext),
+                error_write('Error at: '), write(user_error, ErrorContext), error_nl
+            ;
+                % ヘッドにエラーがある
+                error_writeln('error: parse failed in rule head'),
+                format_tokens_for_display(Head, ErrorContext),
+                error_write('Error at: '), write(user_error, ErrorContext), error_nl
+            )
+        ;
+            % ヘッドとボディを区別できない（単純なルール）
+            error_writeln('error: parse failed in rule definition'),
+            extract_error_line_context(Tokens, LineNum, ErrorContext),
+            error_write('Error near: '), write(user_error, ErrorContext), error_nl
+        ),
+        halt(1)
+    ).
+
+% ルールからヘッドとボディを抽出
+extract_rule_head_and_body(Tokens, Head, Body) :-
+    % open があるかチェック（ボディがある場合）
+    take_until_token(Tokens, open, Head, [open|Rest]),
+    take_until_token(Rest, close, Body, _).
+
+% 指定されたトークンまで取得
+take_until_token([], _, [], []).
+take_until_token([Token|Rest], Token, [], [Token|Rest]) :- !.
+take_until_token([T|Rest], Token, [T|Result], Remaining) :-
+    take_until_token(Rest, Token, Result, Remaining).
+
+% ボディ内のエラー行を見つける
+find_body_error_line(Body, ErrorLine) :-
+    % ボディを改行で分割して各行を試す
+    split_body_by_newline(Body, Lines),
+    find_first_failing_line(Lines, ErrorLine).
+
+% ボディを改行で分割
+split_body_by_newline([], []).
+split_body_by_newline(Tokens, [Line|Lines]) :-
+    take_until_newline_body(Tokens, Line, Rest),
+    (Rest = [] ->
+        Lines = []
+    ;
+        split_body_by_newline(Rest, Lines)
+    ).
+
+% 改行までのトークンを取得（ボディ用）
+take_until_newline_body([], [], []).
+take_until_newline_body([newline|Rest], [], Rest) :- !.
+take_until_newline_body([Token|Rest], [Token|Line], Remaining) :-
+    take_until_newline_body(Rest, Line, Remaining).
+
+% 最初に失敗する行を見つける
+find_first_failing_line([], []).
+find_first_failing_line([Line|Rest], ErrorLine) :-
+    (Line = [] ->
+        % 空行はスキップ
+        find_first_failing_line(Rest, ErrorLine)
+    ;
+        (phrase(pred(_), Line) ->
+            % この行は成功、次を試す
+            find_first_failing_line(Rest, ErrorLine)
+        ;
+            % この行で失敗
+            ErrorLine = Line
+        )
+    ).
+
+% エラー行のコンテキストを抽出（数行分）
+extract_error_line_context(Tokens, _LineNum, ErrorContext) :-
+    % 最初の数トークンまたは最初の open までを取得
+    take_until_brace_or_n_tokens(Tokens, 15, ContextTokens),
+    format_tokens_for_display(ContextTokens, ErrorContext).
+
+% nトークンまたは open/close/main までを取得
+take_until_brace_or_n_tokens([], _, []).
+take_until_brace_or_n_tokens(_, 0, []).
+take_until_brace_or_n_tokens([open|_], _, []) :- !.
+take_until_brace_or_n_tokens([close|_], _, []) :- !.
+take_until_brace_or_n_tokens([main|_], _, []) :- !.
+take_until_brace_or_n_tokens([newline|Rest], N, Result) :-
+    !,
+    N1 is N - 1,
+    take_until_brace_or_n_tokens(Rest, N1, Result).
+take_until_brace_or_n_tokens([Token|Rest], N, [Token|Result]) :-
+    N1 is N - 1,
+    take_until_brace_or_n_tokens(Rest, N1, Result).
 
 % より詳細な失敗箇所を特定する
 find_detailed_failing_point(Tokens, FailingInfo) :-
@@ -1099,17 +1287,17 @@ format_remaining_tokens([], _).
 format_remaining_tokens(Tokens, 0) :-
     length(Tokens, Len),
     Len > 0,
-    write('  ... and '), write(Len), write(' more tokens'), nl.
+    error_write('  ... and '), write(user_error, Len), error_writeln(' more tokens').
 format_remaining_tokens([Token|Rest], N) :-
     N > 0,
     format_single_token(Token, Str),
-    write('  '), write(Str), nl,
+    error_write('  '), write(user_error, Str), error_nl,
     N1 is N - 1,
     format_remaining_tokens(Rest, N1).
 
 % 失敗情報を表示
 write_failing_info(Info) :-
-    write('  '), write(Info), nl.
+    error_write('  '), write(user_error, Info), error_nl.
 
 % エラー箇所の後の残りのトークンを取得
 find_remaining_after_error(Tokens, FailingInfo, RemainingTokens) :-
@@ -1541,12 +1729,22 @@ eval(Goal) :-
             (eval_cache(Goal, Result) ->
                 Result = true
             ;
-                % 新規評価してキャッシュに保存
+                % 新規評価してキャッシュに保存（バックトラック可能）
                 debug_print('Evaluating: ', [Goal]),
                 clause(Goal, Body),
-                eval(Body),
-                debug_print('Evaluated: ', [Goal]),
-                assertz(eval_cache(Goal, true))
+                % ボディの評価を試みる（失敗したらバックトラック）
+                (eval(Body) ->
+                    debug_print('Evaluated: ', [Goal]),
+                    assertz(eval_cache(Goal, true))
+                ;
+                    % ボディの評価に失敗 - 失敗情報を記録してバックトラック
+                    nb_setval(last_failed_goal, Goal),
+                    nb_setval(last_failed_body, Body),
+                    (nb_getval(debug_mode, true) ->
+                        (error_write('Failed goal: '), write_canonical(user_error, Goal), error_nl)
+                    ; true),
+                    fail
+                )
             ),
             % 深さをデクリメント
             nb_setval(eval_depth, Depth)
