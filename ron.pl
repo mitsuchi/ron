@@ -926,9 +926,22 @@ tokens_rules(Tokens, Rules) :-
         debug_print_rules('Rules:', Rules)
     ;
         write('error: parse failed (undefined operator or syntax error)'), nl,
+        nl,
         % より詳細なエラー情報を取得
         find_detailed_failing_point(Tokens, FailingInfo),
-        write('Failing at: '), write(FailingInfo), nl,
+        (FailingInfo = [] ->
+            % エラー情報が空の場合は、残りのトークンを表示
+            write('Error location: Unable to determine'), nl,
+            write('Remaining tokens: '), nl,
+            format_remaining_tokens(Tokens, 20)
+        ;
+            write('Error location:'), nl,
+            maplist(write_failing_info, FailingInfo),
+            write('Remaining tokens (from error point):'), nl,
+            % エラー箇所の後のトークンを表示
+            find_remaining_after_error(Tokens, FailingInfo, RemainingTokens),
+            format_remaining_tokens(RemainingTokens, 20)
+        ),
         halt(1)
     ).
 
@@ -938,23 +951,63 @@ find_detailed_failing_point(Tokens, FailingInfo) :-
 
 find_detailed_failing_point_impl([], Acc, Acc).
 find_detailed_failing_point_impl(Tokens, Acc, FailingInfo) :-
-    % 次のルールを試行
-    (phrase(rule_pred(_), Tokens, RestTokens) ->
-        % 成功した場合、残りを処理
-        find_detailed_failing_point_impl(RestTokens, Acc, FailingInfo)
+    % mainブロックをチェック（最初にチェック）
+    (find_main_block_in_tokens(Tokens, AfterMain) ->
+        % mainブロックが見つかった場合
+        find_main_failing_point(AfterMain, MainInfo),
+        append(Acc, [MainInfo], FailingInfo)
     ;
-        % 失敗した場合、現在の行（改行まで）を取得
-        take_until_newline(Tokens, LineTokens),
-        (LineTokens = [] ->
-            % 行が空の場合は最初の数個のトークンを表示
-            take_first_tokens(Tokens, 10, LineTokens)
+        % 次のルールを試行
+        (phrase(rule_pred(_), Tokens, RestTokens) ->
+            % 成功した場合、残りを処理
+            find_detailed_failing_point_impl(RestTokens, Acc, FailingInfo)
         ;
-            true
-        ),
-        % トークンリストを読みやすい形式に変換
-        format_tokens_for_display(LineTokens, DisplayString),
-        append(Acc, [DisplayString], FailingInfo)
+            % 失敗した場合、現在の行（改行まで）を取得
+            take_until_newline(Tokens, LineTokens),
+            (LineTokens = [] ->
+                % 行が空の場合は最初の数個のトークンを表示
+                take_first_tokens(Tokens, 20, LineTokens)
+            ;
+                true
+            ),
+            % トークンリストを読みやすい形式に変換
+            format_tokens_for_display(LineTokens, DisplayString),
+            append(Acc, [DisplayString], FailingInfo)
+        )
     ).
+
+% mainブロックをトークンリストから探す
+find_main_block_in_tokens([main, open|Rest], Rest).
+find_main_block_in_tokens([_|Rest], AfterMain) :-
+    find_main_block_in_tokens(Rest, AfterMain).
+find_main_block_in_tokens([], _) :- fail.
+
+% mainブロック内の失敗箇所を特定
+find_main_failing_point(Tokens, Info) :-
+    % mainブロックの終わりまでを取得（ネストを考慮）
+    find_main_block_end(Tokens, 0, BlockTokens, _RestTokens),
+    % mainブロック内で失敗した場合
+    take_until_newline(BlockTokens, LineTokens),
+    (LineTokens = [] ->
+        take_first_tokens(BlockTokens, 20, LineTokens)
+    ;
+        true
+    ),
+    format_tokens_for_display(LineTokens, DisplayString),
+    atomic_list_concat(['main block: ', DisplayString], '', Info).
+
+% mainブロックの終わり（}）までを取得（ネストを考慮）
+find_main_block_end([], _, [], []).
+find_main_block_end([close|Rest], 0, [], Rest) :- !.
+find_main_block_end([close|Rest], Depth, BlockTokens, RestTokens) :-
+    Depth > 0,
+    NewDepth is Depth - 1,
+    find_main_block_end(Rest, NewDepth, BlockTokens, RestTokens).
+find_main_block_end([open|Rest], Depth, [open|BlockTokens], RestTokens) :-
+    NewDepth is Depth + 1,
+    find_main_block_end(Rest, NewDepth, BlockTokens, RestTokens).
+find_main_block_end([Token|Rest], Depth, [Token|BlockTokens], RestTokens) :-
+    find_main_block_end(Rest, Depth, BlockTokens, RestTokens).
 
 % 改行までのトークンを取得（newline は含まない）
 take_until_newline([], []).
@@ -995,6 +1048,55 @@ format_single_token(Token, String) :-
     number_string(Token, String).
 format_single_token(Token, String) :-
     atom_string(Token, String).
+
+% 残りのトークンをフォーマットして表示
+format_remaining_tokens([], _).
+format_remaining_tokens(Tokens, 0) :-
+    length(Tokens, Len),
+    Len > 0,
+    write('  ... and '), write(Len), write(' more tokens'), nl.
+format_remaining_tokens([Token|Rest], N) :-
+    N > 0,
+    format_single_token(Token, Str),
+    write('  '), write(Str), nl,
+    N1 is N - 1,
+    format_remaining_tokens(Rest, N1).
+
+% 失敗情報を表示
+write_failing_info(Info) :-
+    write('  '), write(Info), nl.
+
+% エラー箇所の後の残りのトークンを取得
+find_remaining_after_error(Tokens, FailingInfo, RemainingTokens) :-
+    % mainブロック内のエラーの場合
+    (member(Info, FailingInfo),
+     atom_concat('main block: ', _, Info) ->
+        find_main_block_in_tokens(Tokens, AfterMain),
+        find_main_block_end(AfterMain, 0, BlockTokens, _),
+        % mainブロック内のエラー箇所の後のトークンを取得
+        find_remaining_in_main_block(BlockTokens, RemainingTokens)
+    ;
+        % 通常のルールのエラーの場合
+        % 最初の失敗したルールの後のトークンを取得
+        find_remaining_after_first_failure(Tokens, RemainingTokens)
+    ).
+
+% mainブロック内のエラー箇所の後のトークンを取得
+find_remaining_in_main_block([], []).
+find_remaining_in_main_block([newline|Rest], Rest).
+find_remaining_in_main_block([_|Rest], Remaining) :-
+    find_remaining_in_main_block(Rest, Remaining).
+
+% 最初の失敗したルールの後のトークンを取得
+find_remaining_after_first_failure(Tokens, RemainingTokens) :-
+    (phrase(rule_pred(_), Tokens, RemainingTokens) ->
+        true
+    ;
+        % パースに失敗した場合、最初の改行までの後のトークンを取得
+        take_until_newline(Tokens, LineTokens),
+        length(LineTokens, LineLen),
+        nth0(LineLen, Tokens, _, RemainingTokens)
+    ).
 
 % rule ::= pred ';' | pred '{' body '}'
 % body ::= pred ';' | pred ';' body
