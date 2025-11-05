@@ -38,8 +38,10 @@ file_eval(FilePath) :-
     chars_tokens(Chars, Tokens),
     % トークンリストから use ディレクティブをパースして置き換え
     parse_use_directive(Tokens, TokensWithNewline),
+    % 演算子定義を事前に検証
+    validate_operator_definitions(TokensWithNewline),
     % トークンリストから演算子リストをパーズして残りトークンリストと予約語リストを得る
-    tokens_ops(Ops, ReservedWords, TokensWithNewline, RestTokens),
+    phrase(tokens_ops(Ops, ReservedWords), TokensWithNewline, RestTokens),
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
     % トークンリストから文法部分をパーズして文法リストを得る
@@ -236,6 +238,49 @@ tokens_ops_impl([R|Rs], [RWs|RWsRest]) -->
     rule_op_with_reserved(R, RWs),
     tokens_ops_impl(Rs, RWsRest).
 tokens_ops_impl([], []) --> skip([newline]).
+
+% 演算子定義を事前に検証する
+validate_operator_definitions(Tokens) :-
+    validate_op_lines(Tokens).
+
+% op で始まる各行を検証
+validate_op_lines([]).
+validate_op_lines([newline|Rest]) :-
+    !,
+    validate_op_lines(Rest).
+validate_op_lines([op|Rest]) :-
+    !,
+    % この行全体を取得（newline を含む）
+    take_until_and_include_newline([op|Rest], Line),
+    % パースを試みる
+    (phrase(rule_op_with_reserved(_, _), Line, _) ->
+        % 成功：次の行へ
+        skip_to_next_line(Rest, RestAfterLine),
+        validate_op_lines(RestAfterLine)
+    ;
+        % 失敗：エラーを報告
+        write('error: parse failed in operator definition'), nl,
+        % エラー表示用に newline を除く
+        take_until_newline([op|Rest], LineWithoutNewline),
+        format_tokens_for_display(LineWithoutNewline, ErrorInfo),
+        write('Error at: '), write(ErrorInfo), nl,
+        halt(1)
+    ).
+validate_op_lines([_|_]) :-
+    % op でない場合、演算子定義セクションが終わったので検証終了
+    !.
+
+% 次の行（newline の後）までスキップ
+skip_to_next_line([], []).
+skip_to_next_line([newline|Rest], Rest) :- !.
+skip_to_next_line([_|Rest], Result) :-
+    skip_to_next_line(Rest, Result).
+
+% newline を含めて行を取得
+take_until_and_include_newline([], []).
+take_until_and_include_newline([newline|_], [newline]) :- !.
+take_until_and_include_newline([Token|Rest], [Token|Result]) :-
+    take_until_and_include_newline(Rest, Result).
 
 % 文法定義用の演算子を一時的に登録してパースし、その後削除する
 parse_syntax(Syntaxes, RestTokens, RestTokens2) :-
