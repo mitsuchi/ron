@@ -1,0 +1,26 @@
+# エラーケース1: 演算子定義で : が欠けている
+
+op 100 : _ + _
+op 50 if _ then _ else _    # エラー: : が欠けている
+op 30 : _ : _
+
+syntax {
+    t ::= n | t + t | if t then t else t
+    n ::= 0 | 1 | 2
+}
+
+0 + 1 => 1
+1 + 1 => 2
+1 + 2 => 3
+2 + 1 => 3
+2 + 2 => 4
+
+if 0 then t1 else t2 => t2
+if n then t1 else t2 => t1 {
+    n \= 0
+}
+
+main {
+    if 1 then 2 else 0 => x
+}
+
