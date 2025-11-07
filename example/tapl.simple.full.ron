@@ -59,6 +59,7 @@ syntax do
         | ( t , t )           # pair
         | t . 1               # 1st projection
         | t . 2               # 2nd projection
+        | ( ts )              # tuple
         | { ls }              # record : {a = 1, b = 2}
         | t . l               # label
         | left t              # sum : tagging left
@@ -71,6 +72,7 @@ syntax do
         | head [ T ] t         # head of a list
         | tail [ T ] t         # tail of a list
 
+    ts ::= φ | t , ts         # list of term
     ls ::= φ | l = t , ls     # list of label = term
     l ::= <atom>              # record label
 
@@ -81,11 +83,13 @@ syntax do
         | nv                  # numeric value
         | unit
         | ( v , v )           # pair value
+        | ( vs )              # tuple value
         | left v              # sum value : tagging left
         | right v             # sum value : tagging right
         | nil [ T ]           # empty list
         | cons [ T ] v v      # list constructor
 
+    vs ::= φ | v , vs         # values
     nv ::=                    # numeric values:
           0                   # zero
         | succ nv             # successor value
@@ -101,6 +105,7 @@ syntax do
         | T * T          # type of products
         | T + T          # type of sums
         | List T         # type of lists
+        | ( Ts )         # tuple type
 
     Γ ::=                # contexts
           φ              # empty context
@@ -442,6 +447,8 @@ end
 end
 
 main do
+    v? (0, true, succ 0, φ)
+    t? (0, true, succ 0, φ)
     t? { age = 0 , man = true , φ } . age
 
     φ ⊢ tail [Nat] (cons [Nat] 0 (nil [Nat])) : List Nat
