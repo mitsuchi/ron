@@ -373,12 +373,12 @@ end
     Γ ⊢ t1 : T1
     Γ ⊢ t2 : T2
 end
-# T-Proj
-Γ ⊢ t . 1 : T1 do
-    Γ ⊢ (t1, t2) : T1 * T2
+# T-Proj (for pairs)
+Γ ⊢ (t1, t2) . 1 : T1 do
+    Γ ⊢ t1 : T1
 end
-Γ ⊢ t . 2 : T2 do
-    Γ ⊢ (t1, t2) : T1 * T2
+Γ ⊢ (t1, t2) . 2 : T2 do
+    Γ ⊢ t2 : T2
 end
 
 # E-CaseLeft
