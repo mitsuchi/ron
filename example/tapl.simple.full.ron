@@ -462,6 +462,8 @@ end
 }
 
 main do
+    (0, succ 0, true, φ) . 3 -> true
+    (0, succ 0, φ) . 2 -> succ 0
     (0, φ) . 1 -> 0
 
     T? (Nat, Bool, φ)
