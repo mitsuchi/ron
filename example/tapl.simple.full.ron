@@ -16,6 +16,8 @@ op 99 : List _                   # type of lists
 op 90 : not _
 op 90 : X _
 op 75 : _ * _                    # product type
+op 74 : _ - _
+op 74 : _ > _
 op 72 : _ = _
 op 70 : _ + _                    # sum type
 op 70 : ( _ , _ )                # pair
@@ -35,6 +37,7 @@ op 40 r : _ -> _
 op 30 : _ : _
 op 30 : _ \= _
 op 25 : _ ; _
+op 20 : _ is _
 op 15 : _ : _ ∈ _
 op 10 : _ ⊢ _ : _
 op 10 : _ => _
@@ -60,6 +63,7 @@ syntax do
         | t . 1               # 1st projection
         | t . 2               # 2nd projection
         | ( ts )              # tuple
+        | t . n               # tuple projection
         | { ls }              # record : {a = 1, b = 2}
         | t . l               # label
         | left t              # sum : tagging left
@@ -75,6 +79,7 @@ syntax do
     ts ::= φ | t , ts         # list of term
     ls ::= φ | l = t , ls     # list of label = term
     l ::= <atom>              # record label
+    n ::= <number>            # 1, 2, 3, ...
 
     v ::=                     # values
           true
@@ -93,11 +98,9 @@ syntax do
     nv ::=                    # numeric values:
           0                   # zero
         | succ nv             # successor value
-
-    n ::= <number>            # 1, 2, 3, ...
     
     # variables
-    x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
+    x ::= a | b | c | d | e | f | g | h | i | j | k | l | m
 
     T ::=                # types
           Bool           # type of booleans
@@ -452,9 +455,13 @@ end
 
 # E-ProjTuple
 (v, vs) . 1 -> v
+(v1, vs) . n1 -> v2 {
+    <n1 > 1>
+    <n2 is n1 - 1>
+    (vs) . n2 -> v2
+}
 
 main do
-
     (0, φ) . 1 -> 0
 
     T? (Nat, Bool, φ)
@@ -500,6 +507,6 @@ main do
     (λa : Nat. succ a) (succ (succ 0)) --> v1
     # v1 = succ succ succ 0
 
-    letrec e : (Nat -> Bool) = λn : Nat . if iszero n then true else (if iszero (pred n) then false else e (pred pred n)) in e (succ succ 0) --> v8
+    letrec e : (Nat -> Bool) = λm : Nat . if iszero m then true else (if iszero (pred m) then false else e (pred pred m)) in e (succ succ 0) --> v8
     # v8 = true
 end
