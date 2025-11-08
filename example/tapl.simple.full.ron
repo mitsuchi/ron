@@ -475,7 +475,19 @@ end
     Γ ⊢ {vs} : {Ts}
 end
 
+# T-Proj
+Γ ⊢ {t, ts} . 1 : T do
+    Γ ⊢ t : T
+end
+Γ ⊢ {t, ts} . n1 : T do
+    <n1 > 1>
+    <n2 is n1 - 1>
+    Γ ⊢ {ts} . n2 : T
+end
+
 main do
+    φ ⊢ { 0 , succ 0 , true , φ } . 1 : Nat
+
     φ ⊢ {0, true, φ} : {Nat, Bool, φ}
     φ ⊢ {φ} : {φ}
     {0, pred succ 0, φ} -> {0, 0, φ}
