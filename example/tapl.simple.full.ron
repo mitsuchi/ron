@@ -38,6 +38,7 @@ op 50 : case _ of left _ => _ / right _ => _
 op 48 r : _ / _                    # case separator
 op 45 : case _ of _              # variant case
 op 50 : [ _ -> _ ] _
+op 40 : map _ _ _ => _
 op 40 r : _ -> _
 op 30 : _ : _
 op 30 : _ \= _
@@ -545,26 +546,40 @@ end
 Γ ⊢ (≺l = t≻ as ≺(l : T), lT≻) : ≺(l : T), lT≻ do
     Γ ⊢ t : T
 end
-Γ ⊢ (≺l1 = t1≻ as ≺(l2 : T2), lT≻) : ≺(l : T), lT≻ do
+Γ ⊢ (≺l1 = t1≻ as ≺(l2 : T2), lT≻) : ≺(l2 : T2), lT≻ do
     <l1 \= l2>
     Γ ⊢ (≺l1 = t1≻ as ≺lT≻) : ≺lT≻
 end
 
 # T-Case
-Γ ⊢ (case t0 of φ) : ≺φ≻
-Γ ⊢ (case t0 of ≺l1 = x1≻ => t1 / cs) : ≺(l1 : T1'), lT≻ do
-    Γ, x1 : T1 ⊢ t1 : T1'
-    Γ ⊢ (case t0 of cs) : ≺lT≻
-    Γ ⊢ t0 : ≺(l1 : T1), lT≻
+Γ ⊢ (case t of φ) : ≺φ≻
+Γ ⊢ (case t of cs) : ≺lT2≻ do
+    Γ ⊢ t : ≺lT1≻
+    map Γ cs ≺lT1≻ => ≺lT2≻
 end
 
+map Γ (≺l1 = x1≻ => t1 / cs) ≺(l1 : T1), lT1≻ => ≺(l1 : T1'), lT2≻ do
+    Γ, x1 : T1 ⊢ t1 : T1'
+    map Γ cs ≺lT1≻ => ≺lT2≻
+end
+map Γ φ ≺φ≻ => ≺φ≻
+
+#Γ ⊢ (case ≺l = t≻ as ≺(l1 : T1), lT≻ of ≺l1 = x1≻ => t1 / cs) : ≺(l1 : T1'), lT≻ do
+#    Γ, x1 : T1 ⊢ t1 : T1'
+#    Γ ⊢ (case ≺l = t≻ as ≺lT≻ of cs) : ≺lT≻
+#end
+
 main do
+    map φ (≺age = a≻ => succ a / ≺mouth = a≻ => succ a / φ) ≺(age : Nat), (mouth : Nat), φ≻ => T5
+    # map φ (≺mouth = a≻ => succ a / φ) ≺(mouth : Nat), φ≻ => T5
+    # map φ (≺age = a≻ => succ a / φ) ≺(age : Nat), φ≻ => T5
+    # map φ φ ≺φ≻ => T5
     # variant
     # φ ⊢ (case ≺age = 0≻ as ≺(age : Nat), (mouth : Nat), φ≻ of ≺age = a≻ => succ a / ≺mouth = a≻ => succ succ a / φ) : T4
     # φ ⊢ (case ≺age = 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ) : T3
     # φ ⊢ (case ≺age = 0≻ as ≺(age : Nat), φ≻ of φ) : T2
     # φ ⊢ ≺man = true≻ as ≺(age : Nat), (man : Bool), φ≻ : ≺(age : Nat), (man : Bool), φ≻
-    φ ⊢ ≺man = true≻ as ≺(age : Nat), (man : Bool), φ≻ : T2
+    # φ ⊢ ≺man = true≻ as ≺(age : Nat), (man : Bool), φ≻ : T2
     # φ ⊢ ≺age = 0≻ as ≺(age : Nat), φ≻ : ≺(age : Nat), φ≻
     # φ ⊢ ≺age = 0≻ as ≺(age : Nat), φ≻ : T2
     case ≺age = pred succ 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ -> case ≺age = 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ
