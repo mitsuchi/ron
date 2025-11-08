@@ -37,10 +37,16 @@ echo "--------------------------------------"
 swipl ron.pl example/error-evaluation-simple.ron 2>&1 | head -15
 echo ""
 
-# エラーケース7
+# エラーケース6
 echo "【6】閉じ括弧が欠けている"
 echo "--------------------------------------"
 swipl ron.pl example/error-unclosed-brace.ron 2>&1 | head -5
+echo ""
+
+# エラーケース7
+echo "【7】未定義の非終端記号を参照"
+echo "--------------------------------------"
+swipl ron.pl example/error-undefined-nonterminal.ron 2>&1 | head -10
 echo ""
 
 echo "======================================"

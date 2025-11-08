@@ -1,0 +1,14 @@
+# Error test: undefined nonterminal symbol
+# Ts is referenced in T definition but not defined
+
+op 10 : _ => _
+
+syntax {
+    t ::= a | b
+    T ::= Nat | Bool | ( Ts )
+    x ::= a | b
+}
+
+main {
+    t? a
+}
