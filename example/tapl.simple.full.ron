@@ -486,7 +486,9 @@ end
 end
 
 main do
-    φ ⊢ { 0 , φ } . 1 : Nat
+    φ ⊢ {0, succ 0, true, φ} . 3 : Bool
+    φ ⊢ {0, succ 0, true, φ} . 2 : Nat
+    φ ⊢ {0, succ 0, true, φ} . 1 : Nat
 
     φ ⊢ {0, true, φ} : {Nat, Bool, φ}
     φ ⊢ {φ} : {φ}
