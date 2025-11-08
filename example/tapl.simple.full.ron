@@ -107,7 +107,7 @@ syntax do
         | List T         # type of lists
         | ( Ts )         # tuple type
 
-    Ts ::= φ | T , Ts         # list of types
+    Ts ::= φ | T , Ts    # list of types
 
     Γ ::=                # contexts
           φ              # empty context
