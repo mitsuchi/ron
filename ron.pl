@@ -1392,6 +1392,8 @@ token('{') --> "{".
 token('}') --> "}".
 token('[') --> "[".
 token(']') --> "]".
+token('≺') --> "≺".
+token('≻') --> "≻".
 token(',') --> ",".
 % ギリシャ文字1文字を定数として認識（変数トークンより先に扱う）
 token(Atom) --> [C], {is_greek_char(C), atom_chars(Atom, [C])}.
