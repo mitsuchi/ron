@@ -62,7 +62,7 @@ syntax do
         | ( t , t )           # pair
         | t . 1               # 1st projection
         | t . 2               # 2nd projection
-        | ( ts )              # tuple
+        | { ts }              # tuple
         | t . n               # tuple projection
         | { ls }              # record : {a = 1, b = 2}
         | t . l               # label
@@ -88,7 +88,7 @@ syntax do
         | nv                  # numeric value
         | unit
         | ( v , v )           # pair value
-        | ( vs )              # tuple value
+        | { vs }              # tuple value
         | left v              # sum value : tagging left
         | right v             # sum value : tagging right
         | nil [ T ]           # empty list
@@ -110,7 +110,7 @@ syntax do
         | T * T          # type of products
         | T + T          # type of sums
         | List T         # type of lists
-        | ( Ts )         # tuple type
+        | { Ts }         # tuple type
 
     Ts ::= φ | T , Ts    # list of types
 
@@ -151,6 +151,8 @@ context syntax do
         | cons [ T ] _ t       # E-Cons1
         | cons [ T ] v _       # E-Cons2
         | isnil [ T ] _        # E-IsNil
+        | _ . n                # E-Proj
+        | { _ , ts }           # E-Tuple1
 end
 
 # 評価文脈の展開ルール
@@ -454,24 +456,41 @@ end
 end
 
 # E-ProjTuple
-(v, vs) . 1 -> v
-(v1, vs) . n1 -> v2 {
+{v, vs} . 1 -> v
+{v1, vs} . n1 -> v2 do
     <n1 > 1>
     <n2 is n1 - 1>
-    (vs) . n2 -> v2
-}
+    {vs} . n2 -> v2
+end
+
+# E-Tuple2
+{v, ts} -> {v, ts'} do
+    {ts} -> {ts'}
+end
+
+# T-Tuple
+Γ ⊢ {φ} : {φ}
+Γ ⊢ {v, vs} : {T, Ts} do
+    Γ ⊢ v : T
+    Γ ⊢ {vs} : {Ts}
+end
 
 main do
-    (0, succ 0, true, φ) . 3 -> true
-    (0, succ 0, φ) . 2 -> succ 0
-    (0, φ) . 1 -> 0
+    φ ⊢ {0, true, φ} : {Nat, Bool, φ}
+    φ ⊢ {φ} : {φ}
+    {0, pred succ 0, φ} -> {0, 0, φ}
+    {pred succ 0, pred succ 0, φ} -> {0, pred succ 0, φ}
 
-    T? (Nat, Bool, φ)
-    T? (φ)
-    v? (0, true, succ 0, φ)
-    v? (φ)
-    t? (0, true, succ 0, φ)
-    t? (φ)
+    {0, succ 0, true, φ} . 3 -> true
+    {0, succ 0, true, φ} . 2 -> succ 0
+    {0, succ 0, true, φ} . 1 -> 0
+
+    T? {Nat, Bool, φ}
+    T? {φ}
+    v? {0, true, succ 0, φ}
+    v? {φ}
+    t? {0, true, succ 0, φ}
+    t? {φ}
     t? { age = 0 , man = true , φ } . age
 
     φ ⊢ tail [Nat] (cons [Nat] 0 (nil [Nat])) : List Nat
