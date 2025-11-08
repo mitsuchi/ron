@@ -555,14 +555,14 @@ end
 Γ ⊢ (case t of φ) : ≺φ≻
 Γ ⊢ (case t of cs) : ≺lT2≻ do
     Γ ⊢ t : ≺lT1≻
-    map Γ cs ≺lT1≻ => ≺lT2≻
+    map Γ cs lT1 => lT2
 end
 
-map Γ (≺l1 = x1≻ => t1 / cs) ≺(l1 : T1), lT1≻ => ≺(l1 : T1'), lT2≻ do
+map Γ (≺l1 = x1≻ => t1 / cs) ((l1 : T1), lT1) => ((l1 : T1'), lT2) do
     Γ, x1 : T1 ⊢ t1 : T1'
-    map Γ cs ≺lT1≻ => ≺lT2≻
+    map Γ cs lT1 => lT2
 end
-map Γ φ ≺φ≻ => ≺φ≻
+map Γ φ φ => φ
 
 #Γ ⊢ (case ≺l = t≻ as ≺(l1 : T1), lT≻ of ≺l1 = x1≻ => t1 / cs) : ≺(l1 : T1'), lT≻ do
 #    Γ, x1 : T1 ⊢ t1 : T1'
@@ -570,7 +570,7 @@ map Γ φ ≺φ≻ => ≺φ≻
 #end
 
 main do
-    map φ (≺age = a≻ => succ a / ≺mouth = a≻ => succ a / φ) ≺(age : Nat), (mouth : Nat), φ≻ => T5
+    map φ (≺age = a≻ => succ a / ≺mouth = a≻ => succ a / φ) ((age : Nat), (mouth : Nat), φ) => T5
     # map φ (≺mouth = a≻ => succ a / φ) ≺(mouth : Nat), φ≻ => T5
     # map φ (≺age = a≻ => succ a / φ) ≺(age : Nat), φ≻ => T5
     # map φ φ ≺φ≻ => T5
