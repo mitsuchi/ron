@@ -168,6 +168,8 @@ context syntax do
         | _ . n                # E-Proj
         | { _ , ts }           # E-Tuple1
         | _ . l                # E-Proj Record
+        | case _ of cs         # E-Case
+        | ≺ l = _ ≻ as T       # E-Variant
 end
 
 # 評価文脈の展開ルール
@@ -541,6 +543,8 @@ end
 
 main do
     # variant
+    case ≺age = pred succ 0≻ as ≺ (age : Nat), φ ≻ of ≺age = a≻ => succ a / φ -> case ≺age = 0≻ as ≺ (age : Nat), φ ≻ of ≺age = a≻ => succ a / φ
+    ≺age = pred succ 0≻ as ≺ (age : Nat), φ≻ -> ≺age = 0≻ as ≺ (age : Nat), φ≻
     case ≺mouth = 0≻ as ≺ (age : Nat), (mounth : Nat), φ ≻ of ≺age = a≻ => succ a / ≺mouth = a≻ => succ succ a / φ -> t2
     case ≺age = 0≻ as ≺ (age : Nat), φ ≻ of ≺age = a≻ => succ a / φ -> t1
     t? case a of ≺age = b≻ => c / ≺man = d≻ => e / φ
