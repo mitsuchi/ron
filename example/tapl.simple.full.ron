@@ -64,8 +64,6 @@ syntax do
         | t . 2               # 2nd projection
         | { ts }              # tuple
         | t . n               # tuple projection
-        | { ls }              # record : {a = 1, b = 2}
-        | t . l               # label
         | left t              # sum : tagging left
         | right t             # sum : tagginf right
         | case t of left x => t / right x => t
@@ -75,9 +73,11 @@ syntax do
         | isnil [ T ] t        # test for empty list
         | head [ T ] t         # head of a list
         | tail [ T ] t         # tail of a list
+        | { lt }              # record : {a = 1, b = 2}
+        | t . l               # label
 
     ts ::= φ | t , ts         # list of term
-    ls ::= φ | l = t , ls     # list of label = term
+    lt ::= φ | l = t , lt     # list of label = term
     l ::= <atom>              # record label
     n ::= <number>            # 1, 2, 3, ...
 
@@ -93,12 +93,14 @@ syntax do
         | right v             # sum value : tagging right
         | nil [ T ]           # empty list
         | cons [ T ] v v      # list constructor
+        | { lv }              # record value
 
     vs ::= φ | v , vs         # values
     nv ::=                    # numeric values:
           0                   # zero
         | succ nv             # successor value
-    
+    lv ::= φ | l = v , lv     # record values
+
     # variables
     x ::= a | b | c | d | e | f | g | h | i | j | k | m
 
@@ -111,8 +113,10 @@ syntax do
         | T + T          # type of sums
         | List T         # type of lists
         | { Ts }         # tuple type
+        | { lT }         # record type
 
     Ts ::= φ | T , Ts    # list of types
+    lT ::= φ | (l : T), lT # record type
 
     Γ ::=                # contexts
           φ              # empty context
@@ -153,6 +157,7 @@ context syntax do
         | isnil [ T ] _        # E-IsNil
         | _ . n                # E-Proj
         | { _ , ts }           # E-Tuple1
+        | _ . l                # E-Proj Record
 end
 
 # 評価文脈の展開ルール
@@ -485,7 +490,54 @@ end
     Γ ⊢ {ts} . n2 : T
 end
 
+# E-ProjRecord
+{l = v, lv} . l -> v
+{l1 = v1, lv} . l2 -> v2 do
+    <l1 \= l2>
+    {lv} . l2 -> v2
+end
+
+# E-Rcd
+{l = v, lt} -> {l = v, lt'} do
+    {lt} -> {lt'}
+end
+{l = t, lt} -> {l = t', lt} do
+    t -> t'
+end
+
+# T-Rcd
+Γ ⊢ {l = t, lt} : {(l : T), LT} do
+    Γ ⊢ t : T
+    Γ ⊢ {lt} : {LT}
+end
+
+# T-Proj
+Γ ⊢ {l = t, lt} . l : T do
+    Γ ⊢ t : T
+end
+Γ ⊢ {l1 = t1, lt} . l2 : T2 do
+    <l1 \= l2>
+    Γ ⊢ {lt} . l2 : T2
+end
+
 main do
+    # record
+    φ ⊢ {age = 0, man = true, φ} . man  : Bool
+    φ ⊢ {age = 0, man = true, φ} . age  : Nat
+    φ ⊢ {age = 0, man = true, φ} : {(age : Nat), (man : Bool), φ}
+    φ ⊢ {age = 0, φ} : {(age : Nat), φ}
+    {age = pred succ 0, φ} . age -> {age = 0, φ} . age
+    {age = 0, height = pred succ 0, φ} -> {age = 0, height = 0, φ}
+    {age = pred succ 0, φ} -> {age = 0, φ}
+    {age = 0, man = true, φ} . man -> true
+    {age = 0, man = true, φ} . age -> 0
+    T? { (age : Nat), (man : Bool), φ }
+    T? { (age : Nat), φ }
+    v? { age = 0 , man = true , φ }
+    t? { age = 0 , man = true , φ }
+    t? { age = 0 , man = true , φ } . age
+
+    # tuple
     φ ⊢ {0, succ 0, true, φ} . 3 : Bool
     φ ⊢ {0, succ 0, true, φ} . 2 : Nat
     φ ⊢ {0, succ 0, true, φ} . 1 : Nat
@@ -505,7 +557,6 @@ main do
     v? {φ}
     t? {0, true, succ 0, φ}
     t? {φ}
-    t? { age = 0 , man = true , φ } . age
 
     φ ⊢ tail [Nat] (cons [Nat] 0 (nil [Nat])) : List Nat
     φ ⊢ head [Nat] (cons [Nat] 0 (nil [Nat])) : Nat
