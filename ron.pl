@@ -1,6 +1,7 @@
 :- set_prolog_flag(double_quotes, chars).
 :- dynamic ops/4.
 :- dynamic '_main'/0.
+:- dynamic safe_call/1.
 
 % メモ化用のキャッシュ
 :- dynamic eval_cache/2.
@@ -11,6 +12,10 @@
 error_write(Message) :- write(user_error, Message).
 error_writeln(Message) :- write(user_error, Message), nl(user_error).
 error_nl :- nl(user_error).
+
+% safe_call: catch の代わりに使用する述語（assertz 可能にするため）
+% エラーが発生しても失敗するだけで、プログラムを停止させない
+safe_call(Goal) :- catch(Goal, _, fail).
 
 run :- 
     current_prolog_flag(argv, Argv),
@@ -1555,11 +1560,11 @@ normalize_term(Term, Normalized, SimplifyVars) :-
     % (a) は a にする
     (Functor = '()' -> [Arg] = Args, normalize_term(Arg, Normalized, SimplifyVars)
     % <a> は a にするが、functor の先頭に _ をつけない
-    % 中身を再帰的に正規化してから catch で囲む
+    % 中身を再帰的に正規化してから safe_call で囲む
     ; Functor = '<>' ->
         [Arg] = Args,
         normalize_term_in_catch(Arg, ArgN, SimplifyVars),
-        Normalized = catch(ArgN, _, fail)
+        Normalized = safe_call(ArgN)
     % $VAR の処理
     ; Functor = '$VAR' -> 
         (SimplifyVars = true ->
