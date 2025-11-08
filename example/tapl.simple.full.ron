@@ -541,16 +541,38 @@ end
     (case (≺l1 = v≻ as T) of cs) -> t2
 end
 
+# T-Variant
+Γ ⊢ (≺l = t≻ as ≺(l : T), lT≻) : ≺(l : T), lT≻ do
+    Γ ⊢ t : T
+end
+Γ ⊢ (≺l1 = t1≻ as ≺(l2 : T2), lT≻) : ≺(l : T), lT≻ do
+    <l1 \= l2>
+    Γ ⊢ (≺l1 = t1≻ as ≺lT≻) : ≺lT≻
+end
+
+# T-Case
+Γ ⊢ (case t0 of ≺l1 = x1≻ => t1 / φ) : ≺(l1 : T1'), φ≻ do
+    Γ ⊢ t0 : ≺(l1 : T1), lT≻
+    Γ, x1 : T1 ⊢ t1 : T1'
+end
+Γ ⊢ (case t0 of ≺l1 = x1≻ => t1 / cs) : ≺(l1 : T1'), lT≻ do
+    Γ ⊢ t0 : ≺(l1 : T1), lT≻
+    Γ, x1 : T1 ⊢ t1 : T1'
+    Γ ⊢ (case t0 of cs) : ≺(l1 : T1'), lT≻ do
+end
+
 main do
     # variant
-    case ≺age = pred succ 0≻ as ≺ (age : Nat), φ ≻ of ≺age = a≻ => succ a / φ -> case ≺age = 0≻ as ≺ (age : Nat), φ ≻ of ≺age = a≻ => succ a / φ
-    ≺age = pred succ 0≻ as ≺ (age : Nat), φ≻ -> ≺age = 0≻ as ≺ (age : Nat), φ≻
-    case ≺mouth = 0≻ as ≺ (age : Nat), (mounth : Nat), φ ≻ of ≺age = a≻ => succ a / ≺mouth = a≻ => succ succ a / φ -> t2
-    case ≺age = 0≻ as ≺ (age : Nat), φ ≻ of ≺age = a≻ => succ a / φ -> t1
+    φ ⊢ ≺man = true≻ as ≺(age : Nat), (man : Bool), φ≻ : ≺(age : Nat), (man : Bool), φ≻
+    φ ⊢ ≺age = 0≻ as ≺(age : Nat), φ≻ : ≺(age : Nat), φ≻
+    case ≺age = pred succ 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ -> case ≺age = 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ
+    ≺age = pred succ 0≻ as ≺(age : Nat), φ≻ -> ≺age = 0≻ as ≺(age : Nat), φ≻
+    case ≺mouth = 0≻ as ≺(age : Nat), (mounth : Nat), φ≻ of ≺age = a≻ => succ a / ≺mouth = a≻ => succ succ a / φ -> t2
+    case ≺age = 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ -> t1
     t? case a of ≺age = b≻ => c / ≺man = d≻ => e / φ
     t? case a of ≺age = b≻ => c / φ
     t? case a of φ
-    T? ≺ (age : Nat), φ ≻
+    T? ≺(age : Nat), φ≻
     T? ≺φ≻
     t? ≺age = 0≻ as Nat
 
