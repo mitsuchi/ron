@@ -23,6 +23,9 @@ op 70 : _ + _                    # sum type
 op 70 : ( _ , _ )                # pair
 op 68 r : _ , _
 op 65 : { _ }                    # record
+op 65 : ≺ _ ≻ as _               # variant
+op 65 : ≺ _ ≻ => _               # variant case
+op 63 : ≺ _ ≻                    # variant
 op 60 : _ . _                    # projection
 op 55 : _ as _                   # ascription
 op 50 : let _ = _ in _
@@ -32,6 +35,8 @@ op 50 : letrec _ : _ = _ in _        # recursion
 op 50 : left _
 op 50 : right _
 op 50 : case _ of left _ => _ / right _ => _
+op 48 r : _ / _                    # case separator
+op 45 : case _ of _              # variant case
 op 50 : [ _ -> _ ] _
 op 40 r : _ -> _
 op 30 : _ : _
@@ -75,11 +80,15 @@ syntax do
         | tail [ T ] t         # tail of a list
         | { lt }              # record : {a = 1, b = 2}
         | t . l               # label
+        | ≺ l = t ≻ as T      # variant tagging
+        | case t of cs        # case
 
     ts ::= φ | t , ts         # list of term
     lt ::= φ | l = t , lt     # list of label = term
     l ::= <atom>              # record label
     n ::= <number>            # 1, 2, 3, ...
+
+    cs ::= φ | ≺ l = x ≻ => t / cs
 
     v ::=                     # values
           true
@@ -114,6 +123,7 @@ syntax do
         | List T         # type of lists
         | { Ts }         # tuple type
         | { lT }         # record type
+        | ≺ lT ≻         # variant type
 
     Ts ::= φ | T , Ts    # list of types
     lT ::= φ | (l : T), lT # record type
@@ -520,10 +530,29 @@ end
     Γ ⊢ {lt} . l2 : T2
 end
 
+# E-CaseVariant
+(case (≺l = v≻ as T) of ≺l = x≻ => t / cs) -> t2 do
+    [x -> v] t => t2
+end
+(case (≺l1 = v≻ as T) of ≺l2 = x≻ => t / cs) -> t2 do
+    <l1 \= l2>
+    (case (≺l1 = v≻ as T) of cs) -> t2
+end
+
 main do
+    # variant
+    case ≺mouth = 0≻ as ≺ (age : Nat), (mounth : Nat), φ ≻ of ≺age = a≻ => succ a / ≺mouth = a≻ => succ succ a / φ -> t2
+    case ≺age = 0≻ as ≺ (age : Nat), φ ≻ of ≺age = a≻ => succ a / φ -> t1
+    t? case a of ≺age = b≻ => c / ≺man = d≻ => e / φ
+    t? case a of ≺age = b≻ => c / φ
+    t? case a of φ
+    T? ≺ (age : Nat), φ ≻
+    T? ≺φ≻
+    t? ≺age = 0≻ as Nat
+
     # record
-    φ ⊢ {age = 0, man = true, φ} . man  : Bool
-    φ ⊢ {age = 0, man = true, φ} . age  : Nat
+    φ ⊢ {age = 0, man = true, φ} . man : Bool
+    φ ⊢ {age = 0, man = true, φ} . age : Nat
     φ ⊢ {age = 0, man = true, φ} : {(age : Nat), (man : Bool), φ}
     φ ⊢ {age = 0, φ} : {(age : Nat), φ}
     {age = pred succ 0, φ} . age -> {age = 0, φ} . age
