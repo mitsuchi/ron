@@ -93,6 +93,8 @@ syntax do
     nv ::=                    # numeric values:
           0                   # zero
         | succ nv             # successor value
+
+    n ::= <number>            # 1, 2, 3, ...
     
     # variables
     x ::= a | b | c | d | e | f | g | h | i | j | k | l | m | n
@@ -448,9 +450,19 @@ end
     Γ ⊢ t : List T
 end
 
+# E-ProjTuple
+(v, vs) . 1 -> v
+
 main do
+
+    (0, φ) . 1 -> 0
+
+    T? (Nat, Bool, φ)
+    T? (φ)
     v? (0, true, succ 0, φ)
+    v? (φ)
     t? (0, true, succ 0, φ)
+    t? (φ)
     t? { age = 0 , man = true , φ } . age
 
     φ ⊢ tail [Nat] (cons [Nat] 0 (nil [Nat])) : List Nat
