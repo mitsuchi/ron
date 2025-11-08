@@ -851,9 +851,27 @@ make_var_from_arg(ArgTerm, _Num, NewVar) :-
 % ボディの各項を作る（元の引数と新しい変数から）
 make_body_for_arg(Nonterminals, ArgName, NewVar, Body) :-
     atom(ArgName),
-    member(ArgName, Nonterminals),
-    % 非終端記号をそのまま使用（大文字変換を削除）
-    Body =.. [ArgName, NewVar].
+    (member(ArgName, Nonterminals) ->
+        % 非終端記号をそのまま使用（大文字変換を削除）
+        Body =.. [ArgName, NewVar]
+    ;
+        % アトムだが非終端記号リストに含まれていない場合はエラー
+        % 終端記号として扱う可能性もあるが、複合項の引数として現れる場合は
+        % 通常は非終端記号への参照を意図しているので、警告を出す
+        error_writeln(''),
+        error_write('error: undefined nonterminal symbol referenced: '),
+        error_writeln(ArgName),
+        error_writeln(''),
+        error_writeln('This symbol is used in a syntax rule but not defined with ::='),
+        error_write('Defined nonterminals: '),
+        error_writeln(Nonterminals),
+        error_writeln(''),
+        error_writeln('Please add a definition like:'),
+        error_write('    '),
+        error_write(ArgName),
+        error_writeln(' ::= ...'),
+        halt(1)
+    ).
 % 数値の引数の場合：ボディは true
 make_body_for_arg(_Nonterminals, ArgNum, _NewVar, true) :-
     number(ArgNum).
