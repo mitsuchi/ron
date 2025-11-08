@@ -100,7 +100,7 @@ syntax do
         | succ nv             # successor value
     
     # variables
-    x ::= a | b | c | d | e | f | g | h | i | j | k | l | m
+    x ::= a | b | c | d | e | f | g | h | i | j | k | m
 
     T ::=                # types
           Bool           # type of booleans
@@ -486,7 +486,7 @@ end
 end
 
 main do
-    φ ⊢ { 0 , succ 0 , true , φ } . 1 : Nat
+    φ ⊢ { 0 , φ } . 1 : Nat
 
     φ ⊢ {0, true, φ} : {Nat, Bool, φ}
     φ ⊢ {φ} : {φ}
