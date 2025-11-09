@@ -765,13 +765,28 @@ check_against_others(Op1, [Op2|Rest]) :-
 % 一方のパターンが他方を含む場合、曖昧性がある
 % 例: ( _ , _ ) と _ , _ では、_ , _ が ( _ , _ ) に含まれる
 detect_ambiguity(
-    ops(_, Prec1, _, Pattern1),
-    ops(_, Prec2, _, Pattern2)
+    ops(_, Prec1, Type1, Pattern1),
+    ops(_, Prec2, Type2, Pattern2)
 ) :-
     % パターンの包含関係をチェック
-    (pattern_contains(Pattern1, Pattern2) ; pattern_contains(Pattern2, Pattern1)),
-    % 優先順位が近い場合に警告（差が10以内）
-    abs(Prec1 - Prec2) =< 10.
+    (
+        (pattern_contains(Pattern1, Pattern2), ShorterType = Type1)
+    ;
+        (pattern_contains(Pattern2, Pattern1), ShorterType = Type2)
+    ),
+    % 曖昧性の条件：
+    % 同じ優先順位の following 演算子で、短い方が単純な中置演算子なら曖昧でない
+    % （Pratt parserの P < L 条件により自動解決される）
+    % 例: op 99 : _ _ と op 99 : cons [ _ ] _ _ は曖昧でない
+    \+ (Prec1 = Prec2, ShorterType = following, is_simple_infix(Pattern1, Pattern2)).
+
+% 短い方が単純な中置/後置演算子（関数適用など）かチェック
+is_simple_infix(Pat1, Pat2) :-
+    (pattern_contains(Pat1, Pat2) -> Shorter = Pat1 ; Shorter = Pat2),
+    % 括弧を含まない単純なパターン
+    \+ (member('(', Shorter) ; member(')', Shorter) ; 
+        member('[', Shorter) ; member(']', Shorter) ;
+        member('{', Shorter) ; member('}', Shorter)).
 
 % Pattern1がPattern2を含むかチェック
 % 例: [_, ',', _] が ['(', _, ',', _, ')'] に含まれる
