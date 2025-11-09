@@ -1,0 +1,10 @@
+use % for newline
+use do end for block
+
+op 99 : _ _
+op 99 : succ _
+op 99 : map _ _ _ => _
+
+main do
+    succ 0
+end

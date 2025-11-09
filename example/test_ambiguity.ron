@@ -1,0 +1,10 @@
+use % for newline
+use do end for block
+
+op 70 : ( _ , _ )
+op 68 r : _ , _
+op 100 : map _ _ _ => _
+
+main do
+    (1, 2)
+end

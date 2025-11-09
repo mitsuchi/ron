@@ -50,6 +50,36 @@ swipl ron.pl example/error-undefined-nonterminal.ron 2>&1 | head -10
 echo ""
 
 echo "======================================"
-echo "すべてのエラーケースを表示しました"
+echo "曖昧性チェックのテスト (--check)"
+echo "======================================"
+echo ""
+
+# 曖昧性チェック1
+echo "【1】カンマ演算子の競合"
+echo "--------------------------------------"
+swipl ron.pl --check example/test_ambiguity.ron 2>&1 | grep -A 1 "warning"
+echo ""
+
+# 曖昧性チェック2
+echo "【2】if-then と if-then-else の競合"
+echo "--------------------------------------"
+swipl ron.pl --check example/test_ambiguity2.ron 2>&1 | grep -A 1 "warning"
+echo ""
+
+# 曖昧性チェック3
+echo "【3】関数適用と他の演算子の競合"
+echo "--------------------------------------"
+swipl ron.pl --check example/test_ambiguity3.ron 2>&1 | grep -A 1 "warning"
+echo ""
+
+# 曖昧性チェック4
+echo "【4】曖昧性なし（正常ケース）"
+echo "--------------------------------------"
+echo "期待: 警告なしで実行"
+swipl ron.pl --check example/arrow1.ron 2>&1 | head -3
+echo ""
+
+echo "======================================"
+echo "すべてのテストケースを表示しました"
 echo "======================================"
 

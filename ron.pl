@@ -27,12 +27,20 @@ run :-
         nb_setval(debug_mode, false),
         Argv2 = Argv
     ),
+    % 曖昧性チェックモードをチェック
+    (member('--check', Argv2) ->
+        nb_setval(check_ambiguity, true),
+        select('--check', Argv2, Argv3)
+    ;
+        nb_setval(check_ambiguity, false),
+        Argv3 = Argv2
+    ),
     % 評価深さカウンタを初期化
     nb_setval(eval_depth, 0),
     % 失敗情報を初期化
     nb_setval(last_failed_goal, none),
     nb_setval(last_failed_body, none),
-    nth1(1, Argv2, FilePath) ->
+    nth1(1, Argv3, FilePath) ->
         (catch(
             file_eval(FilePath),
             Exception,
@@ -57,6 +65,10 @@ file_eval(FilePath) :-
     phrase(tokens_ops(Ops, ReservedWords), TokensWithNewline, RestTokens),
     % 演算子を Prolog の規則に登録して、残りのルール部分のトークンがパーズできるようにする
     maplist(assert_op, Ops), 
+    % 曖昧性チェック
+    (nb_getval(check_ambiguity, true) ->
+        check_all_ambiguities(Ops)
+    ; true),
     % トークンリストから文法部分をパーズして文法リストを得る
     parse_syntax(Syntaxes, RestTokens, RestTokens2),
     !,  % バックトラックを防ぐ
@@ -731,6 +743,80 @@ assert_op(op(Prec, left, [N | Ns])) :-
     Term = ops(a(Punct), Prec, leading, [N|Ns_]),
     assertz(Term).
 assert_op(_ :- _).
+
+% 曖昧性チェック機能
+% 演算子の曖昧性を検出する
+check_all_ambiguities(_) :-
+    findall(ops(A, Prec, Type, Pattern), ops(A, Prec, Type, Pattern), AllOps),
+    check_operator_pairs(AllOps).
+
+check_operator_pairs([]).
+check_operator_pairs([Op1|Rest]) :-
+    check_against_others(Op1, Rest),
+    check_operator_pairs(Rest).
+
+check_against_others(_, []).
+check_against_others(Op1, [Op2|Rest]) :-
+    (detect_ambiguity(Op1, Op2) ->
+        report_ambiguity(Op1, Op2)
+    ; true),
+    check_against_others(Op1, Rest).
+
+% 一方のパターンが他方を含む場合、曖昧性がある
+% 例: ( _ , _ ) と _ , _ では、_ , _ が ( _ , _ ) に含まれる
+detect_ambiguity(
+    ops(_, Prec1, _, Pattern1),
+    ops(_, Prec2, _, Pattern2)
+) :-
+    % パターンの包含関係をチェック
+    (pattern_contains(Pattern1, Pattern2) ; pattern_contains(Pattern2, Pattern1)),
+    % 優先順位が近い場合に警告（差が10以内）
+    abs(Prec1 - Prec2) =< 10.
+
+% Pattern1がPattern2を含むかチェック
+% 例: [_, ',', _] が ['(', _, ',', _, ')'] に含まれる
+pattern_contains(Shorter, Longer) :-
+    length(Shorter, SLen),
+    length(Longer, LLen),
+    SLen < LLen,
+    pattern_matches_subsequence(Shorter, Longer).
+
+% 部分列マッチング：ShorterがLongerの連続部分列としてマッチするか
+pattern_matches_subsequence(Shorter, Longer) :-
+    append(_, Rest, Longer),
+    pattern_prefix_match(Shorter, Rest).
+
+pattern_prefix_match([], _).
+pattern_prefix_match([H1|T1], [H2|T2]) :-
+    pattern_token_matches(H1, H2),
+    pattern_prefix_match(T1, T2).
+
+% トークンのマッチング：数値（優先順位）はスキップ、他は完全一致または_
+pattern_token_matches(_, N) :- number(N), !.
+pattern_token_matches(N, _) :- number(N), !.
+pattern_token_matches('_', _) :- !.
+pattern_token_matches(_, '_') :- !.
+pattern_token_matches(X, X).
+
+% 簡潔に警告を表示し、どの演算子と衝突しているかを明示
+report_ambiguity(
+    ops(_, Prec1, _, Pat1),
+    ops(_, Prec2, _, Pat2)
+) :-
+    format_operator(Pat1, Op1Str),
+    format_operator(Pat2, Op2Str),
+    format('warning: ambiguity detected~n', []),
+    format('  ~w (prec ~w) conflicts with ~w (prec ~w)~n', 
+           [Op1Str, Prec1, Op2Str, Prec2]),
+    nl.
+
+format_operator(Pattern, String) :-
+    findall(Token, (member(T, Pattern), format_token(T, Token)), Tokens),
+    atomic_list_concat(Tokens, ' ', String).
+
+format_token('_', '_') :- !.
+format_token(N, '') :- number(N), !.  % 優先順位は表示しない
+format_token(Atom, Atom).
 
 % leading の場合の最初の数値を更新するヘルパー関数
 update_leading_precedence([], _, []).
