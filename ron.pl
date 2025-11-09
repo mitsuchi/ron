@@ -1363,8 +1363,8 @@ rules_pred([]) --> skip([newline]).
 rule_pred(P :- true) --> pred(P), [newline].
 rule_pred(P :- B) --> pred(P), [open], skip([newline]), body(B), [close].
 
-body(P) --> pred(P), skip([newline]).
 body((P,Bs)) --> pred(P), [newline], skip([newline]), body(Bs).
+body(P) --> pred(P), {debug_print('pred: ', [P])}, skip([newline]).
 
 % 述語をパーズして結果の項を O に入れる
 % 現在の優先順位を考えられる最低にして式をパーズする。::= が -2 だったりするので。

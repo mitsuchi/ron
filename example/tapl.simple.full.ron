@@ -664,4 +664,6 @@ main do
 
     letrec e : (Nat -> Bool) = λm : Nat . if iszero m then true else (if iszero (pred m) then false else e (pred pred m)) in e (succ succ 0) --> v8
     # v8 = true
+
+    t? 0
 end
