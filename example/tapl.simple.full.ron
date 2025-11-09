@@ -564,11 +564,6 @@ map Γ (≺l1 = x1≻ => t1 / cs) ((l1 : T1), lT1) => ((l1 : T1'), lT2) do
 end
 map Γ φ φ => φ
 
-#Γ ⊢ (case ≺l = t≻ as ≺(l1 : T1), lT≻ of ≺l1 = x1≻ => t1 / cs) : ≺(l1 : T1'), lT≻ do
-#    Γ, x1 : T1 ⊢ t1 : T1'
-#    Γ ⊢ (case ≺l = t≻ as ≺lT≻ of cs) : ≺lT≻
-#end
-
 main do
     # variant
     map φ (≺age = a≻ => succ a / ≺mouth = a≻ => succ a / φ) ((age : Nat), (mouth : Nat), φ) => ((age : Nat), (mouth : Nat), φ)
