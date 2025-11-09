@@ -802,19 +802,24 @@ report_ambiguity(
     ops(_, Prec1, _, Pat1),
     ops(_, Prec2, _, Pat2)
 ) :-
-    format_operator(Pat1, Op1Str),
-    format_operator(Pat2, Op2Str),
+    format_operator_def(Prec1, Pat1, Op1Str),
+    format_operator_def(Prec2, Pat2, Op2Str),
     format('warning: ambiguity detected~n', []),
-    format('  ~w (prec ~w) conflicts with ~w (prec ~w)~n', 
-           [Op1Str, Prec1, Op2Str, Prec2]),
+    format('  ~w conflicts with ~w~n', [Op1Str, Op2Str]),
     nl.
 
-format_operator(Pattern, String) :-
+% 演算子定義を "op <prec> : <pattern>" の形式で表示
+format_operator_def(Prec, Pattern, String) :-
+    format_operator_pattern(Pattern, PatternStr),
+    format(atom(String), 'op ~w : ~w', [Prec, PatternStr]).
+
+% パターンを表示用に整形（数値は _ に置き換え）
+format_operator_pattern(Pattern, String) :-
     findall(Token, (member(T, Pattern), format_token(T, Token)), Tokens),
     atomic_list_concat(Tokens, ' ', String).
 
 format_token('_', '_') :- !.
-format_token(N, '') :- number(N), !.  % 優先順位は表示しない
+format_token(N, '_') :- number(N), !.  % 数値は _ として表示
 format_token(Atom, Atom).
 
 % leading の場合の最初の数値を更新するヘルパー関数
