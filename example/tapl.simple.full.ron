@@ -38,7 +38,7 @@ op 50 : case _ of left _ => _ / right _ => _
 op 48 r : _ / _                    # case separator
 op 45 : case _ of _              # variant case
 op 50 : [ _ -> _ ] _
-op 40 : map _ _ _ => _
+op 100 : map _ _ _ => _
 op 40 r : _ -> _
 op 30 : _ : _
 op 30 : _ \= _
@@ -570,18 +570,15 @@ map Γ φ φ => φ
 #end
 
 main do
-    map φ (≺age = a≻ => succ a / ≺mouth = a≻ => succ a / φ) ((age : Nat), (mouth : Nat), φ) => T5
-    # map φ (≺mouth = a≻ => succ a / φ) ≺(mouth : Nat), φ≻ => T5
-    # map φ (≺age = a≻ => succ a / φ) ≺(age : Nat), φ≻ => T5
-    # map φ φ ≺φ≻ => T5
     # variant
-    # φ ⊢ (case ≺age = 0≻ as ≺(age : Nat), (mouth : Nat), φ≻ of ≺age = a≻ => succ a / ≺mouth = a≻ => succ succ a / φ) : T4
-    # φ ⊢ (case ≺age = 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ) : T3
-    # φ ⊢ (case ≺age = 0≻ as ≺(age : Nat), φ≻ of φ) : T2
-    # φ ⊢ ≺man = true≻ as ≺(age : Nat), (man : Bool), φ≻ : ≺(age : Nat), (man : Bool), φ≻
-    # φ ⊢ ≺man = true≻ as ≺(age : Nat), (man : Bool), φ≻ : T2
-    # φ ⊢ ≺age = 0≻ as ≺(age : Nat), φ≻ : ≺(age : Nat), φ≻
-    # φ ⊢ ≺age = 0≻ as ≺(age : Nat), φ≻ : T2
+    map φ (≺age = a≻ => succ a / ≺mouth = a≻ => succ a / φ) ((age : Nat), (mouth : Nat), φ) => ((age : Nat), (mouth : Nat), φ)
+    map φ (≺age = a≻ => succ a / φ) ((age : Nat), φ) => ((age : Nat), φ)
+    map φ φ φ => φ
+    φ ⊢ (case ≺age = 0≻ as ≺(age : Nat), (mouth : Nat), φ≻ of ≺age = a≻ => succ a / ≺mouth = a≻ => succ succ a / φ) : ≺(age : Nat), (mouth : Nat), φ≻
+    φ ⊢ (case ≺age = 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ) : ≺(age : Nat), φ≻
+    φ ⊢ (case ≺age = 0≻ as ≺(age : Nat), φ≻ of φ) : ≺φ≻
+    φ ⊢ ≺man = true≻ as ≺(age : Nat), (man : Bool), φ≻ : ≺(age : Nat), (man : Bool), φ≻
+    φ ⊢ ≺age = 0≻ as ≺(age : Nat), φ≻ : ≺(age : Nat), φ≻
     case ≺age = pred succ 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ -> case ≺age = 0≻ as ≺(age : Nat), φ≻ of ≺age = a≻ => succ a / φ
     ≺age = pred succ 0≻ as ≺(age : Nat), φ≻ -> ≺age = 0≻ as ≺(age : Nat), φ≻
     case ≺mouth = 0≻ as ≺(age : Nat), (mouth : Nat), φ≻ of ≺age = a≻ => succ a / ≺mouth = a≻ => succ succ a / φ -> t2
