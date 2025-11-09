@@ -791,12 +791,11 @@ pattern_prefix_match([H1|T1], [H2|T2]) :-
     pattern_token_matches(H1, H2),
     pattern_prefix_match(T1, T2).
 
-% トークンのマッチング：数値（優先順位）はスキップ、他は完全一致または_
-pattern_token_matches(_, N) :- number(N), !.
-pattern_token_matches(N, _) :- number(N), !.
-pattern_token_matches('_', _) :- !.
-pattern_token_matches(_, '_') :- !.
-pattern_token_matches(X, X).
+% トークンのマッチング：数値（優先順位）同士はスキップ、_は任意、他は完全一致
+pattern_token_matches(N1, N2) :- number(N1), number(N2), !.  % 両方数値ならスキップ
+pattern_token_matches('_', X) :- \+ number(X), !.  % _は非数値にマッチ
+pattern_token_matches(X, '_') :- \+ number(X), !.  % _は非数値にマッチ
+pattern_token_matches(X, X) :- \+ number(X).  % 同じ非数値トークン
 
 % 簡潔に警告を表示し、どの演算子と衝突しているかを明示
 report_ambiguity(
