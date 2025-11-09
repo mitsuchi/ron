@@ -20,9 +20,8 @@ op 74 : _ - _
 op 74 : _ > _
 op 72 : _ = _
 op 70 : _ + _                    # sum type
-op 70 : ( _ , _ )                # pair
 op 68 r : _ , _
-op 65 : { _ }                    # record
+op 65 : { _ }                    # record, tuple
 op 65 : ≺ _ ≻ as _               # variant
 op 65 : ≺ _ ≻ => _               # variant case
 op 63 : ≺ _ ≻                    # variant
@@ -65,9 +64,6 @@ syntax do
         | t as T              # ascription
         | unit
         | let x = t in t      # let binding
-        | ( t , t )           # pair
-        | t . 1               # 1st projection
-        | t . 2               # 2nd projection
         | { ts }              # tuple
         | t . n               # tuple projection
         | left t              # sum : tagging left
@@ -97,7 +93,6 @@ syntax do
         |  λ x : T . t        # abstraction value
         | nv                  # numeric value
         | unit
-        | ( v , v )           # pair value
         | { vs }              # tuple value
         | left v              # sum value : tagging left
         | right v             # sum value : tagging right
@@ -155,10 +150,6 @@ context syntax do
         | if _ then t else t   # E-If
         | _ as T               # E-Ascribe2
         | let x = _ in t       # E-Let
-        | _ . 1                # E-Proj1
-        | _ . 2                # E-Proj2
-        | ( _ , t )            # E-Pair1 : ペアは左側から評価する
-        | ( v , _ )            # E-Pair2 : 左側が値になったら右側へ
         | case _ of left x => t / right x => t
         | left _
         | right _
@@ -368,35 +359,12 @@ end
     Γ, x : T1 ⊢ t2 : T2
 end
 
-# Pair : (t1, t2) は、それぞれの項の中で置き換える
-[x -> s] (t1, t2) => (t1', t2') do
-     [x -> s] t1 => t1'
-     [x -> s] t2 => t2'
-end
-
 # t . 1 は t の中で置き換える
 [x -> s] t . 1 => t' . 1 do
      [x -> s] t => t'
 end
 [x -> s] t . 2 => t' . 2 do
      [x -> s] t => t'
-end
-
-# E-PairBeta
-(v1, v2) . 1 -> v1
-(v1, v2) . 2 -> v2
-
-# T-Pair
-Γ ⊢ (t1, t2) : T1 * T2 do
-    Γ ⊢ t1 : T1
-    Γ ⊢ t2 : T2
-end
-# T-Proj (for pairs)
-Γ ⊢ (t1, t2) . 1 : T1 do
-    Γ ⊢ t1 : T1
-end
-Γ ⊢ (t1, t2) . 2 : T2 do
-    Γ ⊢ t2 : T2
 end
 
 # E-CaseLeft
@@ -639,7 +607,7 @@ main do
     case (left 0) of left a => succ a / right b => pred b --> v7
     # v = succ 0
 
-    (λa : (Nat * Nat) . (a . 2)) (pred succ 0, pred succ succ 0) --> v6
+    (λa : (Nat * Nat) . (a . 2)) {pred succ 0, pred succ succ 0, φ} --> v6
     # v6 = succ 0
 
     let f = λa : Bool. a in f true --> v5
