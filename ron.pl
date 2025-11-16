@@ -1768,8 +1768,17 @@ print_reduction_trace :-
         (Steps \= [] ->
             writeln(''),
             writeln('Reduction trace:'),
+            % ステップを逆順にする
             reverse(Steps, ReversedSteps),
-            print_trace_steps(ReversedSteps)
+            % 全ての左辺を取得して、最も大きい（他を含む）式を初期式とする
+            findall(L, member((L, _), ReversedSteps), AllLefts),
+            find_largest_term(AllLefts, InitialTerm),
+            % 初期式を表示
+            format_term(InitialTerm, InitialFormatted),
+            write('  '),
+            writeln(InitialFormatted),
+            % 初期式から始まる簡約の連鎖を追跡
+            trace_reduction_chain(InitialTerm, ReversedSteps)
         ;
             true  % ステップが空の場合は何も出力しない
         )
@@ -1777,25 +1786,79 @@ print_reduction_trace :-
         true  % トレースモードでない場合は何もしない
     ).
 
-% 簡約ステップを順番に出力
-print_trace_steps([]).
-print_trace_steps([(Left, Right)|Rest]) :-
-    format_term(Left, LeftFormatted),
-    write('  '),
-    writeln(LeftFormatted),
-    (Rest \= [] ->
-        writeln('->')
-    ;
-        true
-    ),
-    (Rest = [] ->
+% 簡約の連鎖を追跡して表示
+trace_reduction_chain(CurrentTerm, Steps) :-
+    % CurrentTermを左辺に持つステップを探す
+    (member((Left, Right), Steps), terms_equivalent(CurrentTerm, Left) ->
         writeln('->'),
-        write('  '),
         format_term(Right, RightFormatted),
-        writeln(RightFormatted)
+        write('  '),
+        writeln(RightFormatted),
+        % 次のステップを再帰的に追跡
+        trace_reduction_chain(Right, Steps)
     ;
-        print_trace_steps(Rest)
+        % これ以上簡約できない場合は終了
+        true
     ).
+
+% 2つの項が等価かチェック（変数名を無視して構造が同じか）
+terms_equivalent(T1, T2) :-
+    T1 == T2, !.
+terms_equivalent(T1, T2) :-
+    compound(T1),
+    compound(T2),
+    functor(T1, F, A),
+    functor(T2, F, A),
+    T1 =.. [F|Args1],
+    T2 =.. [F|Args2],
+    terms_list_equivalent(Args1, Args2).
+terms_equivalent(T1, T2) :-
+    atomic(T1),
+    atomic(T2),
+    T1 = T2.
+
+% リストの各要素が等価かチェック
+terms_list_equivalent([], []).
+terms_list_equivalent([H1|T1], [H2|T2]) :-
+    terms_equivalent(H1, H2),
+    terms_list_equivalent(T1, T2).
+
+% 最も大きい項（他の項を部分項として含む項）を見つける
+find_largest_term([T], T) :- !.
+find_largest_term([T1|Rest], Largest) :-
+    find_largest_term(Rest, T2),
+    (term_contains(T1, T2) ->
+        Largest = T1
+    ; term_contains(T2, T1) ->
+        Largest = T2
+    ;
+        % どちらも含まない場合は、より複雑な方を選ぶ
+        term_size(T1, Size1),
+        term_size(T2, Size2),
+        (Size1 >= Size2 ->
+            Largest = T1
+        ;
+            Largest = T2
+        )
+    ).
+
+% T1がT2を部分項として含むかチェック
+term_contains(T1, T2) :-
+    T1 == T2, !.
+term_contains(T1, T2) :-
+    compound(T1),
+    T1 =.. [_|Args],
+    member(Arg, Args),
+    term_contains(Arg, T2).
+
+% 項のサイズ（ノード数）を計算
+term_size(T, 1) :- atomic(T), !.
+term_size(T, Size) :-
+    compound(T),
+    T =.. [_|Args],
+    maplist(term_size, Args, Sizes),
+    sumlist(Sizes, ArgsSize),
+    Size is ArgsSize + 1.
 
 % 結果を読みやすくする
 % ex: _S(_S(Z)) を S S Z に
