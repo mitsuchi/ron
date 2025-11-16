@@ -35,12 +35,20 @@ run :-
         nb_setval(check_ambiguity, false),
         Argv3 = Argv2
     ),
+    % トレースモードをチェック
+    (member('--trace', Argv3) ->
+        nb_setval(trace_mode, true),
+        select('--trace', Argv3, Argv4)
+    ;
+        nb_setval(trace_mode, false),
+        Argv4 = Argv3
+    ),
     % 評価深さカウンタを初期化
     nb_setval(eval_depth, 0),
     % 失敗情報を初期化
     nb_setval(last_failed_goal, none),
     nb_setval(last_failed_body, none),
-    nth1(1, Argv3, FilePath) ->
+    nth1(1, Argv4, FilePath) ->
         (catch(
             file_eval(FilePath),
             Exception,
@@ -51,6 +59,8 @@ run :-
 file_eval(FilePath) :-
     % キャッシュをクリア
     retractall(eval_cache(_, _)),
+    % トレース用の変数を初期化
+    nb_setval(reduction_steps, []),
     % ファイルを文字列にする
     read_file_to_string(FilePath, String, []),
     % 文字列を文字リストにする
@@ -1738,7 +1748,9 @@ query(C) :-
     clause(C, B),
     varnumbers_names(B, T, P), !,
     eval(T),
-    (P \= [] -> unparse_answers(P) ; true).
+    (P \= [] -> unparse_answers(P) ; true),
+    % トレースモードの場合、簡約過程を出力
+    print_reduction_trace.
 
 unparse_answers([X = A|Ps]) :-
     (nb_getval(debug_mode, true) ->
@@ -1748,6 +1760,42 @@ unparse_answers([X = A|Ps]) :-
     atomics_to_string([X, =, F], ' ', UA), writeln(UA),
     unparse_answers(Ps).
 unparse_answers([]).
+
+% 簡約過程を出力する
+print_reduction_trace :-
+    (nb_getval(trace_mode, true) ->
+        nb_getval(reduction_steps, Steps),
+        (Steps \= [] ->
+            writeln(''),
+            writeln('Reduction trace:'),
+            reverse(Steps, ReversedSteps),
+            print_trace_steps(ReversedSteps)
+        ;
+            true  % ステップが空の場合は何も出力しない
+        )
+    ;
+        true  % トレースモードでない場合は何もしない
+    ).
+
+% 簡約ステップを順番に出力
+print_trace_steps([]).
+print_trace_steps([(Left, Right)|Rest]) :-
+    format_term(Left, LeftFormatted),
+    write('  '),
+    writeln(LeftFormatted),
+    (Rest \= [] ->
+        writeln('->')
+    ;
+        true
+    ),
+    (Rest = [] ->
+        writeln('->'),
+        write('  '),
+        format_term(Right, RightFormatted),
+        writeln(RightFormatted)
+    ;
+        print_trace_steps(Rest)
+    ).
 
 % 結果を読みやすくする
 % ex: _S(_S(Z)) を S S Z に
@@ -1865,7 +1913,27 @@ eval(Goal) :-
                 % ボディの評価を試みる（失敗したらバックトラック）
                 (eval(Body) ->
                     debug_print('Evaluated: ', [Goal]),
-                    assertz(eval_cache(Goal, true))
+                    assertz(eval_cache(Goal, true)),
+                    % トレースモードの場合、簡約ステップを記録
+                    (catch(nb_getval(trace_mode, TraceMode), _, TraceMode = false),
+                     (TraceMode = true ->
+                        (compound(Goal) ->
+                            functor(Goal, Functor, Arity),
+                            (Functor = '_->',
+                             Arity = 2 ->
+                                Goal =.. ['_->', Left, Right],
+                                nb_getval(reduction_steps, Steps),
+                                nb_setval(reduction_steps, [(Left, Right)|Steps])
+                            ;
+                                true
+                            )
+                        ;
+                            true
+                        )
+                     ;
+                        true
+                     )
+                    )
                 ;
                     % ボディの評価に失敗 - 失敗情報を記録してバックトラック
                     nb_setval(last_failed_goal, Goal),
