@@ -727,9 +727,6 @@ rename_term_in_body(Body, _E1, _E2, Body) :-
     % E1 と E2 は既に適切に名前が付けられているので、そのまま使う
     true.
 
-% トークンを0回以上スキップ
-skip_token(T) --> [T], skip_token(T).
-skip_token(_) --> [].
 % '}' まで全てのトークンを収集（ネストした {} も考慮）
 collect_until_brace(Tokens) --> collect_until_brace_impl(0, 0, Tokens).
 
@@ -2382,69 +2379,6 @@ print_indent(N) :-
 % 構文木の横方向表示機能
 % ========================================
 
-% 構文木を横方向に表示する（改良版）
-% Term: 表示する構文木（正規化された項）
-display_syntax_tree(Term) :-
-    % 構文木を走査して、位置情報付きのノードリストを作成
-    term_to_positioned_nodes(Term, 0, 0, Nodes, _),
-    % ノードを深さごとにグループ化してグリッドに変換
-    create_display_grid(Nodes, Grid),
-    % グリッドを出力
-    print_display_grid(Grid).
-
-% 項を位置情報付きのノードリストに変換
-% Term: 入力項
-% Depth: 現在の深さ
-% Col: 現在の列位置
-% Nodes: ノードリスト [(Depth, Col, Text), ...]
-% NextCol: 次の列位置
-term_to_positioned_nodes(Term, Depth, Col, [node(Depth, Col, Text)], NextCol) :-
-    (atomic(Term) ; var(Term)),
-    !,
-    format_atomic_for_display(Term, Text),
-    atom_length(Text, Len),
-    NextCol is Col + Len + 1.
-
-term_to_positioned_nodes(Term, Depth, Col, Nodes, NextCol) :-
-    compound(Term),
-    Term =.. [Functor | Args],
-    % 括弧で囲まれた項の場合（正規化前と正規化後の両方に対応）
-    ((Functor = '()' ; Functor = '_()'), Args = [InnerTerm] ->
-        % 括弧の開き
-        OpenNode = node(Depth, Col, '('),
-        Col1 is Col + 2,
-        % 内側の項を処理
-        term_to_positioned_nodes(InnerTerm, Depth, Col1, InnerNodes, Col2),
-        % 括弧の閉じ
-        CloseNode = node(Depth, Col2, ')'),
-        NextCol is Col2 + 2,
-        append([[OpenNode], InnerNodes, [CloseNode]], Nodes)
-    ;
-        % 正規化されたファンクター（_で始まる）を元に戻す
-        (atom_concat('_', OrigFunctor, Functor) ->
-            % 演算子定義を探す
-            (ops(a(OrigFunctor), _, _, Pattern) ->
-                % 演算子として表示
-                format_operator_with_positions(OrigFunctor, Pattern, Args, Depth, Col, Nodes, NextCol)
-            ;
-                % 通常の関数として表示
-                format_function_with_positions(OrigFunctor, Args, Depth, Col, Nodes, NextCol)
-            )
-        ;
-            % 正規化されていない項（Prologの組込みなど）
-            (Functor = ',' ->
-                % カンマ演算子は特別扱い（複数の式の並び）
-                format_comma_sequence(Args, Depth, Col, Nodes, NextCol)
-            ;
-                format_function_with_positions(Functor, Args, Depth, Col, Nodes, NextCol)
-            )
-        )
-    ).
-
-% カンマで区切られた複数の式を処理（最初の式のみを表示）
-format_comma_sequence([First|_], Depth, Col, Nodes, NextCol) :-
-    term_to_positioned_nodes(First, Depth, Col, Nodes, NextCol).
-
 % アトミックな項を表示用文字列に変換
 format_atomic_for_display(Var, '_') :- var(Var), !.
 format_atomic_for_display(Term, Term) :- atom(Term), !.
@@ -2452,51 +2386,6 @@ format_atomic_for_display(Term, Atom) :-
     number(Term),
     !,
     atom_number(Atom, Term).
-
-% 演算子を位置情報付きで表示
-format_operator_with_positions(OpName, Pattern, Args, Depth, Col, Nodes, NextCol) :-
-    % パターンを解析して演算子トークンと引数位置を特定
-    build_operator_display(Pattern, Args, OpName, Depth, Col, Nodes, NextCol).
-
-% パターンから演算子の表示を構築
-build_operator_display(Pattern, Args, _OpName, Depth, Col, AllNodes, NextCol) :-
-    build_operator_parts(Pattern, Args, Depth, Col, [], AllNodes, NextCol).
-
-% パターンの各部分を処理
-build_operator_parts([], [], _Depth, Col, Acc, Nodes, Col) :-
-    reverse(Acc, Nodes).
-build_operator_parts([P|Ps], Args, Depth, Col, Acc, Nodes, NextCol) :-
-    \+ number(P),
-    !,
-    % 演算子のトークン
-    atom_length(P, Len),
-    Node = node(Depth, Col, P),
-    Col1 is Col + Len + 1,
-    build_operator_parts(Ps, Args, Depth, Col1, [Node|Acc], Nodes, NextCol).
-build_operator_parts([P|Ps], [Arg|RestArgs], Depth, Col, Acc, Nodes, NextCol) :-
-    number(P),
-    !,
-    % 引数の位置
-    NextDepth is Depth + 1,
-    term_to_positioned_nodes(Arg, NextDepth, Col, ArgNodes, Col1),
-    append(Acc, ArgNodes, NewAcc),
-    build_operator_parts(Ps, RestArgs, Depth, Col1, NewAcc, Nodes, NextCol).
-
-% 関数を位置情報付きで表示
-format_function_with_positions(Functor, Args, Depth, Col, Nodes, NextCol) :-
-    atom_length(Functor, Len),
-    Node = node(Depth, Col, Functor),
-    Col1 is Col + Len + 1,
-    NextDepth is Depth + 1,
-    process_function_args(Args, NextDepth, Col1, ArgNodes, NextCol),
-    append([Node], ArgNodes, Nodes).
-
-% 関数の引数を処理
-process_function_args([], _Depth, Col, [], Col).
-process_function_args([Arg|Rest], Depth, Col, AllNodes, NextCol) :-
-    term_to_positioned_nodes(Arg, Depth, Col, ArgNodes, Col1),
-    process_function_args(Rest, Depth, Col1, RestNodes, NextCol),
-    append(ArgNodes, RestNodes, AllNodes).
 
 % ノードリストからグリッドを作成
 create_display_grid(Nodes, Grid) :-
