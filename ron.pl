@@ -49,12 +49,20 @@ run :-
         nb_setval(trace_mode_detailed, false),
         Argv4 = Argv3
     ),
+    % 構文ビューモードをチェック
+    (member('--syntax', Argv4) ->
+        nb_setval(syntax_view_mode, true),
+        select('--syntax', Argv4, Argv5)
+    ;
+        nb_setval(syntax_view_mode, false),
+        Argv5 = Argv4
+    ),
     % 評価深さカウンタを初期化
     nb_setval(eval_depth, 0),
     % 失敗情報を初期化
     nb_setval(last_failed_goal, none),
     nb_setval(last_failed_body, none),
-    nth1(1, Argv4, FilePath) ->
+    nth1(1, Argv5, FilePath) ->
         (catch(
             file_eval(FilePath),
             Exception,
@@ -123,8 +131,12 @@ file_eval(FilePath) :-
     maplist(assert_rule, UpdatedRules),
     % これより前にバックトラックしない
     !,
-    % main を問い合わせする
-    (query(main) -> true ; (
+    % 構文ビューモードの場合は、mainブロックをパースして表示
+    (nb_getval(syntax_view_mode, true) ->
+        query_syntax_view(main, RestTokens4)
+    ;
+        % main を問い合わせする
+        (query(main) -> true ; (
         error_writeln('error: evaluation failed in main block'),
         error_nl,
         error_writeln('This may indicate:'),
@@ -188,7 +200,8 @@ file_eval(FilePath) :-
             true
         ),
         halt(1)
-    )).
+    ))
+    ).
 
 chars_tokens(Chars, Tokens) :-
     phrase(tokens(Tokens), Chars),
@@ -1749,10 +1762,128 @@ concat_without_underscores(List, Result) :-
     exclude(==('_'), List, Filtered),
     atomic_list_concat(Filtered, Result).
 
+% 構文ビューモード専用の問い合わせ
+% mainブロックのトークンから直接構文木を構築して表示
+query_syntax_view(main, Tokens) :-
+    % mainブロックを探す
+    (append(_, [main, open | RestTokens], Tokens) ->
+        % mainブロックの中身を取得（閉じ括弧まで）
+        extract_main_block_tokens(RestTokens, MainTokens, _),
+        % デバッグ出力
+        (nb_getval(debug_mode, true) ->
+            (write('Main block tokens: '), write(MainTokens), nl)
+        ; true),
+        % newlineをスキップ
+        (MainTokens = [newline|MainTokens2] -> true ; MainTokens2 = MainTokens),
+        % 最初の式をパース（正規化せずに）
+        (phrase(pred(ParsedTerm), MainTokens2, _) ->
+            (nb_getval(debug_mode, true) ->
+                (write('Parsed term: '), write(ParsedTerm), nl)
+            ; true),
+            writeln('Syntax tree view:'),
+            writeln(''),
+            display_syntax_tree_raw(ParsedTerm)
+        ;
+            error_writeln('error: failed to parse main block for syntax view'),
+            error_write('Tokens: '), write(user_error, MainTokens), error_nl
+        )
+    ;
+        error_writeln('error: main block not found')
+    ).
+
+% 正規化されていない項を表示（括弧を保持）
+display_syntax_tree_raw(Term) :-
+    term_to_positioned_nodes_raw(Term, 0, 0, Nodes, _),
+    create_display_grid(Nodes, Grid),
+    print_display_grid(Grid).
+
+% 正規化されていない項を位置情報付きノードに変換
+term_to_positioned_nodes_raw(Term, Depth, Col, [node(Depth, Col, Text)], NextCol) :-
+    (atomic(Term) ; var(Term)),
+    !,
+    format_atomic_for_display(Term, Text),
+    atom_length(Text, Len),
+    NextCol is Col + Len + 1.
+
+term_to_positioned_nodes_raw('$VAR'(VarName), Depth, Col, [node(Depth, Col, VarName)], NextCol) :-
+    !,
+    atom_length(VarName, Len),
+    NextCol is Col + Len + 1.
+
+term_to_positioned_nodes_raw(Term, Depth, Col, Nodes, NextCol) :-
+    compound(Term),
+    Term =.. [Functor | Args],
+    % 括弧で囲まれた項の場合
+    (Functor = '()', Args = [InnerTerm] ->
+        % 括弧の開き
+        OpenNode = node(Depth, Col, '('),
+        Col1 is Col + 2,
+        % 内側の項を処理（同じ深さで）
+        term_to_positioned_nodes_raw(InnerTerm, Depth, Col1, InnerNodes, Col2),
+        % 括弧の閉じ
+        CloseNode = node(Depth, Col2, ')'),
+        NextCol is Col2 + 2,
+        append([[OpenNode], InnerNodes, [CloseNode]], Nodes)
+    ;
+        % 演算子の場合
+        (ops(a(Functor), _, _, Pattern) ->
+            build_operator_parts_raw(Pattern, Args, Depth, Col, [], Nodes, NextCol)
+        ;
+            % 通常の関数
+            atom_length(Functor, Len),
+            Node = node(Depth, Col, Functor),
+            Col1 is Col + Len + 1,
+            NextDepth is Depth + 1,
+            process_function_args_raw(Args, NextDepth, Col1, ArgNodes, NextCol),
+            append([Node], ArgNodes, Nodes)
+        )
+    ).
+
+% 正規化されていない演算子パターンを処理
+build_operator_parts_raw([], [], _Depth, Col, Acc, Nodes, Col) :-
+    reverse(Acc, Nodes).
+build_operator_parts_raw([P|Ps], Args, Depth, Col, Acc, Nodes, NextCol) :-
+    \+ number(P),
+    !,
+    % 演算子のトークン
+    atom_length(P, Len),
+    Node = node(Depth, Col, P),
+    Col1 is Col + Len + 1,
+    build_operator_parts_raw(Ps, Args, Depth, Col1, [Node|Acc], Nodes, NextCol).
+build_operator_parts_raw([P|Ps], [Arg|RestArgs], Depth, Col, Acc, Nodes, NextCol) :-
+    number(P),
+    !,
+    % 引数の位置
+    NextDepth is Depth + 1,
+    term_to_positioned_nodes_raw(Arg, NextDepth, Col, ArgNodes, Col1),
+    append(Acc, ArgNodes, NewAcc),
+    build_operator_parts_raw(Ps, RestArgs, Depth, Col1, NewAcc, Nodes, NextCol).
+
+% 正規化されていない関数の引数を処理
+process_function_args_raw([], _Depth, Col, [], Col).
+process_function_args_raw([Arg|Rest], Depth, Col, AllNodes, NextCol) :-
+    term_to_positioned_nodes_raw(Arg, Depth, Col, ArgNodes, Col1),
+    process_function_args_raw(Rest, Depth, Col1, RestNodes, NextCol),
+    append(ArgNodes, RestNodes, AllNodes).
+
+% mainブロックのトークンを抽出（トークンと残りを分離）
+extract_main_block_tokens(Tokens, BlockTokens, RestTokens) :-
+    extract_block_tokens_impl(Tokens, 0, 0, BlockTokens, RestTokens).
+
+extract_block_tokens_impl([close|Rest], 0, 0, [], Rest) :- !.
+extract_block_tokens_impl([T|Ts], Depth1, Depth2, [T|Bs], Rest) :-
+    (T = open -> NewDepth1 is Depth1 + 1, NewDepth2 = Depth2
+     ; T = close -> NewDepth1 is Depth1 - 1, NewDepth2 = Depth2
+     ; T = '[' -> NewDepth1 = Depth1, NewDepth2 is Depth2 + 1
+     ; T = ']' -> NewDepth1 = Depth1, NewDepth2 is Depth2 - 1
+     ; NewDepth1 = Depth1, NewDepth2 = Depth2),
+    extract_block_tokens_impl(Ts, NewDepth1, NewDepth2, Bs, Rest).
+
 % 問い合わせ
 query(C) :-
     clause(C, B),
     varnumbers_names(B, T, P), !,
+    % 通常モード：評価を実行
     eval(T),
     (P \= [] -> unparse_answers(P) ; true),
     % トレースモードの場合、簡約過程を出力
@@ -2214,4 +2345,172 @@ print_indent(N) :-
     N > 0,
     write(' '),
     N1 is N - 1,
-    print_indent(N1).    
+    print_indent(N1).
+
+% ========================================
+% 構文木の横方向表示機能
+% ========================================
+
+% 構文木を横方向に表示する（改良版）
+% Term: 表示する構文木（正規化された項）
+display_syntax_tree(Term) :-
+    % 構文木を走査して、位置情報付きのノードリストを作成
+    term_to_positioned_nodes(Term, 0, 0, Nodes, _),
+    % ノードを深さごとにグループ化してグリッドに変換
+    create_display_grid(Nodes, Grid),
+    % グリッドを出力
+    print_display_grid(Grid).
+
+% 項を位置情報付きのノードリストに変換
+% Term: 入力項
+% Depth: 現在の深さ
+% Col: 現在の列位置
+% Nodes: ノードリスト [(Depth, Col, Text), ...]
+% NextCol: 次の列位置
+term_to_positioned_nodes(Term, Depth, Col, [node(Depth, Col, Text)], NextCol) :-
+    (atomic(Term) ; var(Term)),
+    !,
+    format_atomic_for_display(Term, Text),
+    atom_length(Text, Len),
+    NextCol is Col + Len + 1.
+
+term_to_positioned_nodes(Term, Depth, Col, Nodes, NextCol) :-
+    compound(Term),
+    Term =.. [Functor | Args],
+    % 括弧で囲まれた項の場合（正規化前と正規化後の両方に対応）
+    ((Functor = '()' ; Functor = '_()'), Args = [InnerTerm] ->
+        % 括弧の開き
+        OpenNode = node(Depth, Col, '('),
+        Col1 is Col + 2,
+        % 内側の項を処理
+        term_to_positioned_nodes(InnerTerm, Depth, Col1, InnerNodes, Col2),
+        % 括弧の閉じ
+        CloseNode = node(Depth, Col2, ')'),
+        NextCol is Col2 + 2,
+        append([[OpenNode], InnerNodes, [CloseNode]], Nodes)
+    ;
+        % 正規化されたファンクター（_で始まる）を元に戻す
+        (atom_concat('_', OrigFunctor, Functor) ->
+            % 演算子定義を探す
+            (ops(a(OrigFunctor), _, _, Pattern) ->
+                % 演算子として表示
+                format_operator_with_positions(OrigFunctor, Pattern, Args, Depth, Col, Nodes, NextCol)
+            ;
+                % 通常の関数として表示
+                format_function_with_positions(OrigFunctor, Args, Depth, Col, Nodes, NextCol)
+            )
+        ;
+            % 正規化されていない項（Prologの組込みなど）
+            (Functor = ',' ->
+                % カンマ演算子は特別扱い（複数の式の並び）
+                format_comma_sequence(Args, Depth, Col, Nodes, NextCol)
+            ;
+                format_function_with_positions(Functor, Args, Depth, Col, Nodes, NextCol)
+            )
+        )
+    ).
+
+% カンマで区切られた複数の式を処理（最初の式のみを表示）
+format_comma_sequence([First|_], Depth, Col, Nodes, NextCol) :-
+    term_to_positioned_nodes(First, Depth, Col, Nodes, NextCol).
+
+% アトミックな項を表示用文字列に変換
+format_atomic_for_display(Var, '_') :- var(Var), !.
+format_atomic_for_display(Term, Term) :- atom(Term), !.
+format_atomic_for_display(Term, Atom) :- 
+    number(Term),
+    !,
+    atom_number(Atom, Term).
+
+% 演算子を位置情報付きで表示
+format_operator_with_positions(OpName, Pattern, Args, Depth, Col, Nodes, NextCol) :-
+    % パターンを解析して演算子トークンと引数位置を特定
+    build_operator_display(Pattern, Args, OpName, Depth, Col, Nodes, NextCol).
+
+% パターンから演算子の表示を構築
+build_operator_display(Pattern, Args, _OpName, Depth, Col, AllNodes, NextCol) :-
+    build_operator_parts(Pattern, Args, Depth, Col, [], AllNodes, NextCol).
+
+% パターンの各部分を処理
+build_operator_parts([], [], _Depth, Col, Acc, Nodes, Col) :-
+    reverse(Acc, Nodes).
+build_operator_parts([P|Ps], Args, Depth, Col, Acc, Nodes, NextCol) :-
+    \+ number(P),
+    !,
+    % 演算子のトークン
+    atom_length(P, Len),
+    Node = node(Depth, Col, P),
+    Col1 is Col + Len + 1,
+    build_operator_parts(Ps, Args, Depth, Col1, [Node|Acc], Nodes, NextCol).
+build_operator_parts([P|Ps], [Arg|RestArgs], Depth, Col, Acc, Nodes, NextCol) :-
+    number(P),
+    !,
+    % 引数の位置
+    NextDepth is Depth + 1,
+    term_to_positioned_nodes(Arg, NextDepth, Col, ArgNodes, Col1),
+    append(Acc, ArgNodes, NewAcc),
+    build_operator_parts(Ps, RestArgs, Depth, Col1, NewAcc, Nodes, NextCol).
+
+% 関数を位置情報付きで表示
+format_function_with_positions(Functor, Args, Depth, Col, Nodes, NextCol) :-
+    atom_length(Functor, Len),
+    Node = node(Depth, Col, Functor),
+    Col1 is Col + Len + 1,
+    NextDepth is Depth + 1,
+    process_function_args(Args, NextDepth, Col1, ArgNodes, NextCol),
+    append([Node], ArgNodes, Nodes).
+
+% 関数の引数を処理
+process_function_args([], _Depth, Col, [], Col).
+process_function_args([Arg|Rest], Depth, Col, AllNodes, NextCol) :-
+    term_to_positioned_nodes(Arg, Depth, Col, ArgNodes, Col1),
+    process_function_args(Rest, Depth, Col1, RestNodes, NextCol),
+    append(ArgNodes, RestNodes, AllNodes).
+
+% ノードリストからグリッドを作成
+create_display_grid(Nodes, Grid) :-
+    % 最大深さを取得
+    findall(D, member(node(D, _, _), Nodes), Depths),
+    (Depths = [] ->
+        Grid = []
+    ;
+        max_list(Depths, MaxDepth),
+        % 各深さについて行を作成
+        findall(Line, (
+            between(0, MaxDepth, D),
+            create_line_for_depth(Nodes, D, Line)
+        ), Grid)
+    ).
+
+% 指定された深さの行を作成
+create_line_for_depth(Nodes, Depth, Line) :-
+    % この深さのノードを取得
+    findall((Col, Text), member(node(Depth, Col, Text), Nodes), NodesAtDepth),
+    % 列位置でソート
+    sort(NodesAtDepth, SortedNodes),
+    % ノードを配置して行を作成
+    place_nodes_in_line(SortedNodes, 0, Parts),
+    atomic_list_concat(Parts, '', Line).
+
+% ノードを行に配置
+place_nodes_in_line([], _CurrentCol, []).
+place_nodes_in_line([(Col, Text)|Rest], CurrentCol, [Spaces, Text|RestParts]) :-
+    % 現在位置からノードの位置までスペースを追加
+    SpaceCount is Col - CurrentCol,
+    (SpaceCount > 0 ->
+        length(SpaceList, SpaceCount),
+        maplist(=(' '), SpaceList),
+        atomic_list_concat(SpaceList, '', Spaces)
+    ;
+        Spaces = ''
+    ),
+    % 次の位置を計算
+    atom_length(Text, TextLen),
+    NextCol is Col + TextLen,
+    place_nodes_in_line(Rest, NextCol, RestParts).
+
+% グリッドを出力
+print_display_grid([]).
+print_display_grid([Line|Rest]) :-
+    writeln(Line),
+    print_display_grid(Rest).    
