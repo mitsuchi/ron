@@ -1814,7 +1814,7 @@ term_to_positioned_nodes_raw(Term, Depth, Col, Nodes, NextCol) :-
     compound(Term),
     Term =.. [Functor | Args],
     % 括弧で囲まれた項の場合
-    (Functor = '()', Args = [InnerTerm] ->
+    ((Functor = '()' ; Functor = '_()'), Args = [InnerTerm] ->
         % 括弧の開き
         OpenNode = node(Depth, Col, '('),
         Col1 is Col + 2,
@@ -1825,17 +1825,33 @@ term_to_positioned_nodes_raw(Term, Depth, Col, Nodes, NextCol) :-
         NextCol is Col2 + 2,
         append([[OpenNode], InnerNodes, [CloseNode]], Nodes)
     ;
-        % 演算子の場合
-        (ops(a(Functor), _, _, Pattern) ->
-            build_operator_parts_raw(Pattern, Args, Depth, Col, [], Nodes, NextCol)
+        % 正規化されたファンクター（_で始まる）を元に戻す
+        (atom_concat('_', OrigFunctor, Functor) ->
+            % 演算子の場合
+            (ops(a(OrigFunctor), _, _, Pattern) ->
+                build_operator_parts_raw(Pattern, Args, Depth, Col, [], Nodes, NextCol)
+            ;
+                % 通常の関数（正規化された）
+                atom_length(OrigFunctor, Len),
+                Node = node(Depth, Col, OrigFunctor),
+                Col1 is Col + Len + 1,
+                NextDepth is Depth + 1,
+                process_function_args_raw(Args, NextDepth, Col1, ArgNodes, NextCol),
+                append([Node], ArgNodes, Nodes)
+            )
         ;
-            % 通常の関数
-            atom_length(Functor, Len),
-            Node = node(Depth, Col, Functor),
-            Col1 is Col + Len + 1,
-            NextDepth is Depth + 1,
-            process_function_args_raw(Args, NextDepth, Col1, ArgNodes, NextCol),
-            append([Node], ArgNodes, Nodes)
+            % 演算子の場合（正規化されていない）
+            (ops(a(Functor), _, _, Pattern) ->
+                build_operator_parts_raw(Pattern, Args, Depth, Col, [], Nodes, NextCol)
+            ;
+                % 通常の関数
+                atom_length(Functor, Len),
+                Node = node(Depth, Col, Functor),
+                Col1 is Col + Len + 1,
+                NextDepth is Depth + 1,
+                process_function_args_raw(Args, NextDepth, Col1, ArgNodes, NextCol),
+                append([Node], ArgNodes, Nodes)
+            )
         )
     ).
 
@@ -2275,14 +2291,56 @@ debug_print(Label, List) :-
         true
     ).
 
-% Rules表示専用のデバッグ出力述語
+% Rules表示専用のデバッグ出力述語（横方向表示）
 debug_print_rules(Label, Rules) :-
     (nb_getval(debug_mode, true) ->
         writeln(Label),
-        maplist(display_tree, Rules)
+        maplist(display_rule_horizontal, Rules)
     ;
         true
     ).
+
+% 1つのルールを横方向に表示
+display_rule_horizontal(Rule) :-
+    (Rule = (Head :- Body) ->
+        % ヘッド部分を表示
+        writeln('  Head:'),
+        display_syntax_tree_raw_indented(Head, 4),
+        % ボディ部分を表示
+        (Body = true ->
+            writeln('  Body: true'),
+            nl
+        ;
+            writeln('  Body:'),
+            display_body_parts(Body, 4),
+            nl
+        )
+    ;
+        % ルールでない場合（opなど）
+        writeln('  '),
+        write('  '), write(Rule), nl, nl
+    ).
+
+% ボディの各部分を表示（カンマで区切られた複数の条件）
+display_body_parts((P, Ps), Indent) :-
+    !,
+    display_syntax_tree_raw_indented(P, Indent),
+    display_body_parts(Ps, Indent).
+display_body_parts(P, Indent) :-
+    display_syntax_tree_raw_indented(P, Indent).
+
+% インデント付きで構文木を表示
+display_syntax_tree_raw_indented(Term, IndentSize) :-
+    term_to_positioned_nodes_raw(Term, 0, 0, Nodes, _),
+    create_display_grid(Nodes, Grid),
+    print_display_grid_with_indent(Grid, IndentSize).
+
+% インデント付きでグリッドを出力
+print_display_grid_with_indent([], _).
+print_display_grid_with_indent([Line|Rest], IndentSize) :-
+    print_indent(IndentSize),
+    writeln(Line),
+    print_display_grid_with_indent(Rest, IndentSize).
 
 % インデントを生成する述語
 generate_indent(Depth, Indent) :-
