@@ -2370,33 +2370,6 @@ format_debug_item_with_indent(Depth, Item) :-
     ).
 
 
-% 項を横方向の木で表示する述語
-display_tree(Term) :-
-    display_tree(Term, 0).
-
-display_tree(Term, Indent) :-
-    % インデントを出力
-    print_indent(Indent),
-    % 項の種類を判定
-    (compound(Term) ->
-        % 複合項の場合
-        Term =.. [Functor|Args],
-        write(Functor),
-        nl,
-        % 引数を再帰的に表示
-        display_args(Args, Indent + 4)
-    ;
-        % アトムの場合
-        write(Term),
-        nl
-    ).
-
-% 引数リストを表示
-display_args([], _).
-display_args([Arg|Rest], Indent) :-
-    display_tree(Arg, Indent),
-    display_args(Rest, Indent).
-
 % インデントを出力
 print_indent(0).
 print_indent(N) :-
