@@ -36,11 +36,17 @@ run :-
         Argv3 = Argv2
     ),
     % トレースモードをチェック
-    (member('--trace', Argv3) ->
+    (member('--traces', Argv3) ->
         nb_setval(trace_mode, true),
+        nb_setval(trace_mode_detailed, true),
+        select('--traces', Argv3, Argv4)
+    ; member('--trace', Argv3) ->
+        nb_setval(trace_mode, true),
+        nb_setval(trace_mode_detailed, false),
         select('--trace', Argv3, Argv4)
     ;
         nb_setval(trace_mode, false),
+        nb_setval(trace_mode_detailed, false),
         Argv4 = Argv3
     ),
     % 評価深さカウンタを初期化
@@ -1770,15 +1776,15 @@ print_reduction_trace :-
             writeln('Reduction trace:'),
             % ステップを逆順にする
             reverse(Steps, ReversedSteps),
-            % 全ての左辺を取得して、最も大きい（他を含む）式を初期式とする
-            findall(L, member((L, _), ReversedSteps), AllLefts),
-            find_largest_term(AllLefts, InitialTerm),
-            % 初期式を表示
-            format_term(InitialTerm, InitialFormatted),
-            write('  '),
-            writeln(InitialFormatted),
-            % 初期式から始まる簡約の連鎖を追跡
-            trace_reduction_chain(InitialTerm, ReversedSteps)
+            % 詳細モードかどうかをチェック
+            nb_getval(trace_mode_detailed, DetailedMode),
+            (DetailedMode = true ->
+                % --traces: サブゴールも表示
+                print_detailed_trace(ReversedSteps)
+            ;
+                % --trace: トップレベルのみ表示
+                print_simple_trace(ReversedSteps)
+            )
         ;
             true  % ステップが空の場合は何も出力しない
         )
@@ -1786,20 +1792,130 @@ print_reduction_trace :-
         true  % トレースモードでない場合は何もしない
     ).
 
-% 簡約の連鎖を追跡して表示
-trace_reduction_chain(CurrentTerm, Steps) :-
-    % CurrentTermを左辺に持つステップを探す
-    (member((Left, Right), Steps), terms_equivalent(CurrentTerm, Left) ->
+% シンプルなトレース（--trace）: トップレベルのみ
+print_simple_trace(Steps) :-
+    % 全ての左辺を取得して、最も大きい（他を含む）式を初期式とする
+    findall(L, member((L, _, _), Steps), AllLefts),
+    find_largest_term(AllLefts, InitialTerm),
+    % 最小深さを取得（トップレベル）
+    findall(D, member((_, _, D), Steps), Depths),
+    min_list(Depths, MinDepth),
+    % 初期式を表示
+    format_term(InitialTerm, InitialFormatted),
+    write('  '),
+    writeln(InitialFormatted),
+    % 初期式から始まる簡約の連鎖を追跡
+    trace_reduction_chain(InitialTerm, Steps, MinDepth).
+
+% 詳細なトレース（--traces）: サブゴールも表示
+print_detailed_trace(Steps) :-
+    % 最小深さを取得（トップレベル）
+    findall(D, member((_, _, D), Steps), Depths),
+    min_list(Depths, MinDepth),
+    % 他のトップレベル項を含む最大の項を探す
+    findall(L, member((L, _, MinDepth), Steps), TopLefts),
+    find_largest_term(TopLefts, InitialTerm),
+    % 初期式を表示
+    format_term(InitialTerm, InitialFormatted),
+    write('  '),
+    writeln(InitialFormatted),
+    % サブゴールも含めて追跡
+    trace_reduction_chain_detailed(InitialTerm, Steps, MinDepth, 0).
+
+% 簡約の連鎖を追跡して表示（シンプル版）
+trace_reduction_chain(CurrentTerm, Steps, BaseDepth) :-
+    % CurrentTermを左辺に持つステップを探す（深さは BaseDepth 以上で最小のもの）
+    findall((L, R, D), (member((L, R, D), Steps), D >= BaseDepth, terms_equivalent(CurrentTerm, L)), AllMatches),
+    (AllMatches \= [] ->
+        % 深さが最小のものを選ぶ
+        findall(D, member((_, _, D), AllMatches), Depths),
+        min_list(Depths, MinD),
+        member((_Left, Right, MinD), AllMatches),
+        !,  % 最初の一致を使用
         writeln('->'),
         format_term(Right, RightFormatted),
         write('  '),
         writeln(RightFormatted),
         % 次のステップを再帰的に追跡
-        trace_reduction_chain(Right, Steps)
+        trace_reduction_chain(Right, Steps, BaseDepth)
     ;
         % これ以上簡約できない場合は終了
         true
     ).
+
+% 簡約の連鎖を追跡して表示（詳細版、サブゴール付き）
+trace_reduction_chain_detailed(CurrentTerm, Steps, TargetDepth, IndentLevel) :-
+    % CurrentTermを左辺に持つステップを探す（深さは TargetDepth 以上で最小のもの）
+    findall((L, R, D), (member((L, R, D), Steps), D >= TargetDepth, terms_equivalent(CurrentTerm, L)), AllMatches),
+    (AllMatches \= [] ->
+        % 深さが最小のものを選ぶ
+        findall(D, member((_, _, D), AllMatches), Depths),
+        min_list(Depths, MinD),
+        member((Left, Right, MinD), AllMatches),
+        !,  % 最初の一致を使用
+        % サブゴールを探して表示（より深い簡約）
+        find_and_print_subgoals(Left, Right, Steps, TargetDepth, IndentLevel),
+        % 次のトップレベルステップ
+        writeln('->'),
+        print_with_indent(Right, IndentLevel),
+        % 次のステップを再帰的に追跡
+        trace_reduction_chain_detailed(Right, Steps, TargetDepth, IndentLevel)
+    ;
+        % これ以上簡約できない場合は終了
+        true
+    ).
+
+% サブゴールを探して表示
+find_and_print_subgoals(Left, Right, Steps, ParentDepth, IndentLevel) :-
+    % Leftに含まれる部分項で、より深い深さで簡約されるものを探す
+    % ただし、Left自身とRight自身は除外
+    findall((SubLeft, SubRight, SubDepth), 
+            (member((SubLeft, SubRight, SubDepth), Steps),
+             SubDepth > ParentDepth,
+             term_contains(Left, SubLeft),
+             \+ terms_equivalent(SubLeft, Left),
+             \+ terms_equivalent(SubLeft, Right)),
+            SubGoals),
+    % サブゴールがあれば表示
+    (SubGoals \= [] ->
+        % サブゴールの最初のものを表示
+        SubGoals = [(FirstSubLeft, FirstSubRight, _FirstSubDepth)|_],
+        NewIndentLevel is IndentLevel + 1,
+        % サブゴールの左辺を表示
+        generate_indent_spaces(NewIndentLevel, IndentStr),
+        format_term(FirstSubLeft, FormattedLeft),
+        write('    '),
+        write(IndentStr),
+        writeln(FormattedLeft),
+        % 矢印を表示
+        write('  '),
+        write(IndentStr),
+        writeln('->'),
+        % サブゴールの右辺を表示
+        format_term(FirstSubRight, FormattedRight),
+        write('    '),
+        write(IndentStr),
+        writeln(FormattedRight)
+    ;
+        true
+    ).
+
+% インデント付きで項を表示
+print_with_indent(Term, IndentLevel) :-
+    generate_indent_spaces(IndentLevel, IndentStr),
+    format_term(Term, Formatted),
+    write('  '),
+    write(IndentStr),
+    writeln(Formatted).
+
+% インデント用のスペースを生成
+generate_indent_spaces(0, '') :- !.
+generate_indent_spaces(Level, Indent) :-
+    Level > 0,
+    IndentSize is Level * 2,
+    length(Spaces, IndentSize),
+    maplist(=(' '), Spaces),
+    atomic_list_concat(Spaces, '', Indent).
 
 % 2つの項が等価かチェック（変数名を無視して構造が同じか）
 terms_equivalent(T1, T2) :-
@@ -1986,7 +2102,8 @@ eval(Goal) :-
                              Arity = 2 ->
                                 Goal =.. ['_->', Left, Right],
                                 nb_getval(reduction_steps, Steps),
-                                nb_setval(reduction_steps, [(Left, Right)|Steps])
+                                % 深さも記録
+                                nb_setval(reduction_steps, [(Left, Right, Depth)|Steps])
                             ;
                                 true
                             )
